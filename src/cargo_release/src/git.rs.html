@@ -167,8 +167,8 @@
          <span class='ident'>dry_run</span>)
 }
 
-<span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>push</span>(<span class='ident'>dry_run</span>: <span class='ident'>bool</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Result</span><span class='op'>&lt;</span><span class='ident'>bool</span>, <span class='ident'>FatalError</span><span class='op'>&gt;</span> {
-    <span class='ident'>call</span>(<span class='macro'>vec</span><span class='macro'>!</span>[<span class='string'>&quot;git&quot;</span>, <span class='string'>&quot;push&quot;</span>, <span class='string'>&quot;--follow-tags&quot;</span>], <span class='ident'>dry_run</span>)
+<span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>push</span>(<span class='ident'>remote</span>: <span class='kw-2'>&amp;</span><span class='ident'>str</span>, <span class='ident'>dry_run</span>: <span class='ident'>bool</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Result</span><span class='op'>&lt;</span><span class='ident'>bool</span>, <span class='ident'>FatalError</span><span class='op'>&gt;</span> {
+    <span class='ident'>call</span>(<span class='macro'>vec</span><span class='macro'>!</span>[<span class='string'>&quot;git&quot;</span>, <span class='string'>&quot;push&quot;</span>, <span class='ident'>remote</span>, <span class='string'>&quot;--follow-tags&quot;</span>], <span class='ident'>dry_run</span>)
 }
 
 <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>top_level</span>() <span class='op'>-&gt;</span> <span class='prelude-ty'>Result</span><span class='op'>&lt;</span><span class='ident'>String</span>, <span class='ident'>FatalError</span><span class='op'>&gt;</span> {
