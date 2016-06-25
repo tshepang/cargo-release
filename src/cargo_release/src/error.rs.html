@@ -67,8 +67,12 @@
 <span id="23">23</span>
 <span id="24">24</span>
 <span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
 </pre><pre class='rust '>
-<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>io</span>::{<span class='ident'>Error</span> <span class='kw'>as</span> <span class='ident'>IOError</span>};
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>io</span>::<span class='ident'>Error</span> <span class='kw'>as</span> <span class='ident'>IOError</span>;
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>string</span>::<span class='ident'>FromUtf8Error</span>;
 <span class='kw'>use</span> <span class='ident'>semver</span>::<span class='ident'>SemVerError</span>;
 
@@ -82,6 +86,10 @@
         <span class='ident'>InvalidCargoFileFormat</span> {
             <span class='ident'>display</span>(<span class='string'>&quot;Invalid cargo file format&quot;</span>)
             <span class='ident'>description</span>(<span class='string'>&quot;Invalid cargo file format&quot;</span>)
+        }
+        <span class='ident'>InvalidCargoConfigKeys</span> {
+            <span class='ident'>display</span>(<span class='string'>&quot;Invalid cargo-release config item found&quot;</span>)
+            <span class='ident'>description</span>(<span class='string'>&quot;Invalid cargo-release config item found&quot;</span>)
         }
         <span class='ident'>SemVerError</span>(<span class='ident'>err</span>: <span class='ident'>SemVerError</span>) {
             <span class='ident'>from</span>()
@@ -117,6 +125,8 @@
                     <dd>Move down in search results</dd>
                     <dt>&#9166;</dt>
                     <dd>Go to active search result</dd>
+                    <dt>+</dt>
+                    <dd>Collapse/expand all sections</dd>
                 </dl>
             </div>
 
