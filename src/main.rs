@@ -55,6 +55,12 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
                     config::get_release_config(&cargo_file, config::DISABLE_PUSH)
                         .and_then(|f| f.as_bool())
                         .unwrap_or(false);
+    let dev_version_ext = args.value_of("dev-version-ext")
+                              .or_else(|| {
+                                  config::get_release_config(&cargo_file, config::DEV_VERSION_EXT)
+                                      .and_then(|f| f.as_str())
+                              })
+                              .unwrap_or("pre");
 
     let pre_release_commit_msg = config::get_release_config(&cargo_file,
                                                             config::PRE_RELEASE_COMMIT_MESSAGE)
@@ -181,7 +187,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
 
     // STEP 6: bump version
     version.increment_patch();
-    version.pre.push(Identifier::AlphaNumeric("pre".to_owned()));
+    version.pre.push(Identifier::AlphaNumeric(dev_version_ext.to_owned()));
     println!("Starting next development iteration {}", version);
     let updated_version_string = version.to_string();
     if !dry_run {
@@ -211,7 +217,8 @@ static USAGE: &'static str = "-l, --level=[level] 'Release level: bumpping major
                              --push-remote=[push-remote] 'Git remote to push'
                              [skip-push]... --skip-push 'Do not run git push in the last step'
                              --doc-branch=[doc-branch] 'Git branch to push documentation on'
-                             --tag-prefix=[tag-prefix] 'Prefix of git tag, note that this will override default prefix based on sub-directory ";
+                             --tag-prefix=[tag-prefix] 'Prefix of git tag, note that this will override default prefix based on sub-directory'
+                             --dev-version-ext=[dev-version-ext] 'Pre-release identifier(s) to append to the next development version after release'";
 
 fn main() {
     let matches =

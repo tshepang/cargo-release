@@ -15,6 +15,7 @@ pub static UPLOAD_DOC: &'static str = "upload-doc";
 pub static PUSH_REMOTE: &'static str = "push-remote";
 pub static DOC_BRANCH: &'static str = "doc-branch";
 pub static DISABLE_PUSH: &'static str = "disable-push";
+pub static DEV_VERSION_EXT: &'static str = "dev-version-ext";
 pub static PRE_RELEASE_COMMIT_MESSAGE: &'static str = "pre-release-commit-message";
 pub static PRO_RELEASE_COMMIT_MESSAGE: &'static str = "pro-release-commit-message";
 pub static TAG_MESSAGE: &'static str = "tag-message";
@@ -62,6 +63,7 @@ pub fn verify_release_config(config: &Table) -> Option<Vec<&str>> {
                           PUSH_REMOTE,
                           DOC_BRANCH,
                           DISABLE_PUSH,
+                          DEV_VERSION_EXT,
                           PRE_RELEASE_COMMIT_MESSAGE,
                           PRO_RELEASE_COMMIT_MESSAGE,
                           TAG_MESSAGE,
