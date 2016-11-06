@@ -80,6 +80,14 @@ by `--push-remote` to set the remote to push.
 
 Use `--skip-push` if you do not plan to push to anywhere for now.
 
+### Specifying dev pre-release extension
+
+After release, the version in Cargo.toml will be incremented and have
+a pre-release extension added, defaulting to `pre`.
+
+You can specify a different extension by using the
+`--dev-version-ext <ext>` option.
+
 ### Configuration in Cargo.toml
 
 From 0.6 you can persist options above in `Cargo.toml`. We use a
@@ -92,6 +100,8 @@ store these options. Available keys:
 * `doc-branch`: string, default branch to push docs
 * `push-remote`: string, default git remote to push
 * `disable-push`: bool, don't do git push
+* `dev-version-ext`: string, pre-release extension to use on the next
+  development version.
 * `pre-release-commit-message`: string, a commit message template for
   release. For example: `"release {{version}}"`, where `{{version}}`
   will be replaced by actual version.
