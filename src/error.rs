@@ -25,5 +25,9 @@ quick_error! {
             from()
             cause(err)
         }
+        InvalidReleaseLevel(level: String) {
+            display("Unsupported release level {}", level)
+            description("Unsupported release level, only major, minor and patch are supported")
+        }
     }
 }
