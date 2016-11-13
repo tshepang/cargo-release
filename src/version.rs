@@ -65,14 +65,14 @@ impl VersionExt for Version {
             let e = match self.pre[0] {
                 Identifier::AlphaNumeric(ref s) => s.to_owned(),
                 Identifier::Numeric(_) => {
-                    return Err(FatalError::UnsupportedPrereleaseVersionSchema)
+                    return Err(FatalError::UnsupportedPrereleaseVersionScheme)
                 }
             };
             let v = if let Some(v) = self.pre.get(1) {
                 if let Identifier::Numeric(v) = *v {
                     Some(v)
                 } else {
-                    return Err(FatalError::UnsupportedPrereleaseVersionSchema);
+                    return Err(FatalError::UnsupportedPrereleaseVersionScheme);
                 }
             } else {
                 None
