@@ -1,6 +1,15 @@
 use semver::{Version, Identifier};
 use error::FatalError;
 
+static VERSION_ALPHA: &'static str = "alpha";
+static VERSION_BETA: &'static str = "beta";
+static VERSION_RC: &'static str = "rc";
+
+pub fn is_pre_release(level: Option<&str>) -> bool {
+    level.map(|l| l == VERSION_ALPHA || l == VERSION_BETA || l == VERSION_RC)
+         .unwrap_or(false)
+}
+
 pub fn bump_version(version: &mut Version, level: Option<&str>) -> Result<bool, FatalError> {
     let mut need_commit = false;
     match level {
@@ -47,10 +56,6 @@ pub fn bump_version(version: &mut Version, level: Option<&str>) -> Result<bool, 
 
     Ok(need_commit)
 }
-
-static VERSION_ALPHA: &'static str = "alpha";
-static VERSION_BETA: &'static str = "beta";
-static VERSION_RC: &'static str = "rc";
 
 trait VersionExt {
     fn increment_alpha(&mut self) -> Result<(), FatalError>;

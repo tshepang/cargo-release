@@ -32,6 +32,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     }
 
     let dry_run = args.occurrences_of("dry-run") > 0;
+    let level = args.value_of("level");
     let sign = args.occurrences_of("sign") > 0 ||
                config::get_release_config(&cargo_file, config::SIGN_COMMIT)
                    .and_then(|f| f.as_bool())
@@ -95,7 +96,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
                                 .unwrap();
 
     // STEP 2: update current version, save and commit
-    if try!(version::bump_version(&mut version, args.value_of("level"))) {
+    if try!(version::bump_version(&mut version, level)) {
         let new_version_string = version.to_string();
         if !dry_run {
             try!(config::rewrite_cargo_version(&new_version_string));
@@ -154,18 +155,20 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     }
 
     // STEP 6: bump version
-    version.increment_patch();
-    version.pre.push(Identifier::AlphaNumeric(dev_version_ext.to_owned()));
-    println!("Starting next development iteration {}", version);
-    let updated_version_string = version.to_string();
-    if !dry_run {
-        try!(config::rewrite_cargo_version(&updated_version_string));
-    }
-    let commit_msg = String::from(pro_release_commit_msg)
-                         .replace("{{version}}", &updated_version_string);
+    if !version::is_pre_release(level) {
+        version.increment_patch();
+        version.pre.push(Identifier::AlphaNumeric(dev_version_ext.to_owned()));
+        println!("Starting next development iteration {}", version);
+        let updated_version_string = version.to_string();
+        if !dry_run {
+            try!(config::rewrite_cargo_version(&updated_version_string));
+        }
+        let commit_msg = String::from(pro_release_commit_msg)
+                             .replace("{{version}}", &updated_version_string);
 
-    if !try!(git::commit_all(".", &commit_msg, sign, dry_run)) {
-        return Ok(105);
+        if !try!(git::commit_all(".", &commit_msg, sign, dry_run)) {
+            return Ok(105);
+        }
     }
 
     // STEP 7: git push
