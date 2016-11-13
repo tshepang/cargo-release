@@ -25,5 +25,13 @@ quick_error! {
             from()
             cause(err)
         }
+        InvalidReleaseLevel(level: String) {
+            display("Unsupported release level {}", level)
+            description("Unsupported release level, only major, minor and patch are supported")
+        }
+        UnsupportedPrereleaseVersionScheme {
+            display("This version scheme is not supported by cargo-release.")
+            description("This version scheme is not supported by cargo-release. Use format like `pre`, `dev` or `alpha.1` for prerelease symbol")
+        }
     }
 }

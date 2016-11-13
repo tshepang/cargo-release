@@ -17,6 +17,7 @@ mod error;
 mod cmd;
 mod git;
 mod cargo;
+mod version;
 
 fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     let cargo_file = try!(config::parse_cargo_config());
@@ -94,40 +95,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
                                 .unwrap();
 
     // STEP 2: update current version, save and commit
-    let mut need_commit = false;
-    match args.value_of("level") {
-        Some(level) => {
-            match level {
-                "major" => {
-                    version.increment_major();
-                    need_commit = true;
-                }
-                "minor" => {
-                    version.increment_minor();
-                    need_commit = true
-                }
-                "patch" => {
-                    if !version.is_prerelease() {
-                        version.increment_patch();
-                    } else {
-                        version.pre.clear();
-                    }
-                    need_commit = true
-                }
-                _ => {
-                    panic!("Invalid level: {}", level);
-                }
-            }
-        }
-        None => {
-            if version.is_prerelease() {
-                version.pre.clear();
-                need_commit = true;
-            }
-        }
-    }
-
-    if need_commit {
+    if try!(version::bump_version(&mut version, args.value_of("level"))) {
         let new_version_string = version.to_string();
         if !dry_run {
             try!(config::rewrite_cargo_version(&new_version_string));
