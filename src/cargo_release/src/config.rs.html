@@ -217,6 +217,8 @@
 <span id="173">173</span>
 <span id="174">174</span>
 <span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
 </pre><pre class='rust '>
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>io</span>::<span class='ident'>prelude</span>::<span class='op'>*</span>;
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>io</span>;
@@ -235,6 +237,7 @@
 <span class='kw'>pub</span> <span class='kw'>static</span> <span class='ident'>PUSH_REMOTE</span>: <span class='kw-2'>&amp;</span><span class='lifetime'>&#39;static</span> <span class='ident'>str</span> <span class='op'>=</span> <span class='string'>&quot;push-remote&quot;</span>;
 <span class='kw'>pub</span> <span class='kw'>static</span> <span class='ident'>DOC_BRANCH</span>: <span class='kw-2'>&amp;</span><span class='lifetime'>&#39;static</span> <span class='ident'>str</span> <span class='op'>=</span> <span class='string'>&quot;doc-branch&quot;</span>;
 <span class='kw'>pub</span> <span class='kw'>static</span> <span class='ident'>DISABLE_PUSH</span>: <span class='kw-2'>&amp;</span><span class='lifetime'>&#39;static</span> <span class='ident'>str</span> <span class='op'>=</span> <span class='string'>&quot;disable-push&quot;</span>;
+<span class='kw'>pub</span> <span class='kw'>static</span> <span class='ident'>DEV_VERSION_EXT</span>: <span class='kw-2'>&amp;</span><span class='lifetime'>&#39;static</span> <span class='ident'>str</span> <span class='op'>=</span> <span class='string'>&quot;dev-version-ext&quot;</span>;
 <span class='kw'>pub</span> <span class='kw'>static</span> <span class='ident'>PRE_RELEASE_COMMIT_MESSAGE</span>: <span class='kw-2'>&amp;</span><span class='lifetime'>&#39;static</span> <span class='ident'>str</span> <span class='op'>=</span> <span class='string'>&quot;pre-release-commit-message&quot;</span>;
 <span class='kw'>pub</span> <span class='kw'>static</span> <span class='ident'>PRO_RELEASE_COMMIT_MESSAGE</span>: <span class='kw-2'>&amp;</span><span class='lifetime'>&#39;static</span> <span class='ident'>str</span> <span class='op'>=</span> <span class='string'>&quot;pro-release-commit-message&quot;</span>;
 <span class='kw'>pub</span> <span class='kw'>static</span> <span class='ident'>TAG_MESSAGE</span>: <span class='kw-2'>&amp;</span><span class='lifetime'>&#39;static</span> <span class='ident'>str</span> <span class='op'>=</span> <span class='string'>&quot;tag-message&quot;</span>;
@@ -282,6 +285,7 @@
                           <span class='ident'>PUSH_REMOTE</span>,
                           <span class='ident'>DOC_BRANCH</span>,
                           <span class='ident'>DISABLE_PUSH</span>,
+                          <span class='ident'>DEV_VERSION_EXT</span>,
                           <span class='ident'>PRE_RELEASE_COMMIT_MESSAGE</span>,
                           <span class='ident'>PRO_RELEASE_COMMIT_MESSAGE</span>,
                           <span class='ident'>TAG_MESSAGE</span>,
@@ -385,7 +389,7 @@
 <span class='attribute'>#[<span class='ident'>test</span>]</span>
 <span class='kw'>fn</span> <span class='ident'>test_release_config</span>() {
     <span class='kw'>if</span> <span class='kw'>let</span> <span class='prelude-val'>Ok</span>(<span class='ident'>cargo_file</span>) <span class='op'>=</span> <span class='ident'>parse_cargo_config</span>() {
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>get_release_config</span>(<span class='kw-2'>&amp;</span><span class='ident'>cargo_file</span>, <span class='string'>&quot;sign-tag&quot;</span>)
+        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>get_release_config</span>(<span class='kw-2'>&amp;</span><span class='ident'>cargo_file</span>, <span class='string'>&quot;sign-commit&quot;</span>)
                     .<span class='ident'>and_then</span>(<span class='op'>|</span><span class='ident'>f</span><span class='op'>|</span> <span class='ident'>f</span>.<span class='ident'>as_bool</span>())
                     .<span class='ident'>unwrap_or</span>(<span class='bool-val'>false</span>));
     } <span class='kw'>else</span> {
@@ -450,11 +454,9 @@
     <script>
         window.rootPath = "../../../";
         window.currentCrate = "cargo_release";
-        window.playgroundUrl = "";
     </script>
     <script src="../../../jquery.js"></script>
     <script src="../../../main.js"></script>
-    
     <script defer src="../../../search-index.js"></script>
 </body>
 </html>
