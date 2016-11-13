@@ -7,7 +7,7 @@ This a script standardize release process of cargo project for you.
 Basically it runs following tasks:
 
 * Check if current working directory is git clean
-* Read version from Cargo.toml, remove prerelease extension, bump
+* Read version from Cargo.toml, remove pre-release extension, bump
   version and commit if necessary
 * Run `cargo publish`
 * Generate rustdoc and push to gh-pages optionally
@@ -31,10 +31,10 @@ Basically it runs following tasks:
 
 Use `-l [level]` or `--level [level]` to specify a release level.
 
-* By default, cargo release removes prerelease extension; if there is
-no prerelease extension, the current version will be used (0.1.0-pre
+* By default, cargo release removes pre-release extension; if there is
+no pre-release extension, the current version will be used (0.1.0-pre
 -> 0.1.0, 0.1.0 -> 0.1.0)
-* If level is `patch` and current version is a prerelease, it behaves
+* If level is `patch` and current version is a pre-release, it behaves
 like default; if current version has no extension, it bumps patch
 version (0.1.0 -> 0.1.1)
 * If level is `minor`, it bumps minor version (0.1.0-pre -> 0.2.0)
@@ -80,6 +80,14 @@ by `--push-remote` to set the remote to push.
 
 Use `--skip-push` if you do not plan to push to anywhere for now.
 
+### Specifying dev pre-release extension
+
+After release, the version in Cargo.toml will be incremented and have
+a pre-release extension added, defaulting to `pre`.
+
+You can specify a different extension by using the
+`--dev-version-ext <ext>` option.
+
 ### Configuration in Cargo.toml
 
 From 0.6 you can persist options above in `Cargo.toml`. We use a
@@ -92,6 +100,8 @@ store these options. Available keys:
 * `doc-branch`: string, default branch to push docs
 * `push-remote`: string, default git remote to push
 * `disable-push`: bool, don't do git push
+* `dev-version-ext`: string, pre-release extension to use on the next
+  development version.
 * `pre-release-commit-message`: string, a commit message template for
   release. For example: `"release {{version}}"`, where `{{version}}`
   will be replaced by actual version.
