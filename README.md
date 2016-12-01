@@ -1,6 +1,7 @@
 # cargo release
 
 [![](http://meritbadge.herokuapp.com/cargo-release)](https://crates.io/crates/cargo-release)
+[![Build Status](https://travis-ci.org/sunng87/cargo-release.svg?branch=master)](https://travis-ci.org/sunng87/cargo-release)
 
 This a script standardize release process of cargo project for you.
 
