@@ -41,6 +41,15 @@ version (0.1.0 -> 0.1.1)
 * If level is `minor`, it bumps minor version (0.1.0-pre -> 0.2.0)
 * If level is `major`, it bumps major version (0.1.0-pre -> 1.0.0)
 
+From 0.7, you can also use `alpha`, `beta` and `rc` for `level`. It
+adds pre-release to your version. You can have multiple `alpha`
+version as it goes to `alpha.1`, `alpha.2`…
+
+Releasing `alpha` version on top of a `beta` or `rc` version is not
+allowed and will be resulted in error. So does `beta` on `rc`. It is
+recommended to use `--dry-run` if you are not sure about the behavior
+of specific `level`.
+
 ### Signing your git commit and tag
 
 Use `--sign` option to GPG sign your release commits and
