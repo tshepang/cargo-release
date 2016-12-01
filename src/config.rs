@@ -16,6 +16,7 @@ pub static PUSH_REMOTE: &'static str = "push-remote";
 pub static DOC_BRANCH: &'static str = "doc-branch";
 pub static DISABLE_PUSH: &'static str = "disable-push";
 pub static DEV_VERSION_EXT: &'static str = "dev-version-ext";
+pub static NO_DEV_VERSION: &'static str = "no-dev-version";
 pub static PRE_RELEASE_COMMIT_MESSAGE: &'static str = "pre-release-commit-message";
 pub static PRO_RELEASE_COMMIT_MESSAGE: &'static str = "pro-release-commit-message";
 pub static TAG_MESSAGE: &'static str = "tag-message";
