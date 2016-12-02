@@ -158,7 +158,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     }
 
     // STEP 6: bump version
-    if !version::is_pre_release(level) || !no_dev_version {
+    if !version::is_pre_release(level) && !no_dev_version {
         version.increment_patch();
         version.pre.push(Identifier::AlphaNumeric(dev_version_ext.to_owned()));
         println!("Starting next development iteration {}", version);
