@@ -96,7 +96,8 @@ After release, the version in Cargo.toml will be incremented and have
 a pre-release extension added, defaulting to `pre`.
 
 You can specify a different extension by using the
-`--dev-version-ext <ext>` option.
+`--dev-version-ext <ext>` option. To disable version bump after
+release, use `--no-dev-version` option.
 
 ### Configuration in Cargo.toml
 
@@ -123,6 +124,7 @@ store these options. Available keys:
   variables: `{{version}}`, `{{prefix}}` (the tag prefix)
 * `doc-commit-message`: string, a commit message template for doc
   import.
+* `no-dev-version`: bool, disable version bump after release.
 
 ```toml
 [package.metadata.release]

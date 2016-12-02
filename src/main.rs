@@ -63,7 +63,10 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
                                       .and_then(|f| f.as_str())
                               })
                               .unwrap_or("pre");
-
+    let no_dev_version = args.occurrences_of("no-dev-version") > 0 ||
+                         config::get_release_config(&cargo_file, config::NO_DEV_VERSION)
+                             .and_then(|f| f.as_bool())
+                             .unwrap_or(false);
     let pre_release_commit_msg = config::get_release_config(&cargo_file,
                                                             config::PRE_RELEASE_COMMIT_MESSAGE)
                                      .and_then(|f| f.as_str())
@@ -155,7 +158,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     }
 
     // STEP 6: bump version
-    if !version::is_pre_release(level) {
+    if !version::is_pre_release(level) && !no_dev_version {
         version.increment_patch();
         version.pre.push(Identifier::AlphaNumeric(dev_version_ext.to_owned()));
         println!("Starting next development iteration {}", version);
@@ -189,7 +192,8 @@ static USAGE: &'static str = "-l, --level=[level] 'Release level: bumpping major
                              [skip-push]... --skip-push 'Do not run git push in the last step'
                              --doc-branch=[doc-branch] 'Git branch to push documentation on'
                              --tag-prefix=[tag-prefix] 'Prefix of git tag, note that this will override default prefix based on sub-directory'
-                             --dev-version-ext=[dev-version-ext] 'Pre-release identifier(s) to append to the next development version after release'";
+                             --dev-version-ext=[dev-version-ext] 'Pre-release identifier(s) to append to the next development version after release'
+                             [no-dev-version]... --no-dev-version 'Do not create dev version after release'";
 
 fn main() {
     let matches =
