@@ -65,6 +65,7 @@ pub fn verify_release_config(config: &Table) -> Option<Vec<&str>> {
                           DOC_BRANCH,
                           DISABLE_PUSH,
                           DEV_VERSION_EXT,
+                          NO_DEV_VERSION,
                           PRE_RELEASE_COMMIT_MESSAGE,
                           PRO_RELEASE_COMMIT_MESSAGE,
                           TAG_MESSAGE,
