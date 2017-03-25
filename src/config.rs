@@ -50,12 +50,12 @@ pub fn parse_cargo_config() -> Result<Table, FatalError> {
 
 pub fn get_release_config<'a>(config: &'a Table, key: &str) -> Option<&'a Value> {
     config.get("package")
-          .and_then(|f| f.as_table())
-          .and_then(|f| f.get("metadata"))
-          .and_then(|f| f.as_table())
-          .and_then(|f| f.get("release"))
-          .and_then(|f| f.as_table())
-          .and_then(|f| f.get(key))
+        .and_then(|f| f.as_table())
+        .and_then(|f| f.get("metadata"))
+        .and_then(|f| f.as_table())
+        .and_then(|f| f.get("release"))
+        .and_then(|f| f.as_table())
+        .and_then(|f| f.get(key))
 }
 
 pub fn verify_release_config(config: &Table) -> Option<Vec<&str>> {
@@ -70,11 +70,11 @@ pub fn verify_release_config(config: &Table) -> Option<Vec<&str>> {
                           TAG_MESSAGE,
                           DOC_COMMIT_MESSAGE];
     if let Some(ref r) = config.get("package")
-                               .and_then(|f| f.as_table())
-                               .and_then(|f| f.get("metadata"))
-                               .and_then(|f| f.as_table())
-                               .and_then(|f| f.get("release"))
-                               .and_then(|f| f.as_table()) {
+           .and_then(|f| f.as_table())
+           .and_then(|f| f.get("metadata"))
+           .and_then(|f| f.as_table())
+           .and_then(|f| f.get("release"))
+           .and_then(|f| f.as_table()) {
         let mut invalid_keys = Vec::new();
         for i in r.keys() {
             if !valid_keys.contains(&i.as_ref()) {

@@ -42,45 +42,45 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
                          .and_then(|f| f.as_bool())
                          .unwrap_or(false);
     let git_remote = args.value_of("push-remote")
-                         .or_else(|| {
-                             config::get_release_config(&cargo_file, config::PUSH_REMOTE)
+        .or_else(|| {
+                     config::get_release_config(&cargo_file, config::PUSH_REMOTE)
                                  .and_then(|f| f.as_str())
-                         })
-                         .unwrap_or("origin");
+                 })
+        .unwrap_or("origin");
     let doc_branch = args.value_of("doc-branch")
-                         .or_else(|| {
-                             config::get_release_config(&cargo_file, config::DOC_BRANCH)
+        .or_else(|| {
+                     config::get_release_config(&cargo_file, config::DOC_BRANCH)
                                  .and_then(|f| f.as_str())
-                         })
-                         .unwrap_or("gh-pages");
+                 })
+        .unwrap_or("gh-pages");
     let skip_push = args.occurrences_of("skip-push") > 0 ||
                     config::get_release_config(&cargo_file, config::DISABLE_PUSH)
                         .and_then(|f| f.as_bool())
                         .unwrap_or(false);
     let dev_version_ext = args.value_of("dev-version-ext")
-                              .or_else(|| {
-                                  config::get_release_config(&cargo_file, config::DEV_VERSION_EXT)
-                                      .and_then(|f| f.as_str())
-                              })
-                              .unwrap_or("pre");
+        .or_else(|| {
+                     config::get_release_config(&cargo_file, config::DEV_VERSION_EXT)
+                         .and_then(|f| f.as_str())
+                 })
+        .unwrap_or("pre");
     let no_dev_version = args.occurrences_of("no-dev-version") > 0 ||
                          config::get_release_config(&cargo_file, config::NO_DEV_VERSION)
                              .and_then(|f| f.as_bool())
                              .unwrap_or(false);
     let pre_release_commit_msg = config::get_release_config(&cargo_file,
                                                             config::PRE_RELEASE_COMMIT_MESSAGE)
-                                     .and_then(|f| f.as_str())
-                                     .unwrap_or("(cargo-release) version {{version}}");
+            .and_then(|f| f.as_str())
+            .unwrap_or("(cargo-release) version {{version}}");
     let pro_release_commit_msg =
         config::get_release_config(&cargo_file, config::PRO_RELEASE_COMMIT_MESSAGE)
             .and_then(|f| f.as_str())
             .unwrap_or("(cargo-release) start next development iteration {{version}}");
     let tag_msg = config::get_release_config(&cargo_file, config::TAG_MESSAGE)
-                      .and_then(|f| f.as_str())
-                      .unwrap_or("(cargo-release) {{prefix}} version {{version}}");
+        .and_then(|f| f.as_str())
+        .unwrap_or("(cargo-release) {{prefix}} version {{version}}");
     let doc_commit_msg = config::get_release_config(&cargo_file, config::DOC_COMMIT_MESSAGE)
-                             .and_then(|f| f.as_str())
-                             .unwrap_or("(cargo-release) generate docs");
+        .and_then(|f| f.as_str())
+        .unwrap_or("(cargo-release) generate docs");
 
     // STEP 0: Check if working directory is clean
     if !try!(git::status()) {
@@ -92,11 +92,11 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
 
     // STEP 1: Read version from Cargo.toml and remove
     let mut version = cargo_file.get("package")
-                                .and_then(|f| f.as_table())
-                                .and_then(|f| f.get("version"))
-                                .and_then(|f| f.as_str())
-                                .and_then(|f| config::parse_version(f).ok())
-                                .unwrap();
+        .and_then(|f| f.as_table())
+        .and_then(|f| f.get("version"))
+        .and_then(|f| f.as_str())
+        .and_then(|f| config::parse_version(f).ok())
+        .unwrap();
 
     // STEP 2: update current version, save and commit
     if try!(version::bump_version(&mut version, level)) {
@@ -105,8 +105,8 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
             try!(config::rewrite_cargo_version(&new_version_string));
         }
 
-        let commit_msg = String::from(pre_release_commit_msg)
-                             .replace("{{version}}", &new_version_string);
+        let commit_msg =
+            String::from(pre_release_commit_msg).replace("{{version}}", &new_version_string);
         if !try!(git::commit_all(".", &commit_msg, sign, dry_run)) {
             // commit failed, abort release
             return Ok(102);
@@ -141,16 +141,17 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     let root = try!(git::top_level());
     let rel_path = try!(cmd::relative_path_for(&root));
     let tag_prefix = args.value_of("tag-prefix")
-                         .map(|t| t.to_owned())
-                         .or(rel_path.as_ref().map(|t| format!("{}-", t)));
+        .map(|t| t.to_owned())
+        .or(rel_path.as_ref().map(|t| format!("{}-", t)));
 
     let current_version = version.to_string();
-    let tag_name = tag_prefix.as_ref().map_or_else(|| current_version.clone(),
-                                                   |x| format!("{}{}", x, current_version));
+    let tag_name =
+        tag_prefix.as_ref().map_or_else(|| current_version.clone(),
+                                        |x| format!("{}{}", x, current_version));
 
     let tag_message = String::from(tag_msg)
-                          .replace("{{prefix}}", tag_prefix.as_ref().unwrap_or(&"".to_owned()))
-                          .replace("{{version}}", &current_version);
+        .replace("{{prefix}}", tag_prefix.as_ref().unwrap_or(&"".to_owned()))
+        .replace("{{version}}", &current_version);
 
     if !try!(git::tag(&tag_name, &tag_message, sign, dry_run)) {
         // tag failed, abort release
@@ -166,8 +167,8 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
         if !dry_run {
             try!(config::rewrite_cargo_version(&updated_version_string));
         }
-        let commit_msg = String::from(pro_release_commit_msg)
-                             .replace("{{version}}", &updated_version_string);
+        let commit_msg =
+            String::from(pro_release_commit_msg).replace("{{version}}", &updated_version_string);
 
         if !try!(git::commit_all(".", &commit_msg, sign, dry_run)) {
             return Ok(105);
@@ -196,14 +197,13 @@ static USAGE: &'static str = "-l, --level=[level] 'Release level: bumpping major
                              [no-dev-version]... --no-dev-version 'Do not create dev version after release'";
 
 fn main() {
-    let matches =
-        App::new("cargo")
-            .subcommand(SubCommand::with_name("release")
-                            .version(env!("CARGO_PKG_VERSION"))
-                            .author("Ning Sun <sunng@about.me>")
-                            .about("Cargo subcommand for you to smooth your release process.")
-                            .args_from_usage(USAGE))
-            .get_matches();
+    let matches = App::new("cargo")
+        .subcommand(SubCommand::with_name("release")
+                        .version(env!("CARGO_PKG_VERSION"))
+                        .author("Ning Sun <sunng@about.me>")
+                        .about("Cargo subcommand for you to smooth your release process.")
+                        .args_from_usage(USAGE))
+        .get_matches();
 
     if let Some(ref release_matches) = matches.subcommand_matches("release") {
         match execute(release_matches) {
