@@ -16,4 +16,4 @@ clap = "2.1.2"
 
 [package.metadata.release]
 sign-commit = true
-upload-doc = true
+#upload-doc = true
