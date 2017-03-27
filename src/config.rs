@@ -4,7 +4,7 @@ use std::io::BufReader;
 use std::fs::{self, File};
 use std::path::Path;
 
-use toml::{Parser, Value, Table};
+use toml::{self, Value};
 use semver::Version;
 use regex::Regex;
 
@@ -35,20 +35,14 @@ fn save_to_file(path: &Path, content: &str) -> io::Result<()> {
     Ok(())
 }
 
-pub fn parse_cargo_config() -> Result<Table, FatalError> {
+pub fn parse_cargo_config() -> Result<Value, FatalError> {
     let cargo_file_path = Path::new("Cargo.toml");
 
     let cargo_file_content = try!(load_from_file(&cargo_file_path).map_err(FatalError::from));
-
-    let mut parser = Parser::new(&cargo_file_content);
-
-    match parser.parse() {
-        Some(toml) => Ok(toml),
-        None => Err(FatalError::InvalidCargoFileFormat),
-    }
+    cargo_file_content.parse().map_err(FatalError::from)
 }
 
-pub fn get_release_config<'a>(config: &'a Table, key: &str) -> Option<&'a Value> {
+pub fn get_release_config<'a>(config: &'a Value, key: &str) -> Option<&'a Value> {
     config.get("package")
         .and_then(|f| f.as_table())
         .and_then(|f| f.get("metadata"))
@@ -58,7 +52,7 @@ pub fn get_release_config<'a>(config: &'a Table, key: &str) -> Option<&'a Value>
         .and_then(|f| f.get(key))
 }
 
-pub fn verify_release_config(config: &Table) -> Option<Vec<&str>> {
+pub fn verify_release_config(config: &Value) -> Option<Vec<&str>> {
     let valid_keys = vec![SIGN_COMMIT,
                           UPLOAD_DOC,
                           PUSH_REMOTE,
@@ -92,10 +86,11 @@ pub fn verify_release_config(config: &Table) -> Option<Vec<&str>> {
     }
 }
 
-pub fn save_cargo_config(config: &Table) -> Result<(), FatalError> {
+pub fn save_cargo_config(config: &Value) -> Result<(), FatalError> {
     let cargo_file_path = Path::new("Cargo.toml");
 
-    let serialized_data = format!("{}", Value::Table(config.clone()));
+
+    let serialized_data = toml::to_string(config).unwrap();
 
     try!(save_to_file(&cargo_file_path, &serialized_data).map_err(FatalError::from));
     Ok(())

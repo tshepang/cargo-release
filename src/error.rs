@@ -1,6 +1,7 @@
 use std::io::Error as IOError;
 use std::string::FromUtf8Error;
 use semver::SemVerError;
+use toml::de::Error;
 
 quick_error! {
     #[derive(Debug)]
@@ -9,9 +10,11 @@ quick_error! {
             from()
             cause(err)
         }
-        InvalidCargoFileFormat {
+        InvalidCargoFileFormat(err: Error) {
             display("Invalid cargo file format")
             description("Invalid cargo file format")
+            from()
+            cause(err)
         }
         InvalidCargoConfigKeys {
             display("Invalid cargo-release config item found")
