@@ -18,6 +18,7 @@ mod cmd;
 mod git;
 mod cargo;
 mod version;
+mod replace;
 
 fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     let cargo_file = try!(config::parse_cargo_config());
