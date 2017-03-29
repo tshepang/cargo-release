@@ -1,6 +1,6 @@
 use std::io::prelude::*;
 use std::io;
-use std::fs::{self, File};
+use std::fs::File;
 use std::path::Path;
 
 use regex::Regex;
@@ -20,20 +20,28 @@ fn save_to_file(path: &Path, content: &str) -> io::Result<()> {
     Ok(())
 }
 
-pub fn do_replace_versions(replace_config: &Value, version: &str) -> Result<bool, FatalError> {
+pub fn do_replace_versions(replace_config: &Value,
+                           version: &str,
+                           dry_run: bool)
+                           -> Result<bool, FatalError> {
 
     if let &Value::Array(ref v) = replace_config {
         for tbl in v {
             if let &Value::Table(ref t) = tbl {
                 let file = t.get("file").and_then(|v| v.as_str()).unwrap();
-                let pattern = t.get("regex").and_then(|v| v.as_str()).unwrap();
+                let pattern = t.get("search").and_then(|v| v.as_str()).unwrap();
+                let replace = t.get("replace").and_then(|v| v.as_str()).unwrap();
+                let replace_with_version = replace.replace("{{version}}", version);
+                let replacer = replace_with_version.as_str();
 
                 let data = try!(load_from_file(&Path::new(file)));
 
                 let r = Regex::new(pattern).unwrap();
-                let result = r.replace_all(&data, version);
+                let result = r.replace_all(&data, replacer);
 
-                try!(save_to_file(&Path::new(file), &result));
+                if !dry_run {
+                    try!(save_to_file(&Path::new(file), &result));
+                }
             }
         }
     }

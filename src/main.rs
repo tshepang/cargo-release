@@ -75,7 +75,8 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     let pro_release_commit_msg =
         config::get_release_config(&cargo_file, config::PRO_RELEASE_COMMIT_MESSAGE)
             .and_then(|f| f.as_str())
-            .unwrap_or("(cargo-release) start next development iteration {{version}}");
+        .unwrap_or("(cargo-release) start next development iteration {{version}}");
+    let pre_release_replacements = config::get_release_config(&cargo_file, config::PRE_RELEASE_REPLACEMENTS); 
     let tag_msg = config::get_release_config(&cargo_file, config::TAG_MESSAGE)
         .and_then(|f| f.as_str())
         .unwrap_or("(cargo-release) {{prefix}} version {{version}}");
@@ -104,6 +105,11 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
         let new_version_string = version.to_string();
         if !dry_run {
             try!(config::rewrite_cargo_version(&new_version_string));
+        }
+
+        if let Some(pre_rel_rep) = pre_release_replacements {
+            // try update version number in configured files
+            try!(replace::do_replace_versions(pre_rel_rep, &new_version_string, dry_run));
         }
 
         let commit_msg =
