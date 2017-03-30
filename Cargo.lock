@@ -1,6 +1,6 @@
 [root]
 name = "cargo-release"
-version = "0.8.0-pre"
+version = "0.8.0-beta.1"
 dependencies = [
  "clap 2.22.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "quick-error 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
