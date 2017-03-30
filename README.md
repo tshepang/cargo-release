@@ -18,6 +18,8 @@ Basically it runs following tasks:
 
 ## Install
 
+Current release: 0.7.1
+
 `cargo install cargo-release`
 
 ## Usage

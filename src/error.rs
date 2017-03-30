@@ -2,6 +2,7 @@ use std::io::Error as IOError;
 use std::string::FromUtf8Error;
 use semver::SemVerError;
 use toml::de::Error;
+use regex::Error as RegexError;
 
 quick_error! {
     #[derive(Debug)]
@@ -35,6 +36,14 @@ quick_error! {
         UnsupportedPrereleaseVersionScheme {
             display("This version scheme is not supported by cargo-release.")
             description("This version scheme is not supported by cargo-release. Use format like `pre`, `dev` or `alpha.1` for prerelease symbol")
+        }
+        ReplacerConfigError {
+            display("Insuffient replacer config: file, search and replace are required.")
+            description("Insuffient replacer config: file, search and replace are required.")
+        }
+        ReplacerRegexError(err: RegexError) {
+            from()
+            cause(err)
         }
     }
 }
