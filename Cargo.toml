@@ -20,4 +20,4 @@ travis-ci = { repository = "sunng87/cargo-release", branch="0.8.0-beta.1" }
 [package.metadata.release]
 sign-commit = true
 #upload-doc = true
-pre-release-replacements = [ {file="README.md", search="Current release: [a-z0-9\\.]+", replace="Current release: {{version}}"} , {file ="Cargo.toml", search="branch=\"[a-z0-9\\.]+\"", replace="branch=\"{{version}}\""} ]
+pre-release-replacements = [ {file="README.md", search="Current release: [a-z0-9\\.-]+", replace="Current release: {{version}}"} , {file ="Cargo.toml", search="branch=\"[a-z0-9\\.-]+\"", replace="branch=\"{{version}}\""} ]
