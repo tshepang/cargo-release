@@ -7,6 +7,7 @@ extern crate toml;
 extern crate semver;
 extern crate clap;
 
+use std::io::{stdin, stdout, Write};
 use std::process::exit;
 
 use clap::{App, ArgMatches, SubCommand};
@@ -19,6 +20,16 @@ mod git;
 mod cargo;
 mod version;
 mod replace;
+
+fn confirm(prompt: &str) -> bool {
+    let mut input = String::new();
+    print!("{} [y/N] ", prompt);
+    let _ = stdout().flush();
+
+    stdin().read_line(&mut input).expect("y/n required");
+
+    input.trim().to_lowercase() == "y"
+}
 
 fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     let cargo_file = try!(config::parse_cargo_config());
@@ -83,6 +94,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     let doc_commit_msg = config::get_release_config(&cargo_file, config::DOC_COMMIT_MESSAGE)
         .and_then(|f| f.as_str())
         .unwrap_or("(cargo-release) generate docs");
+    let no_confirm = args.occurrences_of("no-confirm") > 0;
 
     // STEP 0: Check if working directory is clean
     if !try!(git::status()) {
@@ -103,6 +115,16 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     // STEP 2: update current version, save and commit
     if try!(version::bump_version(&mut version, level)) {
         let new_version_string = version.to_string();
+
+        // Release Confirmation
+        if !dry_run {
+            if !no_confirm {
+                if !confirm(&format!("Release version {} ?", new_version_string)) {
+                    return Ok(0);
+                }
+            }
+        }
+
         if !dry_run {
             try!(config::rewrite_cargo_version(&new_version_string));
         }
@@ -194,14 +216,15 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
 
 static USAGE: &'static str = "-l, --level=[level] 'Release level: bumpping major|minor|patch version on release or removing prerelease extensions by default'
                              [sign]... --sign 'Sign git commit and tag'
-                             [dry-run]... --dry-run 'Do not actually change anything.'
+                             [dry-run]... --dry-run 'Do not actually change anything'
                              [upload-doc]... --upload-doc 'Upload rust document to gh-pages branch'
                              --push-remote=[push-remote] 'Git remote to push'
                              [skip-push]... --skip-push 'Do not run git push in the last step'
                              --doc-branch=[doc-branch] 'Git branch to push documentation on'
                              --tag-prefix=[tag-prefix] 'Prefix of git tag, note that this will override default prefix based on sub-directory'
                              --dev-version-ext=[dev-version-ext] 'Pre-release identifier(s) to append to the next development version after release'
-                             [no-dev-version]... --no-dev-version 'Do not create dev version after release'";
+                             [no-dev-version]... --no-dev-version 'Do not create dev version after release'
+                             [no-confirm]... --no-confirm 'Skip release confirmation'";
 
 fn main() {
     let matches = App::new("cargo")
