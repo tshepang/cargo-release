@@ -6,12 +6,14 @@ extern crate regex;
 extern crate toml;
 extern crate semver;
 extern crate clap;
+extern crate ansi_term;
 
 use std::io::{stdin, stdout, Write};
 use std::process::exit;
 
 use clap::{App, ArgMatches, SubCommand};
 use semver::Identifier;
+use ansi_term::Colour::{Red, Green, White};
 
 mod config;
 mod error;
@@ -23,9 +25,10 @@ mod replace;
 
 fn confirm(prompt: &str) -> bool {
     let mut input = String::new();
-    print!("{} [y/N] ", prompt);
-    let _ = stdout().flush();
 
+    print!("{}", White.bold().paint(format!("{} [y/N] ", prompt)));
+
+    stdout().flush().unwrap();
     stdin().read_line(&mut input).expect("y/n required");
 
     input.trim().to_lowercase() == "y"
@@ -37,8 +40,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     // step -1
     if let Some(invalid_keys) = config::verify_release_config(&cargo_file) {
         for i in invalid_keys {
-            println!("Unknown config key \"{}\" found for [package.metadata.release]",
-                     i);
+            println!("{}", Red.bold().paint(format!("Unknown config key \"{}\" found for [package.metadata.release]", i)));
         }
         return Ok(109);
     }
@@ -98,7 +100,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
 
     // STEP 0: Check if working directory is clean
     if !try!(git::status()) {
-        println!("Uncommitted changes detected, please commit before release");
+        println!("{}", Red.bold().paint("Uncommitted changes detected, please commit before release."));
         if !dry_run {
             return Ok(101);
         }
@@ -125,6 +127,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
             }
         }
 
+        println!("{}", Green.paint(format!("Update to version {} and commit", new_version_string)));
         if !dry_run {
             try!(config::rewrite_cargo_version(&new_version_string));
         }
@@ -143,17 +146,19 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     }
 
     // STEP 3: cargo publish
+    println!("{}", Green.paint("Running cargo publish"));
     if !try!(cargo::publish(dry_run)) {
         return Ok(103);
     }
 
     // STEP 4: upload doc
     if upload_doc {
-        println!("Building and exporting docs.");
+        println!("{}", Green.paint("Building and exporting docs."));
         try!(cargo::doc(dry_run));
 
         let doc_path = "target/doc/";
 
+        println!("{}", Green.paint("Commit and push docs."));
         try!(git::init(doc_path, dry_run));
         try!(git::add_all(doc_path, dry_run));
         try!(git::commit_all(doc_path, doc_commit_msg, sign, dry_run));
@@ -182,6 +187,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
         .replace("{{prefix}}", tag_prefix.as_ref().unwrap_or(&"".to_owned()))
         .replace("{{version}}", &current_version);
 
+    println!("{}", Green.paint(format!("Creating git tag {}", tag_name)));
     if !try!(git::tag(&tag_name, &tag_message, sign, dry_run)) {
         // tag failed, abort release
         return Ok(104);
@@ -191,7 +197,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     if !version::is_pre_release(level) && !no_dev_version {
         version.increment_patch();
         version.pre.push(Identifier::AlphaNumeric(dev_version_ext.to_owned()));
-        println!("Starting next development iteration {}", version);
+        println!("{}", Green.paint(format!("Starting next development iteration {}", version)));
         let updated_version_string = version.to_string();
         if !dry_run {
             try!(config::rewrite_cargo_version(&updated_version_string));
@@ -206,11 +212,13 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
 
     // STEP 7: git push
     if !skip_push {
+        println!("{}", Green.paint("Pushing to git remote"));
         if !try!(git::push(git_remote, dry_run)) {
             return Ok(106);
         }
     }
 
+    println!("{}", Green.paint("Finished"));
     Ok(0)
 }
 
@@ -239,7 +247,7 @@ fn main() {
         match execute(release_matches) {
             Ok(code) => exit(code),
             Err(e) => {
-                println!("Fatal: {}", e);
+                println!("{}", Red.bold().paint(format!("Fatal: {}", e)));
                 exit(128);
             }
         }
