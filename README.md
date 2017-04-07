@@ -101,6 +101,12 @@ You can specify a different extension by using the
 `--dev-version-ext <ext>` option. To disable version bump after
 release, use `--no-dev-version` option.
 
+### Update version in README or other files
+
+Cargo-release 0.8 allows you to search and replace version string in
+any project or source file. See `pre-release-replacements` in
+Cargo.toml configuration below.
+
 ### Configuration in Cargo.toml
 
 From 0.6 you can persist options above in `Cargo.toml`. We use a
@@ -127,12 +133,20 @@ store these options. Available keys:
 * `doc-commit-message`: string, a commit message template for doc
   import.
 * `no-dev-version`: bool, disable version bump after release.
+* `pre-release-replacements`: array of tables, specify files that
+  cargo-release will search and replace with new version, check
+  [Cargo.toml](https://github.com/sunng87/cargo-release/blob/master/Cargo.toml)
+  for example. The table contains three keys:
+  * `file`: the file to search and replace
+  * `search`: regex that matches string you want to replace
+  * `replace`: the replacement, use `{{version}}` for current version
 
 ```toml
 [package.metadata.release]
 sign-commit = true
 upload-doc = true
 pre-release-commit-message = "Release {{version}} 🎉🎉"
+pre-release-replacements = [ {file="README.md", search="Current release: [a-z0-9\\.-]+", replace="Current release: {{version}}"} , {file ="Cargo.toml", search="branch=\"[a-z0-9\\.-]+\"", replace="branch=\"{{version}}\""} ]
 ```
 
 ### Dry run
