@@ -140,7 +140,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
         }
 
         if let Some(pre_rel_hook) = pre_release_hook {
-            println!("{}", Green.paint(format!("Calling pre-release hook: {} {}", pre_rel_hook, new_version_string)));
+            println!("{}", Green.paint(format!("Calling pre-release hook: {} {} {}", pre_rel_hook, new_version_string, &prev_version_string)));
             try!(cmd::call(vec![pre_rel_hook, &new_version_string, &prev_version_string], dry_run));
         }
 
