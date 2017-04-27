@@ -89,7 +89,8 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
         config::get_release_config(&cargo_file, config::PRO_RELEASE_COMMIT_MESSAGE)
             .and_then(|f| f.as_str())
         .unwrap_or("(cargo-release) start next development iteration {{version}}");
-    let pre_release_replacements = config::get_release_config(&cargo_file, config::PRE_RELEASE_REPLACEMENTS); 
+    let pre_release_replacements = config::get_release_config(&cargo_file, config::PRE_RELEASE_REPLACEMENTS);
+    let pre_release_hook = config::get_release_config(&cargo_file, config::PRE_RELEASE_HOOK).and_then(|h| h.as_str());
     let tag_msg = config::get_release_config(&cargo_file, config::TAG_MESSAGE)
         .and_then(|f| f.as_str())
         .unwrap_or("(cargo-release) {{prefix}} version {{version}}");
@@ -135,6 +136,11 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
         if let Some(pre_rel_rep) = pre_release_replacements {
             // try update version number in configured files
             try!(replace::do_replace_versions(pre_rel_rep, &new_version_string, dry_run));
+        }
+
+        if let Some(pre_rel_hook) = pre_release_hook {
+            println!("{}", Green.paint(format!("Calling pre-release hook: {} {}", pre_rel_hook, new_version_string)));
+            try!(cmd::call(vec![pre_rel_hook, &new_version_string], dry_run));
         }
 
         let commit_msg =

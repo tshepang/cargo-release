@@ -20,6 +20,7 @@ pub static NO_DEV_VERSION: &'static str = "no-dev-version";
 pub static PRE_RELEASE_COMMIT_MESSAGE: &'static str = "pre-release-commit-message";
 pub static PRO_RELEASE_COMMIT_MESSAGE: &'static str = "pro-release-commit-message";
 pub static PRE_RELEASE_REPLACEMENTS: &'static str = "pre-release-replacements";
+pub static PRE_RELEASE_HOOK: &'static str = "pre-release-hook";
 pub static TAG_MESSAGE: &'static str = "tag-message";
 pub static DOC_COMMIT_MESSAGE: &'static str = "doc-commit-message";
 
@@ -64,6 +65,7 @@ pub fn verify_release_config(config: &Value) -> Option<Vec<&str>> {
                           PRE_RELEASE_COMMIT_MESSAGE,
                           PRO_RELEASE_COMMIT_MESSAGE,
                           PRE_RELEASE_REPLACEMENTS,
+                          PRE_RELEASE_HOOK,
                           TAG_MESSAGE,
                           DOC_COMMIT_MESSAGE];
     if let Some(ref r) = config.get("package")
