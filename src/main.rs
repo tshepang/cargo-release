@@ -114,6 +114,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
         .and_then(|f| f.as_str())
         .and_then(|f| config::parse_version(f).ok())
         .unwrap();
+    let prev_version_string = version.to_string();
 
     // STEP 2: update current version, save and commit
     if try!(version::bump_version(&mut version, level)) {
@@ -140,7 +141,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
 
         if let Some(pre_rel_hook) = pre_release_hook {
             println!("{}", Green.paint(format!("Calling pre-release hook: {} {}", pre_rel_hook, new_version_string)));
-            try!(cmd::call(vec![pre_rel_hook, &new_version_string], dry_run));
+            try!(cmd::call(vec![pre_rel_hook, &new_version_string, &prev_version_string], dry_run));
         }
 
         let commit_msg =
