@@ -2,6 +2,8 @@
 
 #[macro_use]
 extern crate quick_error;
+#[macro_use]
+extern crate maplit;
 extern crate regex;
 extern crate toml;
 extern crate semver;
@@ -140,8 +142,15 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
         }
 
         if let Some(pre_rel_hook) = pre_release_hook {
-            println!("{}", Green.paint(format!("Calling pre-release hook: {} {} {}", pre_rel_hook, new_version_string, &prev_version_string)));
-            try!(cmd::call(vec![pre_rel_hook, &new_version_string, &prev_version_string], dry_run));
+            println!("{}", Green.paint(format!("Calling pre-release hook: {}", pre_rel_hook)));
+            let envs = btreemap!{
+                "PREV_VERSION" => prev_version_string.as_ref(),
+                "NEW_VERSION" => new_version_string.as_ref(),
+                "DRY_RUN" => if dry_run { "true" } else { "false" }
+            };
+            // we use dry_run environmental variable to run the script
+            // so here we set dry_run=false and always execute the command.
+            try!(cmd::call_with_env(vec![pre_rel_hook], envs, false));
         }
 
         let commit_msg =
