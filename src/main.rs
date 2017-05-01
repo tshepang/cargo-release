@@ -76,7 +76,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
                      config::get_release_config(&cargo_file, config::DEV_VERSION_EXT)
                          .and_then(|f| f.as_str())
                  })
-        .unwrap_or("pre");
+        .unwrap_or("alpha.0");
     let no_dev_version = args.occurrences_of("no-dev-version") > 0 ||
                          config::get_release_config(&cargo_file, config::NO_DEV_VERSION)
                              .and_then(|f| f.as_bool())
