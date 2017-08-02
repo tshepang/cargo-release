@@ -130,6 +130,8 @@ store these options. Available keys:
   version.
 * `tag-message`: string, a message template for tag. Available
   variables: `{{version}}`, `{{prefix}}` (the tag prefix)
+* `tag-prefix`: string, prefix of git tag, note that this will
+  override default prefix based on sub-directory.
 * `doc-commit-message`: string, a commit message template for doc
   import.
 * `no-dev-version`: bool, disable version bump after release.

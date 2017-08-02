@@ -176,7 +176,11 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     let rel_path = try!(cmd::relative_path_for(&root));
     let tag_prefix = args.value_of("tag-prefix")
         .map(|t| t.to_owned())
-        .or(rel_path.as_ref().map(|t| format!("{}-", t)));
+        .or_else(|| config::get_release_config(&cargo_file, config::TAG_PREFIX)
+            .and_then(|f| f.as_str())
+            .map(|f| f.to_string()))
+        .or_else(|| rel_path.as_ref().map(|t| format!("{}-", t)));
+
 
     let current_version = version.to_string();
     let tag_name =
