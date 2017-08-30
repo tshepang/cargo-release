@@ -1,9 +1,14 @@
 use std::process::Command;
 use std::env::current_dir;
+use std::collections::BTreeMap;
 
 use error::FatalError;
 
-fn do_call(command: Vec<&str>, path: Option<&str>, dry_run: bool) -> Result<bool, FatalError> {
+fn do_call(command: Vec<&str>,
+           path: Option<&str>,
+           envs: Option<BTreeMap<&str, &str>>,
+           dry_run: bool)
+           -> Result<bool, FatalError> {
     if dry_run {
         if path.is_some() {
             println!("cd {}", path.unwrap());
@@ -19,8 +24,14 @@ fn do_call(command: Vec<&str>, path: Option<&str>, dry_run: bool) -> Result<bool
 
     let mut cmd = Command::new(cmd_name);
 
-    if path.is_some() {
-        cmd.current_dir(path.unwrap());
+    if let Some(p) = path {
+        cmd.current_dir(p);
+    }
+
+    if let Some(e) = envs {
+        for (key, val) in e.iter() {
+            cmd.env(key, val);
+        }
     }
 
     for arg in iter {
@@ -36,11 +47,18 @@ fn do_call(command: Vec<&str>, path: Option<&str>, dry_run: bool) -> Result<bool
 }
 
 pub fn call(command: Vec<&str>, dry_run: bool) -> Result<bool, FatalError> {
-    do_call(command, None, dry_run)
+    do_call(command, None, None, dry_run)
 }
 
 pub fn call_on_path(command: Vec<&str>, path: &str, dry_run: bool) -> Result<bool, FatalError> {
-    do_call(command, Some(path), dry_run)
+    do_call(command, Some(path), None, dry_run)
+}
+
+pub fn call_with_env(command: Vec<&str>,
+                     envs: BTreeMap<&str, &str>,
+                     dry_run: bool)
+                     -> Result<bool, FatalError> {
+    do_call(command, None, Some(envs), dry_run)
 }
 
 pub fn relative_path_for(root: &str) -> Result<Option<String>, FatalError> {
