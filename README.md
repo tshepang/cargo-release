@@ -95,7 +95,7 @@ Use `--skip-push` if you do not plan to push to anywhere for now.
 ### Specifying dev pre-release extension
 
 After release, the version in Cargo.toml will be incremented and have
-a pre-release extension added, defaulting to `pre`.
+a pre-release extension added, defaulting to `alpha.0`.
 
 You can specify a different extension by using the
 `--dev-version-ext <ext>` option. To disable version bump after
@@ -142,6 +142,8 @@ store these options. Available keys:
   * `file`: the file to search and replace
   * `search`: regex that matches string you want to replace
   * `replace`: the replacement, use `{{version}}` for current version
+* `pre-release-hook`: provide a command to run before `cargo-release`
+  commits version change
 
 ```toml
 [package.metadata.release]
