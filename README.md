@@ -10,7 +10,7 @@ Basically it runs following tasks:
 * Check if current working directory is git clean
 * Read version from Cargo.toml, remove pre-release extension, bump
   version and commit if necessary
-* Run `cargo publish`
+* Run `cargo publish` ([if not disabled](http://doc.crates.io/manifest.html#the-publish--field-optional))
 * Generate rustdoc and push to gh-pages optionally
 * Create a git tag for this version
 * Bump version for next development cycle
@@ -35,11 +35,11 @@ Current release: 0.9.0-beta.1
 Use `-l [level]` or `--level [level]` to specify a release level.
 
 * By default, cargo release removes pre-release extension; if there is
-no pre-release extension, the current version will be used (0.1.0-pre
--> 0.1.0, 0.1.0 -> 0.1.0)
+  no pre-release extension, the current version will be used (0.1.0-pre
+  -> 0.1.0, 0.1.0 -> 0.1.0)
 * If level is `patch` and current version is a pre-release, it behaves
-like default; if current version has no extension, it bumps patch
-version (0.1.0 -> 0.1.1)
+  like default; if current version has no extension, it bumps patch
+  version (0.1.0 -> 0.1.1)
 * If level is `minor`, it bumps minor version (0.1.0-pre -> 0.2.0)
 * If level is `major`, it bumps major version (0.1.0-pre -> 1.0.0)
 
@@ -196,7 +196,7 @@ Licensed under either of
 
  * Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
  * MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
-at your option.
+  at your option.
 
 ### Contribution
 
