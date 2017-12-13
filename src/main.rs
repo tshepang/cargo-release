@@ -109,6 +109,11 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
         .and_then(|f| f.as_str())
         .unwrap_or("(cargo-release) generate docs");
     let no_confirm = args.occurrences_of("no-confirm") > 0;
+    let publish = cargo_file.get("package")
+            .and_then(|f| f.as_table())
+            .and_then(|f| f.get("publish"))
+            .and_then(|f| f.as_bool())
+            .unwrap_or(true);
 
     // STEP 0: Check if working directory is clean
     if !try!(git::status()) {
@@ -191,9 +196,11 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     }
 
     // STEP 3: cargo publish
-    println!("{}", Green.paint("Running cargo publish"));
-    if !try!(cargo::publish(dry_run)) {
-        return Ok(103);
+    if publish {
+        println!("{}", Green.paint("Running cargo publish"));
+        if !try!(cargo::publish(dry_run)) {
+            return Ok(103);
+        }
     }
 
     // STEP 4: upload doc
