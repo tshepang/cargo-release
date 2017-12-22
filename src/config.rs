@@ -132,7 +132,7 @@ pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
     }
     try!(fs::rename("Cargo.toml.work", "Cargo.toml"));
 
-    {
+    if Path::new("Cargo.lock").exists() {
         let file_in = try!(File::open("Cargo.lock").map_err(FatalError::from));
         let mut bufreader = BufReader::new(file_in);
         let mut line = String::new();
@@ -157,9 +157,10 @@ pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
             try!(file_out.write_all(line.as_bytes()).map_err(FatalError::from));
             line.clear();
         }
+
+        try!(fs::rename("Cargo.lock.work", "Cargo.lock"));
     }
 
-    try!(fs::rename("Cargo.lock.work", "Cargo.lock"));
     Ok(())
 }
 
