@@ -1,22 +1,23 @@
 #![allow(dead_code)]
 
-#[macro_use]
-extern crate quick_error;
-#[macro_use]
-extern crate maplit;
-extern crate regex;
-extern crate toml;
-extern crate semver;
-extern crate clap;
 extern crate ansi_term;
 extern crate chrono;
+extern crate clap;
+#[macro_use]
+extern crate maplit;
+#[macro_use]
+extern crate quick_error;
+extern crate regex;
+extern crate semver;
+extern crate toml;
 
 use std::io::{stdin, stdout, Write};
 use std::process::exit;
 
 use clap::{App, ArgMatches, SubCommand};
 use semver::Identifier;
-use ansi_term::Colour::{Red, Green, White};
+use ansi_term::Style;
+use ansi_term::Colour::{Green, Red};
 
 mod config;
 mod error;
@@ -29,7 +30,10 @@ mod replace;
 fn confirm(prompt: &str) -> bool {
     let mut input = String::new();
 
-    print!("{}", White.bold().paint(format!("{} [y/N] ", prompt)));
+    print!(
+        "{}",
+        Style::new().bold().paint(format!("{} [y/N] ", prompt))
+    );
 
     stdout().flush().unwrap();
     stdin().read_line(&mut input).expect("y/n required");
@@ -56,12 +60,12 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
 
     let dry_run = args.occurrences_of("dry-run") > 0;
     let level = args.value_of("level");
-    let sign = args.occurrences_of("sign") > 0 ||
-        config::get_release_config(&cargo_file, config::SIGN_COMMIT)
+    let sign = args.occurrences_of("sign") > 0
+        || config::get_release_config(&cargo_file, config::SIGN_COMMIT)
             .and_then(|f| f.as_bool())
             .unwrap_or(false);
-    let upload_doc = args.occurrences_of("upload-doc") > 0 ||
-        config::get_release_config(&cargo_file, config::UPLOAD_DOC)
+    let upload_doc = args.occurrences_of("upload-doc") > 0
+        || config::get_release_config(&cargo_file, config::UPLOAD_DOC)
             .and_then(|f| f.as_bool())
             .unwrap_or(false);
     let git_remote = args.value_of("push-remote")
@@ -74,8 +78,8 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
             config::get_release_config(&cargo_file, config::DOC_BRANCH).and_then(|f| f.as_str())
         })
         .unwrap_or("gh-pages");
-    let skip_push = args.occurrences_of("skip-push") > 0 ||
-        config::get_release_config(&cargo_file, config::DISABLE_PUSH)
+    let skip_push = args.occurrences_of("skip-push") > 0
+        || config::get_release_config(&cargo_file, config::DISABLE_PUSH)
             .and_then(|f| f.as_bool())
             .unwrap_or(false);
     let dev_version_ext = args.value_of("dev-version-ext")
@@ -84,8 +88,8 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
                 .and_then(|f| f.as_str())
         })
         .unwrap_or("alpha.0");
-    let no_dev_version = args.occurrences_of("no-dev-version") > 0 ||
-        config::get_release_config(&cargo_file, config::NO_DEV_VERSION)
+    let no_dev_version = args.occurrences_of("no-dev-version") > 0
+        || config::get_release_config(&cargo_file, config::NO_DEV_VERSION)
             .and_then(|f| f.as_bool())
             .unwrap_or(false);
     let pre_release_commit_msg =
@@ -95,13 +99,11 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     let pro_release_commit_msg =
         config::get_release_config(&cargo_file, config::PRO_RELEASE_COMMIT_MESSAGE)
             .and_then(|f| f.as_str())
-            .unwrap_or(
-                "(cargo-release) start next development iteration {{version}}",
-            );
+            .unwrap_or("(cargo-release) start next development iteration {{version}}");
     let pre_release_replacements =
         config::get_release_config(&cargo_file, config::PRE_RELEASE_REPLACEMENTS);
-    let pre_release_hook = config::get_release_config(&cargo_file, config::PRE_RELEASE_HOOK)
-        .and_then(|h| h.as_str());
+    let pre_release_hook =
+        config::get_release_config(&cargo_file, config::PRE_RELEASE_HOOK).and_then(|h| h.as_str());
     let tag_msg = config::get_release_config(&cargo_file, config::TAG_MESSAGE)
         .and_then(|f| f.as_str())
         .unwrap_or("(cargo-release) {{prefix}} version {{version}}");
@@ -109,19 +111,19 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
         .and_then(|f| f.as_str())
         .unwrap_or("(cargo-release) generate docs");
     let no_confirm = args.occurrences_of("no-confirm") > 0;
-    let publish = cargo_file.get("package")
-            .and_then(|f| f.as_table())
-            .and_then(|f| f.get("publish"))
-            .and_then(|f| f.as_bool())
-            .unwrap_or(true);
+    let publish = cargo_file
+        .get("package")
+        .and_then(|f| f.as_table())
+        .and_then(|f| f.get("publish"))
+        .and_then(|f| f.as_bool())
+        .unwrap_or(true);
 
     // STEP 0: Check if working directory is clean
     if !try!(git::status()) {
         println!(
             "{}",
-            Red.bold().paint(
-                "Uncommitted changes detected, please commit before release.",
-            )
+            Red.bold()
+                .paint("Uncommitted changes detected, please commit before release.",)
         );
         if !dry_run {
             return Ok(101);
@@ -176,8 +178,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
                 "{}",
                 Green.paint(format!("Calling pre-release hook: {}", pre_rel_hook))
             );
-            let envs =
-                btreemap!{
+            let envs = btreemap!{
                 "PREV_VERSION" => prev_version_string.as_ref(),
                 "NEW_VERSION" => new_version_string.as_ref(),
                 "DRY_RUN" => if dry_run { "true" } else { "false" }
@@ -227,7 +228,6 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
         ));
     }
 
-
     // STEP 5: Tag
     let root = try!(git::top_level());
     let rel_path = try!(cmd::relative_path_for(&root));
@@ -239,7 +239,6 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
                 .map(|f| f.to_string())
         })
         .or_else(|| rel_path.as_ref().map(|t| format!("{}-", t)));
-
 
     let current_version = version.to_string();
     let tag_name = tag_prefix.as_ref().map_or_else(
@@ -260,9 +259,9 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     // STEP 6: bump version
     if !version::is_pre_release(level) && !no_dev_version {
         version.increment_patch();
-        version.pre.push(Identifier::AlphaNumeric(
-            dev_version_ext.to_owned(),
-        ));
+        version
+            .pre
+            .push(Identifier::AlphaNumeric(dev_version_ext.to_owned()));
         println!(
             "{}",
             Green.paint(format!("Starting next development iteration {}", version))
