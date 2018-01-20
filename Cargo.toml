@@ -5,6 +5,7 @@ authors = ["Ning Sun <sunng@about.me>"]
 license = "MIT/Apache-2.0"
 description = "cargo release command"
 keywords = ["cargo"]
+categories = ["development-tools::cargo-plugins"]
 repository = "https://github.com/sunng87/cargo-release"
 
 [dependencies]
