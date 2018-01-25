@@ -103,13 +103,15 @@ pub fn save_cargo_config(config: &Value) -> Result<(), FatalError> {
 }
 
 pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
-    let section_matcher = Regex::new("^\\[.+\\]").unwrap();
     {
         let file_in = try!(File::open("Cargo.toml").map_err(FatalError::from));
         let mut bufreader = BufReader::new(file_in);
         let mut line = String::new();
 
         let mut file_out = try!(File::create("Cargo.toml.work").map_err(FatalError::from));
+
+        let section_matcher = Regex::new("^\\[.+\\]").unwrap();
+
         let mut in_package = false;
 
         loop {
@@ -138,6 +140,16 @@ pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
         let mut line = String::new();
 
         let mut file_out = try!(File::create("Cargo.lock.work").map_err(FatalError::from));
+
+        let section_matcher = Regex::new("^\\[\\[.+\\]\\]").unwrap();
+
+        let config = parse_cargo_config()?;
+        let crate_name = config.get("package")
+            .and_then(|f| f.as_table())
+            .and_then(|f| f.get("name"))
+            .and_then(|f| f.as_str())
+            .unwrap();
+        
         let mut in_package = false;
 
         loop {
@@ -147,7 +159,11 @@ pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
             }
 
             if section_matcher.is_match(&line) {
-                in_package = line.trim() == "[root]";
+                in_package = line.trim() == "[[package]]";
+            }
+
+            if in_package && line.starts_with("name") {
+                in_package = line == format!("name = \"{}\"\n", crate_name);
             }
 
             if in_package && line.starts_with("version") {
