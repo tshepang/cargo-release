@@ -143,13 +143,34 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     // STEP 2: update current version, save and commit
     if try!(version::bump_version(&mut version, level)) {
         let new_version_string = version.to_string();
-
         // Release Confirmation
         if !dry_run {
             if !no_confirm {
                 if !confirm(&format!("Release version {} ?", new_version_string)) {
                     return Ok(0);
                 }
+            }
+        }
+
+        // pre-release hook
+        if let Some(pre_rel_hook) = pre_release_hook {
+            println!(
+                "{}",
+                Green.paint(format!("Calling pre-release hook: {}", pre_rel_hook))
+            );
+            let envs = btreemap!{
+                "PREV_VERSION" => prev_version_string.as_ref(),
+                "NEW_VERSION" => new_version_string.as_ref(),
+                "DRY_RUN" => if dry_run { "true" } else { "false" }
+            };
+            // we use dry_run environmental variable to run the script
+            // so here we set dry_run=false and always execute the command.
+            if !try!(cmd::call_with_env(vec![pre_rel_hook], envs, false)) {
+                println!(
+                    "{}",
+                    Red.paint("Release aborted by non-zero return of prerelease hook.")
+                );
+                return Ok(107);
             }
         }
 
@@ -171,27 +192,6 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
                 &new_version_string,
                 dry_run,
             ));
-        }
-
-        if let Some(pre_rel_hook) = pre_release_hook {
-            println!(
-                "{}",
-                Green.paint(format!("Calling pre-release hook: {}", pre_rel_hook))
-            );
-            let envs = btreemap!{
-                "PREV_VERSION" => prev_version_string.as_ref(),
-                "NEW_VERSION" => new_version_string.as_ref(),
-                "DRY_RUN" => if dry_run { "true" } else { "false" }
-            };
-            // we use dry_run environmental variable to run the script
-            // so here we set dry_run=false and always execute the command.
-            if !try!(cmd::call_with_env(vec![pre_rel_hook], envs, false)) {
-                println!(
-                    "{}",
-                    Red.paint("Release aborted by non-zero return of prerelease hook.")
-                );
-                return Ok(107);
-            }
         }
 
         let commit_msg =
