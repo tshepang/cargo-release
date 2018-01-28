@@ -18,7 +18,7 @@ Basically it runs following tasks:
 
 ## Install
 
-Current release: 0.9.0-beta.5
+Current release: 0.9.0-beta.6
 
 `cargo install cargo-release`
 
