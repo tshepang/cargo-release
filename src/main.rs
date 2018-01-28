@@ -290,6 +290,9 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
         if !try!(git::push(git_remote, dry_run)) {
             return Ok(106);
         }
+        if !try!(git::push_tag(git_remote, &tag_name, dry_run)) {
+            return Ok(106);
+        }
     }
 
     println!("{}", Green.paint("Finished"));
