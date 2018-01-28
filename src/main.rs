@@ -185,7 +185,13 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
             };
             // we use dry_run environmental variable to run the script
             // so here we set dry_run=false and always execute the command.
-            try!(cmd::call_with_env(vec![pre_rel_hook], envs, false));
+            if !try!(cmd::call_with_env(vec![pre_rel_hook], envs, false)) {
+                println!(
+                    "{}",
+                    Red.paint("Release aborted by non-zero return of prerelease hook.")
+                );
+                return Ok(107);
+            }
         }
 
         let commit_msg =
