@@ -316,7 +316,7 @@ fn main() {
         .subcommand(
             SubCommand::with_name("release")
                 .version(env!("CARGO_PKG_VERSION"))
-                .author("Ning Sun <sunng@about.me>")
+                .author("Ning Sun <sunng@protonmail.ch>")
                 .about("Cargo subcommand for you to smooth your release process.")
                 .args_from_usage(USAGE),
         )
