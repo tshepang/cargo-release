@@ -1,7 +1,7 @@
 use std::io::Error as IOError;
 use std::string::FromUtf8Error;
 use semver::SemVerError;
-use toml::de::Error;
+use toml::de::Error as TomlError;
 use regex::Error as RegexError;
 
 quick_error! {
@@ -10,10 +10,12 @@ quick_error! {
         IOError(err: IOError) {
             from()
             cause(err)
+            description(err.description())
+            display("IO Error: {}", err)
         }
-        InvalidCargoFileFormat(err: Error) {
-            display("Invalid cargo file format")
-            description("Invalid cargo file format")
+        InvalidCargoFileFormat(err: TomlError) {
+            display("Invalid cargo file format: {}", err)
+            description(err.description())
             from()
             cause(err)
         }
@@ -24,10 +26,14 @@ quick_error! {
         SemVerError(err: SemVerError) {
             from()
             cause(err)
+            display("SemVerError {}", err)
+            description(err.description())
         }
         FromUtf8Error(err: FromUtf8Error) {
             from()
             cause(err)
+            display("FromUtf8Error {}", err)
+            description(err.description())
         }
         InvalidReleaseLevel(level: String) {
             display("Unsupported release level {}", level)
@@ -44,6 +50,8 @@ quick_error! {
         ReplacerRegexError(err: RegexError) {
             from()
             cause(err)
+            display("RegexError {}", err)
+            description(err.description())
         }
     }
 }
