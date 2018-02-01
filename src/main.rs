@@ -18,6 +18,7 @@ use clap::{App, ArgMatches, SubCommand};
 use semver::Identifier;
 use ansi_term::Style;
 use ansi_term::Colour::{Green, Red};
+use toml::Value;
 
 mod config;
 mod error;
@@ -102,8 +103,18 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
             .unwrap_or("(cargo-release) start next development iteration {{version}}");
     let pre_release_replacements =
         config::get_release_config(&cargo_file, config::PRE_RELEASE_REPLACEMENTS);
-    let pre_release_hook =
-        config::get_release_config(&cargo_file, config::PRE_RELEASE_HOOK).and_then(|h| h.as_str());
+    let pre_release_hook = config::get_release_config(&cargo_file, config::PRE_RELEASE_HOOK)
+        .and_then(|h| match h {
+            &Value::String(ref s) => Some(vec![s.as_ref()]),
+            &Value::Array(ref a) => Some(
+                a.iter()
+                    .map(|v| v.as_str())
+                    .filter(|o| o.is_some())
+                    .map(|s| s.unwrap())
+                    .collect(),
+            ),
+            _ => None,
+        });
     let tag_msg = config::get_release_config(&cargo_file, config::TAG_MESSAGE)
         .and_then(|f| f.as_str())
         .unwrap_or("(cargo-release) {{prefix}} version {{version}}");
@@ -156,7 +167,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
         if let Some(pre_rel_hook) = pre_release_hook {
             println!(
                 "{}",
-                Green.paint(format!("Calling pre-release hook: {}", pre_rel_hook))
+                Green.paint(format!("Calling pre-release hook: {:?}", pre_rel_hook))
             );
             let envs = btreemap!{
                 "PREV_VERSION" => prev_version_string.as_ref(),
@@ -165,7 +176,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
             };
             // we use dry_run environmental variable to run the script
             // so here we set dry_run=false and always execute the command.
-            if !try!(cmd::call_with_env(vec![pre_rel_hook], envs, false)) {
+            if !try!(cmd::call_with_env(pre_rel_hook, envs, false)) {
                 println!(
                     "{}",
                     Red.paint("Release aborted by non-zero return of prerelease hook.")

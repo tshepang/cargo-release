@@ -4,11 +4,12 @@ use std::collections::BTreeMap;
 
 use error::FatalError;
 
-fn do_call(command: Vec<&str>,
-           path: Option<&str>,
-           envs: Option<BTreeMap<&str, &str>>,
-           dry_run: bool)
-           -> Result<bool, FatalError> {
+fn do_call(
+    command: Vec<&str>,
+    path: Option<&str>,
+    envs: Option<BTreeMap<&str, &str>>,
+    dry_run: bool,
+) -> Result<bool, FatalError> {
     if dry_run {
         if path.is_some() {
             println!("cd {}", path.unwrap());
@@ -54,10 +55,11 @@ pub fn call_on_path(command: Vec<&str>, path: &str, dry_run: bool) -> Result<boo
     do_call(command, Some(path), None, dry_run)
 }
 
-pub fn call_with_env(command: Vec<&str>,
-                     envs: BTreeMap<&str, &str>,
-                     dry_run: bool)
-                     -> Result<bool, FatalError> {
+pub fn call_with_env(
+    command: Vec<&str>,
+    envs: BTreeMap<&str, &str>,
+    dry_run: bool,
+) -> Result<bool, FatalError> {
     do_call(command, None, Some(envs), dry_run)
 }
 
