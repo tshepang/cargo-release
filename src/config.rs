@@ -173,9 +173,8 @@ pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
             try!(file_out.write_all(line.as_bytes()).map_err(FatalError::from));
             line.clear();
         }
-
-        try!(fs::rename("Cargo.lock.work", "Cargo.lock"));
     }
+    try!(fs::rename("Cargo.lock.work", "Cargo.lock"));
 
     Ok(())
 }
