@@ -1,6 +1,6 @@
 [package]
 name = "cargo-release"
-version = "0.9.0-beta.8"
+version = "0.9.0"
 authors = ["Ning Sun <sunng@about.me>"]
 license = "MIT/Apache-2.0"
 description = "cargo release command"
@@ -19,7 +19,7 @@ maplit = "0.1.4"
 chrono = "0.4"
 
 [badges]
-travis-ci = { repository = "sunng87/cargo-release", branch="0.9.0-beta.8" }
+travis-ci = { repository = "sunng87/cargo-release", branch="0.9.0" }
 
 [package.metadata.release]
 sign-commit = true
