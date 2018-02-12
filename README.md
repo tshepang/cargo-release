@@ -107,6 +107,18 @@ Cargo-release 0.8 allows you to search and replace version string in
 any project or source file. See `pre-release-replacements` in
 Cargo.toml configuration below.
 
+### Pre-release hook
+
+Since 0.9, you can configure `pre-release-hook` command in
+`Cargo.toml`, for example:
+
+```toml
+pre-release-hook = ["echo", "ok"]
+```
+
+If the return code of hook command is greater than 0, the release
+process will be aborted.
+
 ### Configuration in Cargo.toml
 
 From 0.6 you can persist options above in `Cargo.toml`. We use a
