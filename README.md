@@ -10,7 +10,7 @@ Basically it runs following tasks:
 * Check if current working directory is git clean
 * Read version from Cargo.toml, remove pre-release extension, bump
   version and commit if necessary
-* Run `cargo publish` ([if not disabled](http://doc.crates.io/manifest.html#the-publish--field-optional))
+* Run `cargo publish` ([if not disabled](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional))
 * Generate rustdoc and push to gh-pages optionally
 * Create a git tag for this version
 * Bump version for next development cycle
