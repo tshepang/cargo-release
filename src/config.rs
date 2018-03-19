@@ -5,6 +5,7 @@ use std::fs::{self, File};
 use std::path::Path;
 
 use toml::{self, Value};
+use toml::value::Table;
 use semver::Version;
 use regex::Regex;
 
@@ -45,56 +46,82 @@ pub fn parse_cargo_config() -> Result<Value, FatalError> {
     cargo_file_content.parse().map_err(FatalError::from)
 }
 
-pub fn get_release_config<'a>(config: &'a Value, key: &str) -> Option<&'a Value> {
-    config.get("package")
+fn get_release_config_table_from_cargo<'a>(cargo_config: &'a Value) -> Option<&'a Table> {
+    cargo_config
+        .get("package")
         .and_then(|f| f.as_table())
         .and_then(|f| f.get("metadata"))
         .and_then(|f| f.as_table())
         .and_then(|f| f.get("release"))
         .and_then(|f| f.as_table())
-        .and_then(|f| f.get(key))
 }
 
-pub fn verify_release_config(config: &Value) -> Option<Vec<&str>> {
-    let valid_keys = vec![SIGN_COMMIT,
-                          UPLOAD_DOC,
-                          PUSH_REMOTE,
-                          DOC_BRANCH,
-                          DISABLE_PUSH,
-                          DEV_VERSION_EXT,
-                          NO_DEV_VERSION,
-                          PRE_RELEASE_COMMIT_MESSAGE,
-                          PRO_RELEASE_COMMIT_MESSAGE,
-                          PRE_RELEASE_REPLACEMENTS,
-                          PRE_RELEASE_HOOK,
-                          TAG_MESSAGE,
-                          TAG_PREFIX,
-                          DOC_COMMIT_MESSAGE];
-    if let Some(ref r) = config.get("package")
-           .and_then(|f| f.as_table())
-           .and_then(|f| f.get("metadata"))
-           .and_then(|f| f.as_table())
-           .and_then(|f| f.get("release"))
-           .and_then(|f| f.as_table()) {
-        let mut invalid_keys = Vec::new();
-        for i in r.keys() {
-            if !valid_keys.contains(&i.as_ref()) {
-                invalid_keys.push(i.as_ref());
-            }
+pub fn get_release_config<'a>(config: Option<&'a Table>, key: &str) -> Option<&'a Value> {
+    config.and_then(|c| c.get(key))
+}
+
+fn get_release_config_table_from_file(file_path: &Path) -> Option<Table> {
+    load_from_file(file_path)
+        .map_err(FatalError::from)
+        .and_then(|c| c.parse::<Value>().map_err(FatalError::from))
+        .ok()
+        .and_then(|v| {
+            v.as_table().map(|t| {
+                println!(
+                    "Cargo release config from Cargo.toml is deprecated. Use release.toml instead."
+                );
+                t.clone()
+            })
+        })
+}
+
+/// try to resolve config source with priority:
+///
+/// 1. $(pwd)/release.toml
+/// 2. $(pwd)/Cargo.toml `package.metadata.release` (with deprecation warning)
+/// 3. $HOME/.release.toml
+///
+pub fn resolve_release_config_table(cargo_config: &Value) -> Option<Table> {
+    get_release_config_table_from_file(Path::new("release.toml"))
+        .or(get_release_config_table_from_cargo(cargo_config).map(|t| t.clone()))
+        .or(get_release_config_table_from_file(Path::new(
+            // FIXME: $HOME/.release.toml
+            ".release.toml",
+        )))
+}
+
+pub fn verify_release_config(config: &Table) -> Option<Vec<&str>> {
+    let valid_keys = vec![
+        SIGN_COMMIT,
+        UPLOAD_DOC,
+        PUSH_REMOTE,
+        DOC_BRANCH,
+        DISABLE_PUSH,
+        DEV_VERSION_EXT,
+        NO_DEV_VERSION,
+        PRE_RELEASE_COMMIT_MESSAGE,
+        PRO_RELEASE_COMMIT_MESSAGE,
+        PRE_RELEASE_REPLACEMENTS,
+        PRE_RELEASE_HOOK,
+        TAG_MESSAGE,
+        TAG_PREFIX,
+        DOC_COMMIT_MESSAGE,
+    ];
+    let mut invalid_keys = Vec::new();
+    for i in config.keys() {
+        if !valid_keys.contains(&i.as_ref()) {
+            invalid_keys.push(i.as_ref());
         }
-        if invalid_keys.is_empty() {
-            None
-        } else {
-            Some(invalid_keys)
-        }
-    } else {
+    }
+    if invalid_keys.is_empty() {
         None
+    } else {
+        Some(invalid_keys)
     }
 }
 
 pub fn save_cargo_config(config: &Value) -> Result<(), FatalError> {
     let cargo_file_path = Path::new("Cargo.toml");
-
 
     let serialized_data = toml::to_string(config).unwrap();
 
@@ -128,7 +155,11 @@ pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
                 line = format!("version = \"{}\"\n", version);
             }
 
-            try!(file_out.write_all(line.as_bytes()).map_err(FatalError::from));
+            try!(
+                file_out
+                    .write_all(line.as_bytes())
+                    .map_err(FatalError::from)
+            );
             line.clear();
         }
     }
@@ -144,12 +175,13 @@ pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
         let section_matcher = Regex::new("^\\[\\[.+\\]\\]").unwrap();
 
         let config = parse_cargo_config()?;
-        let crate_name = config.get("package")
+        let crate_name = config
+            .get("package")
             .and_then(|f| f.as_table())
             .and_then(|f| f.get("name"))
             .and_then(|f| f.as_str())
             .unwrap();
-        
+
         let mut in_package = false;
 
         loop {
@@ -170,7 +202,11 @@ pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
                 line = format!("version = \"{}\"\n", version);
             }
 
-            try!(file_out.write_all(line.as_bytes()).map_err(FatalError::from));
+            try!(
+                file_out
+                    .write_all(line.as_bytes())
+                    .map_err(FatalError::from)
+            );
             line.clear();
         }
     }
@@ -186,11 +222,12 @@ pub fn parse_version(version: &str) -> Result<Version, FatalError> {
 #[test]
 fn test_release_config() {
     if let Ok(cargo_file) = parse_cargo_config() {
-        assert!(get_release_config(&cargo_file, "sign-commit")
-                    .and_then(|f| f.as_bool())
-                    .unwrap_or(false));
+        assert!(
+            get_release_config(&cargo_file, "sign-commit")
+                .and_then(|f| f.as_bool())
+                .unwrap_or(false)
+        );
     } else {
         panic!("paser cargo file failed");
     }
-
 }
