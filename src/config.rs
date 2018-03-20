@@ -3,6 +3,7 @@ use std::io;
 use std::io::BufReader;
 use std::fs::{self, File};
 use std::path::Path;
+use std::env;
 
 use toml::{self, Value};
 use toml::value::Table;
@@ -65,14 +66,7 @@ fn get_release_config_table_from_file(file_path: &Path) -> Option<Table> {
         .map_err(FatalError::from)
         .and_then(|c| c.parse::<Value>().map_err(FatalError::from))
         .ok()
-        .and_then(|v| {
-            v.as_table().map(|t| {
-                println!(
-                    "Cargo release config from Cargo.toml is deprecated. Use release.toml instead."
-                );
-                t.clone()
-            })
-        })
+        .and_then(|v| v.as_table().map(|t| t.clone()))
 }
 
 /// try to resolve config source with priority:
@@ -83,11 +77,16 @@ fn get_release_config_table_from_file(file_path: &Path) -> Option<Table> {
 ///
 pub fn resolve_release_config_table(cargo_config: &Value) -> Option<Table> {
     get_release_config_table_from_file(Path::new("release.toml"))
-        .or(get_release_config_table_from_cargo(cargo_config).map(|t| t.clone()))
-        .or(get_release_config_table_from_file(Path::new(
-            // FIXME: $HOME/.release.toml
-            ".release.toml",
-        )))
+        .or(get_release_config_table_from_cargo(cargo_config).map(|t| {
+            println!(
+                "Cargo release config from Cargo.toml is deprecated. Use release.toml instead."
+            );
+            t.clone()
+        }))
+        .or(env::home_dir().and_then(|mut home| {
+            home.push(".release.toml");
+            get_release_config_table_from_file(home.as_path())
+        }))
 }
 
 pub fn verify_release_config(config: &Table) -> Option<Vec<&str>> {
