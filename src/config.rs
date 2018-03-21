@@ -9,6 +9,7 @@ use toml::{self, Value};
 use toml::value::Table;
 use semver::Version;
 use regex::Regex;
+use ansi_term::Colour::Red;
 
 use error::FatalError;
 
@@ -79,7 +80,10 @@ pub fn resolve_release_config_table(cargo_config: &Value) -> Option<Table> {
     get_release_config_table_from_file(Path::new("release.toml"))
         .or(get_release_config_table_from_cargo(cargo_config).map(|t| {
             println!(
-                "Cargo release config from Cargo.toml is deprecated. Use release.toml instead."
+                "{}",
+                Red.bold().paint(
+                    "Cargo release config from Cargo.toml is deprecated. Use release.toml instead."
+                )
             );
             t.clone()
         }))

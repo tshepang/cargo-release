@@ -52,10 +52,8 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
             for i in invalid_keys {
                 println!(
                     "{}",
-                    Red.bold().paint(format!(
-                        "Unknown config key \"{}\" found for [package.metadata.release]",
-                        i
-                    ))
+                    Red.bold()
+                        .paint(format!("Unknown config key \"{}\" found", i))
                 );
             }
             return Ok(109);
