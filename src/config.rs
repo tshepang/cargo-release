@@ -62,12 +62,11 @@ pub fn get_release_config<'a>(config: Option<&'a Table>, key: &str) -> Option<&'
     config.and_then(|c| c.get(key))
 }
 
-fn get_release_config_table_from_file(file_path: &Path) -> Option<Table> {
+pub fn get_release_config_table_from_file(file_path: &Path) -> Result<Option<Table>, FatalError> {
     load_from_file(file_path)
         .map_err(FatalError::from)
         .and_then(|c| c.parse::<Value>().map_err(FatalError::from))
-        .ok()
-        .and_then(|v| v.as_table().map(|t| t.clone()))
+        .map(|v| v.as_table().map(|t| t.clone()))
 }
 
 /// try to resolve config source with priority:
@@ -78,6 +77,7 @@ fn get_release_config_table_from_file(file_path: &Path) -> Option<Table> {
 ///
 pub fn resolve_release_config_table(cargo_config: &Value) -> Option<Table> {
     get_release_config_table_from_file(Path::new("release.toml"))
+        .unwrap_or(None)
         .or(get_release_config_table_from_cargo(cargo_config).map(|t| {
             println!(
                 "{}",
@@ -89,7 +89,7 @@ pub fn resolve_release_config_table(cargo_config: &Value) -> Option<Table> {
         }))
         .or(env::home_dir().and_then(|mut home| {
             home.push(".release.toml");
-            get_release_config_table_from_file(home.as_path())
+            get_release_config_table_from_file(home.as_path()).unwrap_or(None)
         }))
 }
 

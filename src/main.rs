@@ -13,6 +13,7 @@ extern crate toml;
 
 use std::io::{stdin, stdout, Write};
 use std::process::exit;
+use std::path::Path;
 
 use clap::{App, ArgMatches, SubCommand};
 use semver::Identifier;
@@ -44,7 +45,14 @@ fn confirm(prompt: &str) -> bool {
 
 fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     let cargo_file = try!(config::parse_cargo_config());
-    let release_config = config::resolve_release_config_table(&cargo_file);
+    let custom_config_path_option = args.value_of("config");
+    // FIXME:
+    let release_config = if let Some(custom_config_path) = custom_config_path_option {
+        // when calling with -c option
+        config::get_release_config_table_from_file(&Path::new(custom_config_path))?
+    } else {
+        config::resolve_release_config_table(&cargo_file)
+    };
 
     // step -1
     if let Some(ref release_config_table) = release_config {
@@ -317,6 +325,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
 }
 
 static USAGE: &'static str = "-l, --level=[level] 'Release level: bumpping major|minor|patch version on release or removing prerelease extensions by default'
+                             -c, --config=[config] 'Custom config file'
                              [sign]... --sign 'Sign git commit and tag'
                              [dry-run]... --dry-run 'Do not actually change anything'
                              [upload-doc]... --upload-doc 'Upload rust document to gh-pages branch'
