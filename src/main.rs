@@ -142,6 +142,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
         .and_then(|f| f.get("publish"))
         .and_then(|f| f.as_bool())
         .unwrap_or(true);
+    let metadata = args.value_of("metadata");
 
     // STEP 0: Check if working directory is clean
     if !try!(git::status()) {
@@ -166,7 +167,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     let prev_version_string = version.to_string();
 
     // STEP 2: update current version, save and commit
-    if try!(version::bump_version(&mut version, level)) {
+    if try!(version::bump_version(&mut version, level, metadata)) {
         let new_version_string = version.to_string();
         // Release Confirmation
         if !dry_run {
@@ -326,6 +327,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
 
 static USAGE: &'static str = "-l, --level=[level] 'Release level: bumpping major|minor|patch version on release or removing prerelease extensions by default'
                              -c, --config=[config] 'Custom config file'
+                             -m, --metadata=[metadata] 'Semver metadata'
                              [sign]... --sign 'Sign git commit and tag'
                              [dry-run]... --dry-run 'Do not actually change anything'
                              [upload-doc]... --upload-doc 'Upload rust document to gh-pages branch'
