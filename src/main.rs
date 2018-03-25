@@ -325,7 +325,7 @@ fn execute(args: &ArgMatches) -> Result<i32, error::FatalError> {
     Ok(0)
 }
 
-static USAGE: &'static str = "<level> 'Release level:  bumpping major|minor|patch version on release or removing prerelease extensions by default'
+static USAGE: &'static str = "[level] 'Release level:  bumpping major|minor|patch version on release or removing prerelease extensions by default'
                              -c, --config=[config] 'Custom config file'
                              -m, --metadata=[metadata] 'Semver metadata'
                              [sign]... --sign 'Sign git commit and tag'
