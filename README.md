@@ -24,7 +24,7 @@ Current release: 0.9.0
 
 ## Usage
 
-`cargo release`
+`cargo release [level]`
 
 ### Prerequisite
 
@@ -32,7 +32,7 @@ Current release: 0.9.0
 
 ### Release level
 
-Use `-l [level]` or `--level [level]` to specify a release level.
+Release level is to tell cargo-release how to bump version.
 
 * By default, cargo release removes pre-release extension; if there is
   no pre-release extension, the current version will be used (0.1.0-pre
