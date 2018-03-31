@@ -212,8 +212,8 @@ pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
             );
             line.clear();
         }
+        try!(fs::rename("Cargo.lock.work", "Cargo.lock"));
     }
-    try!(fs::rename("Cargo.lock.work", "Cargo.lock"));
 
     Ok(())
 }
