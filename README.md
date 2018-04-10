@@ -123,8 +123,7 @@ process will be aborted.
 
 At the moment, `cargo release` won't try to generate a changelog from
 git history or anything. Because I think changelog is an important
-communication between developer and users, which requires carefully
-maintained.
+communication between developer and users, which requires careful maintenance.
 
 However, you can still use `pre-release-replacements` to smooth your
 process of releasing a changelog, along with your crate. You need to
