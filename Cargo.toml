@@ -1,22 +1,23 @@
 [package]
 name = "cargo-release"
 version = "0.10.1-alpha.0"
-authors = ["Ning Sun <sunng@about.me>"]
+authors = ["Ning Sun <sunng@pm.me>"]
 license = "MIT/Apache-2.0"
-description = "cargo release command"
+description = "Cargo subcommand for you to smooth your release process."
 keywords = ["cargo"]
 categories = ["development-tools::cargo-plugins"]
 repository = "https://github.com/sunng87/cargo-release"
+
 
 [dependencies]
 toml = {version = "0.3.1", default-features = false}
 semver = "0.6.0"
 quick-error = "1.1.0"
 regex = "0.2.1"
-clap = "2.22.1"
 ansi_term = "0.9.0"
 maplit = "0.1.4"
 chrono = "0.4"
+structopt = {version = "0.2.7", default-features = false}
 
 [badges]
 travis-ci = { repository = "sunng87/cargo-release", branch="0.10.0" }

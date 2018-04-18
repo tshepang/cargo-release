@@ -1,11 +1,11 @@
-use semver::{Identifier, Version};
 use error::FatalError;
+use semver::{Identifier, Version};
 
 static VERSION_ALPHA: &'static str = "alpha";
 static VERSION_BETA: &'static str = "beta";
 static VERSION_RC: &'static str = "rc";
 
-pub fn is_pre_release(level: Option<&str>) -> bool {
+pub fn is_pre_release(level: Option<&String>) -> bool {
     level
         .map(|l| l == VERSION_ALPHA || l == VERSION_BETA || l == VERSION_RC)
         .unwrap_or(false)
@@ -13,12 +13,12 @@ pub fn is_pre_release(level: Option<&str>) -> bool {
 
 pub fn bump_version(
     version: &mut Version,
-    level: Option<&str>,
-    metadata: Option<&str>,
+    level: Option<&String>,
+    metadata: Option<&String>,
 ) -> Result<bool, FatalError> {
     let mut need_commit = false;
     match level {
-        Some(level) => match level {
+        Some(level) => match level.as_str() {
             "major" => {
                 version.increment_major();
                 need_commit = true;
