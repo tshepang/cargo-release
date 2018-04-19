@@ -46,11 +46,11 @@ fn confirm(prompt: &str) -> bool {
 
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let cargo_file = try!(config::parse_cargo_config());
-    let custom_config_path_option = &args.config;
+    let custom_config_path_option = args.config.as_ref();
     // FIXME:
     let release_config = if let Some(custom_config_path) = custom_config_path_option {
         // when calling with -c option
-        config::get_release_config_table_from_file(&Path::new(custom_config_path))?
+        config::get_release_config_table_from_file(Path::new(custom_config_path))?
     } else {
         config::resolve_release_config_table(&cargo_file)
     };
