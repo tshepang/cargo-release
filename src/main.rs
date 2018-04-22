@@ -21,6 +21,7 @@ use ansi_term::Style;
 use semver::Identifier;
 use structopt::StructOpt;
 use toml::Value;
+use toml::value::Table;
 
 mod cargo;
 mod cmd;
@@ -42,6 +43,27 @@ fn confirm(prompt: &str) -> bool {
     stdin().read_line(&mut input).expect("y/n required");
 
     input.trim().to_lowercase() == "y"
+}
+
+fn get_string_option(
+    cli: &Option<String>,
+    config_file: Option<&Table>,
+    config_file_key: &str,
+    default_value: &str,
+) -> String {
+    cli.clone()
+        .or_else(|| {
+            config::get_release_config(config_file, config_file_key)
+                .and_then(|f| f.as_str())
+                .map(|f| f.to_owned())
+        })
+        .unwrap_or(default_value.to_owned())
+}
+
+fn get_bool_option(cli: bool, config_file: Option<&Table>, config_file_key: &str) -> bool {
+    cli || config::get_release_config(config_file, config_file_key)
+        .and_then(|f| f.as_bool())
+        .unwrap_or(false)
 }
 
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
@@ -71,46 +93,36 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
     let dry_run = args.dry_run;
     let level = args.level.as_ref();
-    let sign = args.sign
-        || config::get_release_config(release_config.as_ref(), config::SIGN_COMMIT)
-            .and_then(|f| f.as_bool())
-            .unwrap_or(false);
-    let upload_doc = args.upload_doc
-        || config::get_release_config(release_config.as_ref(), config::UPLOAD_DOC)
-            .and_then(|f| f.as_bool())
-            .unwrap_or(false);
-    let git_remote = args.push_remote
-        .clone()
-        .or_else(|| {
-            config::get_release_config(release_config.as_ref(), config::PUSH_REMOTE)
-                .and_then(|f| f.as_str())
-                .map(|f| f.to_owned())
-        })
-        .unwrap_or("origin".to_owned());
-    let doc_branch = args.doc_branch
-        .clone()
-        .or_else(|| {
-            config::get_release_config(release_config.as_ref(), config::DOC_BRANCH)
-                .and_then(|f| f.as_str())
-                .map(|f| f.to_owned())
-        })
-        .unwrap_or("gh-pages".to_owned());
-    let skip_push = args.skip_push
-        || config::get_release_config(release_config.as_ref(), config::DISABLE_PUSH)
-            .and_then(|f| f.as_bool())
-            .unwrap_or(false);
-    let dev_version_ext = args.dev_version_ext
-        .clone()
-        .or_else(|| {
-            config::get_release_config(release_config.as_ref(), config::DEV_VERSION_EXT)
-                .and_then(|f| f.as_str())
-                .map(|f| f.to_owned())
-        })
-        .unwrap_or("alpha.0".to_owned());
-    let no_dev_version = args.no_dev_version
-        || config::get_release_config(release_config.as_ref(), config::NO_DEV_VERSION)
-            .and_then(|f| f.as_bool())
-            .unwrap_or(false);
+    let sign = get_bool_option(args.sign, release_config.as_ref(), config::SIGN_COMMIT);
+    let upload_doc = get_bool_option(args.upload_doc, release_config.as_ref(), config::UPLOAD_DOC);
+    let git_remote = get_string_option(
+        &args.push_remote,
+        release_config.as_ref(),
+        config::PUSH_REMOTE,
+        "origin",
+    );
+    let doc_branch = get_string_option(
+        &args.doc_branch,
+        release_config.as_ref(),
+        config::DOC_BRANCH,
+        "gh-pages",
+    );
+    let skip_push = get_bool_option(
+        args.skip_push,
+        release_config.as_ref(),
+        config::DISABLE_PUSH,
+    );
+    let dev_version_ext = get_string_option(
+        &args.dev_version_ext,
+        release_config.as_ref(),
+        config::DEV_VERSION_EXT,
+        "alpha.0",
+    );
+    let no_dev_version = get_bool_option(
+        args.no_dev_version,
+        release_config.as_ref(),
+        config::NO_DEV_VERSION,
+    );
     let pre_release_commit_msg =
         config::get_release_config(release_config.as_ref(), config::PRE_RELEASE_COMMIT_MESSAGE)
             .and_then(|f| f.as_str())
