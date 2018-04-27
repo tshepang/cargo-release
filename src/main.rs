@@ -20,8 +20,8 @@ use ansi_term::Colour::{Green, Red};
 use ansi_term::Style;
 use semver::Identifier;
 use structopt::StructOpt;
-use toml::Value;
 use toml::value::Table;
+use toml::Value;
 
 mod cargo;
 mod cmd;
@@ -67,14 +67,14 @@ fn get_bool_option(cli: bool, config_file: Option<&Table>, config_file_key: &str
 }
 
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
-    let cargo_file = try!(config::parse_cargo_config());
+    let cargo_file = config::parse_cargo_config()?;
     let custom_config_path_option = args.config.as_ref();
     // FIXME:
     let release_config = if let Some(custom_config_path) = custom_config_path_option {
         // when calling with -c option
         config::get_release_config_table_from_file(Path::new(custom_config_path))?
     } else {
-        config::resolve_release_config_table(&cargo_file)
+        config::resolve_release_config_table(&cargo_file)?
     };
 
     // step -1

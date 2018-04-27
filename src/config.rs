@@ -1,15 +1,15 @@
-use std::io::prelude::*;
-use std::io;
-use std::io::BufReader;
-use std::fs::{self, File};
-use std::path::Path;
 use std::env;
+use std::fs::{self, File};
+use std::io;
+use std::io::prelude::*;
+use std::io::BufReader;
+use std::path::Path;
 
-use toml::{self, Value};
-use toml::value::Table;
-use semver::Version;
-use regex::Regex;
 use ansi_term::Colour::Red;
+use regex::Regex;
+use semver::Version;
+use toml::value::Table;
+use toml::{self, Value};
 
 use error::FatalError;
 
@@ -63,10 +63,14 @@ pub fn get_release_config<'a>(config: Option<&'a Table>, key: &str) -> Option<&'
 }
 
 pub fn get_release_config_table_from_file(file_path: &Path) -> Result<Option<Table>, FatalError> {
-    load_from_file(file_path)
-        .map_err(FatalError::from)
-        .and_then(|c| c.parse::<Value>().map_err(FatalError::from))
-        .map(|v| v.as_table().map(|t| t.clone()))
+    if file_path.exists() {
+        load_from_file(file_path)
+            .map_err(FatalError::from)
+            .and_then(|c| c.parse::<Value>().map_err(FatalError::from))
+            .map(|v| v.as_table().map(|t| t.clone()))
+    } else {
+        Ok(None)
+    }
 }
 
 /// try to resolve config source with priority:
@@ -75,10 +79,11 @@ pub fn get_release_config_table_from_file(file_path: &Path) -> Result<Option<Tab
 /// 2. $(pwd)/Cargo.toml `package.metadata.release` (with deprecation warning)
 /// 3. $HOME/.release.toml
 ///
-pub fn resolve_release_config_table(cargo_config: &Value) -> Option<Table> {
-    get_release_config_table_from_file(Path::new("release.toml"))
-        .unwrap_or(None)
-        .or(get_release_config_table_from_cargo(cargo_config).map(|t| {
+pub fn resolve_release_config_table(cargo_config: &Value) -> Result<Option<Table>, FatalError> {
+    let current_dir_config = get_release_config_table_from_file(Path::new("release.toml"))?;
+
+    if current_dir_config.is_none() {
+        let cargo_file_config = get_release_config_table_from_cargo(cargo_config).map(|t| {
             println!(
                 "{}",
                 Red.bold().paint(
@@ -86,11 +91,22 @@ pub fn resolve_release_config_table(cargo_config: &Value) -> Option<Table> {
                 )
             );
             t.clone()
-        }))
-        .or(env::home_dir().and_then(|mut home| {
-            home.push(".release.toml");
-            get_release_config_table_from_file(home.as_path()).unwrap_or(None)
-        }))
+        });
+
+        if cargo_file_config.is_none() {
+            let home_dir = env::home_dir();
+            if let Some(mut home) = home_dir {
+                home.push(".release.toml");
+                get_release_config_table_from_file(home.as_path())
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(cargo_file_config)
+        }
+    } else {
+        Ok(current_dir_config)
+    }
 }
 
 pub fn verify_release_config(config: &Table) -> Option<Vec<&str>> {
