@@ -241,7 +241,7 @@ pub fn parse_version(version: &str) -> Result<Version, FatalError> {
 #[test]
 fn test_release_config() {
     if let Ok(cargo_file) = parse_cargo_config() {
-        let release_config = resolve_release_config_table(&cargo_file);
+        let release_config = resolve_release_config_table(&cargo_file).unwrap();
         assert!(
             get_release_config(release_config.as_ref(), "sign-commit")
                 .and_then(|f| f.as_bool())
