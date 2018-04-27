@@ -1,8 +1,8 @@
+use regex::Error as RegexError;
+use semver::SemVerError;
 use std::io::Error as IOError;
 use std::string::FromUtf8Error;
-use semver::SemVerError;
 use toml::de::Error as TomlError;
-use regex::Error as RegexError;
 
 quick_error! {
     #[derive(Debug)]
@@ -14,7 +14,7 @@ quick_error! {
             display("IO Error: {}", err)
         }
         InvalidCargoFileFormat(err: TomlError) {
-            display("Invalid cargo file format: {}", err)
+            display("Invalid TOML file format: {}", err)
             description(err.description())
             from()
             cause(err)
