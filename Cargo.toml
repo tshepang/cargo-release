@@ -7,7 +7,7 @@ description = "Cargo subcommand for you to smooth your release process."
 keywords = ["cargo"]
 categories = ["development-tools::cargo-plugins"]
 repository = "https://github.com/sunng87/cargo-release"
-
+readme = "README.md"
 
 [dependencies]
 toml = {version = "0.3.1", default-features = false}
