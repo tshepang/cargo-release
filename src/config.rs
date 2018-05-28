@@ -5,12 +5,13 @@ use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::Path;
 
-use ansi_term::Colour::Red;
 use regex::Regex;
 use semver::Version;
+use termcolor::Color;
 use toml::value::Table;
 use toml::{self, Value};
 
+use cmd;
 use error::FatalError;
 
 pub static SIGN_COMMIT: &'static str = "sign-commit";
@@ -84,11 +85,10 @@ pub fn resolve_release_config_table(cargo_config: &Value) -> Result<Option<Table
 
     if current_dir_config.is_none() {
         let cargo_file_config = get_release_config_table_from_cargo(cargo_config).map(|t| {
-            println!(
-                "{}",
-                Red.bold().paint(
-                    "Cargo release config from Cargo.toml is deprecated. Use release.toml instead."
-                )
+            cmd::console_println(
+                "Cargo release config from Cargo.toml is deprecated. Use release.toml instead.",
+                Some(Color::Red),
+                true,
             );
             t.clone()
         });

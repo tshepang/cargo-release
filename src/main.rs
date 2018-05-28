@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-extern crate ansi_term;
 extern crate chrono;
+extern crate termcolor;
 #[macro_use]
 extern crate maplit;
 #[macro_use]
@@ -16,10 +16,9 @@ use std::io::{stdin, stdout, Write};
 use std::path::Path;
 use std::process::exit;
 
-use ansi_term::Colour::{Green, Red};
-use ansi_term::Style;
 use semver::Identifier;
 use structopt::StructOpt;
+use termcolor::Color;
 use toml::value::Table;
 use toml::Value;
 
@@ -34,10 +33,7 @@ mod version;
 fn confirm(prompt: &str) -> bool {
     let mut input = String::new();
 
-    print!(
-        "{}",
-        Style::new().bold().paint(format!("{} [y/N] ", prompt))
-    );
+    cmd::console_println(&format!("{} [y/N] ", prompt), None, true);
 
     stdout().flush().unwrap();
     stdin().read_line(&mut input).expect("y/n required");
@@ -81,10 +77,10 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     if let Some(ref release_config_table) = release_config {
         if let Some(invalid_keys) = config::verify_release_config(release_config_table) {
             for i in invalid_keys {
-                println!(
-                    "{}",
-                    Red.bold()
-                        .paint(format!("Unknown config key \"{}\" found", i))
+                cmd::console_println(
+                    &format!("Unknown config key \"{}\" found", i),
+                    Some(Color::Red),
+                    true,
                 );
             }
             return Ok(109);
@@ -165,10 +161,10 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
     // STEP 0: Check if working directory is clean
     if !try!(git::status()) {
-        println!(
-            "{}",
-            Red.bold()
-                .paint("Uncommitted changes detected, please commit before release.",)
+        cmd::console_println(
+            "Uncommitted changes detected, please commit before release.",
+            Some(Color::Red),
+            true,
         );
         if !dry_run {
             return Ok(101);
@@ -199,9 +195,10 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
         // pre-release hook
         if let Some(pre_rel_hook) = pre_release_hook {
-            println!(
-                "{}",
-                Green.paint(format!("Calling pre-release hook: {:?}", pre_rel_hook))
+            cmd::console_println(
+                &format!("Calling pre-release hook: {:?}", pre_rel_hook),
+                Some(Color::Green),
+                false,
             );
             let envs = btreemap!{
                 "PREV_VERSION" => prev_version_string.as_ref(),
@@ -211,20 +208,19 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             // we use dry_run environmental variable to run the script
             // so here we set dry_run=false and always execute the command.
             if !try!(cmd::call_with_env(pre_rel_hook, envs, false)) {
-                println!(
-                    "{}",
-                    Red.paint("Release aborted by non-zero return of prerelease hook.")
+                cmd::console_println(
+                    "Release aborted by non-zero return of prerelease hook.",
+                    Some(Color::Red),
+                    false,
                 );
                 return Ok(107);
             }
         }
 
-        println!(
-            "{}",
-            Green.paint(format!(
-                "Update to version {} and commit",
-                new_version_string
-            ))
+        cmd::console_println(
+            &format!("Update to version {} and commit", new_version_string),
+            Some(Color::Green),
+            false,
         );
         if !dry_run {
             try!(config::rewrite_cargo_version(&new_version_string));
@@ -249,7 +245,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
     // STEP 3: cargo publish
     if publish {
-        println!("{}", Green.paint("Running cargo publish"));
+        cmd::console_println("Running cargo publish", Some(Color::Green), false);
         if !try!(cargo::publish(dry_run)) {
             return Ok(103);
         }
@@ -257,12 +253,12 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
     // STEP 4: upload doc
     if upload_doc {
-        println!("{}", Green.paint("Building and exporting docs."));
+        cmd::console_println("Building and exporting docs.", Some(Color::Green), false);
         try!(cargo::doc(dry_run));
 
         let doc_path = "target/doc/";
 
-        println!("{}", Green.paint("Commit and push docs."));
+        cmd::console_println("Commit and push docs.", Some(Color::Green), false);
         try!(git::init(doc_path, dry_run));
         try!(git::add_all(doc_path, dry_run));
         try!(git::commit_all(doc_path, doc_commit_msg, sign, dry_run));
@@ -282,7 +278,8 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // STEP 5: Tag
     let root = try!(git::top_level());
     let rel_path = try!(cmd::relative_path_for(&root));
-    let tag_prefix = args.tag_prefix
+    let tag_prefix = args
+        .tag_prefix
         .clone()
         .or_else(|| {
             config::get_release_config(release_config.as_ref(), config::TAG_PREFIX)
@@ -301,7 +298,11 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         .replace("{{prefix}}", tag_prefix.as_ref().unwrap_or(&"".to_owned()))
         .replace("{{version}}", &current_version);
 
-    println!("{}", Green.paint(format!("Creating git tag {}", tag_name)));
+    cmd::console_println(
+        &format!("Creating git tag {}", tag_name),
+        Some(Color::Green),
+        false,
+    );
     if !try!(git::tag(&tag_name, &tag_message, sign, dry_run)) {
         // tag failed, abort release
         return Ok(104);
@@ -313,9 +314,10 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         version
             .pre
             .push(Identifier::AlphaNumeric(dev_version_ext.to_owned()));
-        println!(
-            "{}",
-            Green.paint(format!("Starting next development iteration {}", version))
+        cmd::console_println(
+            &format!("Starting next development iteration {}", version),
+            Some(Color::Green),
+            false,
         );
         let updated_version_string = version.to_string();
         if !dry_run {
@@ -331,7 +333,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
     // STEP 7: git push
     if !skip_push {
-        println!("{}", Green.paint("Pushing to git remote"));
+        cmd::console_println("Pushing to git remote", Some(Color::Green), false);
         if !try!(git::push(&git_remote, dry_run)) {
             return Ok(106);
         }
@@ -340,7 +342,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         }
     }
 
-    println!("{}", Green.paint("Finished"));
+    cmd::console_println("Finished", Some(Color::Green), false);
     Ok(0)
 }
 
@@ -410,7 +412,7 @@ fn main() {
     match execute(release_matches) {
         Ok(code) => exit(code),
         Err(e) => {
-            println!("{}", Red.bold().paint(format!("Fatal: {}", e)));
+            cmd::console_println(&format!("Fatal: {}", e), Some(Color::Red), true);
             exit(128);
         }
     }
