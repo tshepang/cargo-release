@@ -7,11 +7,10 @@ use std::path::Path;
 
 use regex::Regex;
 use semver::Version;
-use termcolor::Color;
 use toml::value::Table;
 use toml::{self, Value};
 
-use cmd;
+use shell;
 use error::FatalError;
 
 pub static SIGN_COMMIT: &'static str = "sign-commit";
@@ -85,10 +84,8 @@ pub fn resolve_release_config_table(cargo_config: &Value) -> Result<Option<Table
 
     if current_dir_config.is_none() {
         let cargo_file_config = get_release_config_table_from_cargo(cargo_config).map(|t| {
-            cmd::console_println(
+            shell::log_warn(
                 "Cargo release config from Cargo.toml is deprecated. Use release.toml instead.",
-                Some(Color::Red),
-                true,
             );
             t.clone()
         });

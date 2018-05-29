@@ -1,9 +1,6 @@
-use std::io::Write;
 use std::process::Command;
 use std::env::current_dir;
 use std::collections::BTreeMap;
-
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use error::FatalError;
 
@@ -73,13 +70,4 @@ pub fn relative_path_for(root: &str) -> Result<Option<String>, FatalError> {
     } else {
         Ok(None)
     }
-}
-
-pub fn console_println(text: &str, color: Option<Color>, bold: bool) {
-    let mut stdout = StandardStream::stdout(ColorChoice::Auto);
-    stdout.reset().unwrap();
-    // unwrap the result, panic if error
-    stdout.set_color(ColorSpec::new().set_fg(color).set_bold(bold)).unwrap();
-    writeln!(&mut stdout, "{}", text).unwrap();
-    stdout.reset().unwrap();
 }
