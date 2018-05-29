@@ -1,6 +1,6 @@
 [package]
 name = "cargo-release"
-version = "0.10.2-alpha.0"
+version = "0.10.2"
 authors = ["Ning Sun <sunng@pm.me>"]
 license = "MIT/Apache-2.0"
 description = "Cargo subcommand for you to smooth your release process."
@@ -20,4 +20,4 @@ chrono = "0.4"
 structopt = {version = "0.2.7", default-features = false}
 
 [badges]
-travis-ci = { repository = "sunng87/cargo-release", branch="0.10.1" }
+travis-ci = { repository = "sunng87/cargo-release", branch="0.10.2" }
