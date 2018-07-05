@@ -201,6 +201,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             // try update version number in configured files
             try!(replace::do_replace_versions(
                 pre_rel_rep,
+                &prev_version_string,
                 &new_version_string,
                 dry_run,
             ));
