@@ -190,7 +190,10 @@ directory, or `.release.toml` at your home directory. Available keys are:
   for example. The table contains three keys:
   * `file`: the file to search and replace
   * `search`: regex that matches string you want to replace
-  * `replace`: the replacement, use `{{version}}` for current version and `{{date}}` for the release date
+  * `replace`: the replacement string; you can use the following variables:
+    * `{{version}}`: the current (bumped) crate version
+    * `{{date}}`: the release date
+    * `{{prev_version}}`: the version before `cargo-relase` was executed (before any version bump)
 * `pre-release-hook`: provide a command to run before `cargo-release`
   commits version change
 

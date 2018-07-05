@@ -23,6 +23,7 @@ fn save_to_file(path: &Path, content: &str) -> io::Result<()> {
 
 pub fn do_replace_versions(
     replace_config: &Value,
+    prev_version: &str,
     version: &str,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
@@ -39,12 +40,12 @@ pub fn do_replace_versions(
                 let replace = try!(t.get("replace").and_then(|v| v.as_str()).ok_or(
                     FatalError::ReplacerConfigError,
                 ));
-                let replace_string = replace.replace("{{version}}", version).replace(
-                    "{{date}}",
-                    &Local::now()
+                let replace_string = replace
+                    .replace("{{version}}", version)
+                    .replace("{{prev_version}}", prev_version)
+                    .replace("{{date}}", &Local::now()
                         .format("%Y-%m-%d")
-                        .to_string(),
-                );
+                        .to_string());
                 let replacer = replace_string.as_str();
 
                 let data = try!(load_from_file(&Path::new(file)));
