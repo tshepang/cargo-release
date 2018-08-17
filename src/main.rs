@@ -87,6 +87,11 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         config::DOC_BRANCH,
         "gh-pages",
     );
+    let skip_publish = get_bool_option(
+        args.skip_publish,
+        release_config.as_ref(),
+        config::DISABLE_PUBLISH,
+    );
     let skip_push = get_bool_option(
         args.skip_push,
         release_config.as_ref(),
@@ -140,7 +145,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         .and_then(|f| f.as_table())
         .and_then(|f| f.get("publish"))
         .and_then(|f| f.as_bool())
-        .unwrap_or(true);
+        .unwrap_or(!skip_publish);
     let metadata = args.metadata.as_ref();
 
     // STEP 0: Check if working directory is clean
@@ -338,6 +343,10 @@ struct ReleaseOpt {
     #[structopt(long = "push-remote")]
     /// Git remote to push
     push_remote: Option<String>,
+
+    #[structopt(long = "skip-publish")]
+    /// Do not run cargo publish on release
+    skip_publish: bool,
 
     #[structopt(long = "skip-push")]
     /// Do not run git push in the last step

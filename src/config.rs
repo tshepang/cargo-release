@@ -17,6 +17,7 @@ pub static SIGN_COMMIT: &'static str = "sign-commit";
 pub static UPLOAD_DOC: &'static str = "upload-doc";
 pub static PUSH_REMOTE: &'static str = "push-remote";
 pub static DOC_BRANCH: &'static str = "doc-branch";
+pub static DISABLE_PUBLISH: &'static str = "disable-publish";
 pub static DISABLE_PUSH: &'static str = "disable-push";
 pub static DEV_VERSION_EXT: &'static str = "dev-version-ext";
 pub static NO_DEV_VERSION: &'static str = "no-dev-version";
@@ -112,6 +113,7 @@ pub fn verify_release_config(config: &Table) -> Option<Vec<&str>> {
         UPLOAD_DOC,
         PUSH_REMOTE,
         DOC_BRANCH,
+        DISABLE_PUBLISH,
         DISABLE_PUSH,
         DEV_VERSION_EXT,
         NO_DEV_VERSION,
