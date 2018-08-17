@@ -10,7 +10,6 @@ use semver::Version;
 use toml::value::Table;
 use toml::{self, Value};
 
-use shell;
 use error::FatalError;
 
 pub static SIGN_COMMIT: &'static str = "sign-commit";
@@ -74,37 +73,35 @@ pub fn get_release_config_table_from_file(file_path: &Path) -> Result<Option<Tab
     }
 }
 
-/// try to resolve config source with priority:
+/// Try to resolve configuration source.
 ///
+/// This tries the following sources in order, short-circuiting on the first one found:
 /// 1. $(pwd)/release.toml
 /// 2. $(pwd)/Cargo.toml `package.metadata.release` (with deprecation warning)
 /// 3. $HOME/.release.toml
 ///
 pub fn resolve_release_config_table(cargo_config: &Value) -> Result<Option<Table>, FatalError> {
+    // Project release file.
     let current_dir_config = get_release_config_table_from_file(Path::new("release.toml"))?;
+    if let Some(cfg) = current_dir_config {
+        return Ok(Some(cfg));
+    };
 
-    if current_dir_config.is_none() {
-        let cargo_file_config = get_release_config_table_from_cargo(cargo_config).map(|t| {
-            shell::log_warn(
-                "Cargo release config from Cargo.toml is deprecated. Use release.toml instead.",
-            );
-            t.clone()
-        });
+    // Crate manifest.
+    let cargo_file_config = get_release_config_table_from_cargo(cargo_config);
+    if let Some(cfg) = cargo_file_config.cloned() {
+        return Ok(Some(cfg));
+    };
 
-        if cargo_file_config.is_none() {
-            let home_dir = env::home_dir();
-            if let Some(mut home) = home_dir {
-                home.push(".release.toml");
-                get_release_config_table_from_file(home.as_path())
-            } else {
-                Ok(None)
-            }
-        } else {
-            Ok(cargo_file_config)
-        }
-    } else {
-        Ok(current_dir_config)
-    }
+    // User-local configuration from home directory.
+    let home_dir = env::home_dir();
+    if let Some(mut home) = home_dir {
+        home.push(".release.toml");
+        return get_release_config_table_from_file(home.as_path());
+    };
+
+    // No project-wide configuration.
+    Ok(None)
 }
 
 pub fn verify_release_config(config: &Table) -> Option<Vec<&str>> {
