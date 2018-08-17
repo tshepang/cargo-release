@@ -19,7 +19,7 @@ Basically it runs following tasks:
 
 ## Install
 
-Current release: 0.10.3
+Current release: 0.10.4
 
 `cargo install cargo-release`
 
