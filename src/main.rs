@@ -11,6 +11,7 @@ extern crate structopt;
 extern crate regex;
 extern crate semver;
 extern crate toml;
+extern crate dirs;
 
 use std::path::Path;
 use std::process::exit;

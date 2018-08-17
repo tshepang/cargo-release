@@ -1,4 +1,3 @@
-use std::env;
 use std::fs::{self, File};
 use std::io;
 use std::io::prelude::*;
@@ -9,6 +8,7 @@ use regex::Regex;
 use semver::Version;
 use toml::value::Table;
 use toml::{self, Value};
+use dirs;
 
 use error::FatalError;
 
@@ -94,7 +94,7 @@ pub fn resolve_release_config_table(cargo_config: &Value) -> Result<Option<Table
     };
 
     // User-local configuration from home directory.
-    let home_dir = env::home_dir();
+    let home_dir = dirs::home_dir();
     if let Some(mut home) = home_dir {
         home.push(".release.toml");
         return get_release_config_table_from_file(home.as_path());
