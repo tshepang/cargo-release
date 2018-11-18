@@ -6,12 +6,11 @@ extern crate termcolor;
 extern crate maplit;
 #[macro_use]
 extern crate quick_error;
-#[macro_use]
-extern crate structopt;
+extern crate dirs;
 extern crate regex;
 extern crate semver;
+extern crate structopt;
 extern crate toml;
-extern crate dirs;
 
 use std::path::Path;
 use std::process::exit;
@@ -119,23 +118,24 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             .unwrap_or("(cargo-release) start next development iteration {{version}}");
     let pre_release_replacements =
         config::get_release_config(release_config.as_ref(), config::PRE_RELEASE_REPLACEMENTS);
-    let pre_release_hook = config::get_release_config(
-        release_config.as_ref(),
-        config::PRE_RELEASE_HOOK,
-    ).and_then(|h| match h {
-        &Value::String(ref s) => Some(vec![s.as_ref()]),
-        &Value::Array(ref a) => Some(
-            a.iter()
-                .map(|v| v.as_str())
-                .filter(|o| o.is_some())
-                .map(|s| s.unwrap())
-                .collect(),
-        ),
-        _ => None,
-    });
+    let pre_release_hook =
+        config::get_release_config(release_config.as_ref(), config::PRE_RELEASE_HOOK).and_then(
+            |h| match h {
+                &Value::String(ref s) => Some(vec![s.as_ref()]),
+                &Value::Array(ref a) => Some(
+                    a.iter()
+                        .map(|v| v.as_str())
+                        .filter(|o| o.is_some())
+                        .map(|s| s.unwrap())
+                        .collect(),
+                ),
+                _ => None,
+            },
+        );
     let tag_msg = config::get_release_config(release_config.as_ref(), config::TAG_MESSAGE)
         .and_then(|f| f.as_str())
         .unwrap_or("(cargo-release) {{prefix}} version {{version}}");
+    let skip_tag = get_bool_option(args.skip_tag, release_config.as_ref(), config::DISABLE_TAG);
     let doc_commit_msg =
         config::get_release_config(release_config.as_ref(), config::DOC_COMMIT_MESSAGE)
             .and_then(|f| f.as_str())
@@ -272,14 +272,16 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         |x| format!("{}{}", x, current_version),
     );
 
-    let tag_message = String::from(tag_msg)
-        .replace("{{prefix}}", tag_prefix.as_ref().unwrap_or(&"".to_owned()))
-        .replace("{{version}}", &current_version);
+    if !skip_tag {
+        let tag_message = String::from(tag_msg)
+            .replace("{{prefix}}", tag_prefix.as_ref().unwrap_or(&"".to_owned()))
+            .replace("{{version}}", &current_version);
 
-    shell::log_info(&format!("Creating git tag {}", tag_name));
-    if !try!(git::tag(&tag_name, &tag_message, sign, dry_run)) {
-        // tag failed, abort release
-        return Ok(104);
+        shell::log_info(&format!("Creating git tag {}", tag_name));
+        if !try!(git::tag(&tag_name, &tag_message, sign, dry_run)) {
+            // tag failed, abort release
+            return Ok(104);
+        }
     }
 
     // STEP 6: bump version
@@ -307,7 +309,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         if !try!(git::push(&git_remote, dry_run)) {
             return Ok(106);
         }
-        if !try!(git::push_tag(&git_remote, &tag_name, dry_run)) {
+        if !skip_tag && !try!(git::push_tag(&git_remote, &tag_name, dry_run)) {
             return Ok(106);
         }
     }
@@ -352,6 +354,10 @@ struct ReleaseOpt {
     #[structopt(long = "skip-push")]
     /// Do not run git push in the last step
     skip_push: bool,
+
+    #[structopt(long = "skip-tag")]
+    /// Do not create git tag
+    skip_tag: bool,
 
     #[structopt(long = "doc-branch")]
     /// Git branch to push documentation on

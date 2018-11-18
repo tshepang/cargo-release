@@ -168,6 +168,7 @@ directory, or `.release.toml` at your home directory. Available keys are:
 * `doc-branch`: string, default branch to push docs
 * `push-remote`: string, default git remote to push
 * `disable-push`: bool, don't do git push
+* `disable-tag`: bool, don't do git tag
 * `dev-version-ext`: string, pre-release extension to use on the next
   development version.
 * `pre-release-commit-message`: string, a commit message template for
@@ -261,4 +262,3 @@ additional terms or conditions.
 
 I'm now accepting donation on [liberapay](https://liberapay.com/Sunng/donate),
 if you find my work helpful and want to keep it going.
-
