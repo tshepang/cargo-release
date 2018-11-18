@@ -1,6 +1,6 @@
-use std::process::Command;
-use std::env::current_dir;
 use std::collections::BTreeMap;
+use std::env::current_dir;
+use std::process::Command;
 
 use error::FatalError;
 
@@ -41,8 +41,8 @@ fn do_call(
         }
     }
 
-    let mut child = try!(cmd.spawn().map_err(FatalError::from));
-    let result = try!(child.wait().map_err(FatalError::from));
+    let mut child = cmd.spawn().map_err(FatalError::from)?;
+    let result = child.wait().map_err(FatalError::from)?;
 
     Ok(result.success())
 }
@@ -64,7 +64,7 @@ pub fn call_with_env(
 }
 
 pub fn relative_path_for(root: &str) -> Result<Option<String>, FatalError> {
-    let pwd = try!(current_dir()).to_str().unwrap().to_owned();
+    let pwd = current_dir()?.to_str().unwrap().to_owned();
     if pwd.len() > root.len() {
         Ok(Some(pwd[root.len()..].to_string()))
     } else {

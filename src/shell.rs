@@ -6,7 +6,9 @@ pub fn console_println(text: &str, color: Option<Color>, bold: bool) {
     let mut stdout = StandardStream::stdout(ColorChoice::Auto);
     stdout.reset().unwrap();
     // unwrap the result, panic if error
-    stdout.set_color(ColorSpec::new().set_fg(color).set_bold(bold)).unwrap();
+    stdout
+        .set_color(ColorSpec::new().set_fg(color).set_bold(bold))
+        .unwrap();
     writeln!(&mut stdout, "{}", text).unwrap();
     stdout.reset().unwrap();
 }

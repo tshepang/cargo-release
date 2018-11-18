@@ -150,7 +150,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let metadata = args.metadata.as_ref();
 
     // STEP 0: Check if working directory is clean
-    if !try!(git::status()) {
+    if !git::status()? {
         shell::log_warn("Uncommitted changes detected, please commit before release.");
         if !dry_run {
             return Ok(101);
@@ -168,7 +168,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let prev_version_string = version.to_string();
 
     // STEP 2: update current version, save and commit
-    if try!(version::bump_version(&mut version, level, metadata)) {
+    if version::bump_version(&mut version, level, metadata)? {
         let new_version_string = version.to_string();
         // Release Confirmation
         if !dry_run {
@@ -189,7 +189,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             };
             // we use dry_run environmental variable to run the script
             // so here we set dry_run=false and always execute the command.
-            if !try!(cmd::call_with_env(pre_rel_hook, envs, false)) {
+            if !cmd::call_with_env(pre_rel_hook, envs, false)? {
                 shell::log_warn("Release aborted by non-zero return of prerelease hook.");
                 return Ok(107);
             }
@@ -200,22 +200,22 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             new_version_string
         ));
         if !dry_run {
-            try!(config::rewrite_cargo_version(&new_version_string));
+            config::rewrite_cargo_version(&new_version_string)?;
         }
 
         if let Some(pre_rel_rep) = pre_release_replacements {
             // try update version number in configured files
-            try!(replace::do_replace_versions(
+            replace::do_replace_versions(
                 pre_rel_rep,
                 &prev_version_string,
                 &new_version_string,
                 dry_run,
-            ));
+            )?;
         }
 
         let commit_msg =
             String::from(pre_release_commit_msg).replace("{{version}}", &new_version_string);
-        if !try!(git::commit_all(".", &commit_msg, sign, dry_run)) {
+        if !git::commit_all(".", &commit_msg, sign, dry_run)? {
             // commit failed, abort release
             return Ok(102);
         }
@@ -224,7 +224,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // STEP 3: cargo publish
     if publish {
         shell::log_info("Running cargo publish");
-        if !try!(cargo::publish(dry_run)) {
+        if !cargo::publish(dry_run)? {
             return Ok(103);
         }
     }
@@ -232,30 +232,25 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // STEP 4: upload doc
     if upload_doc {
         shell::log_info("Building and exporting docs.");
-        try!(cargo::doc(dry_run));
+        cargo::doc(dry_run)?;
 
         let doc_path = "target/doc/";
 
         shell::log_info("Commit and push docs.");
-        try!(git::init(doc_path, dry_run));
-        try!(git::add_all(doc_path, dry_run));
-        try!(git::commit_all(doc_path, doc_commit_msg, sign, dry_run));
-        let default_remote = try!(git::origin_url());
+        git::init(doc_path, dry_run)?;
+        git::add_all(doc_path, dry_run)?;
+        git::commit_all(doc_path, doc_commit_msg, sign, dry_run)?;
+        let default_remote = git::origin_url()?;
 
         let mut refspec = String::from("master:");
         refspec.push_str(&doc_branch);
 
-        try!(git::force_push(
-            doc_path,
-            default_remote.trim(),
-            &refspec,
-            dry_run,
-        ));
+        git::force_push(doc_path, default_remote.trim(), &refspec, dry_run)?;
     }
 
     // STEP 5: Tag
-    let root = try!(git::top_level());
-    let rel_path = try!(cmd::relative_path_for(&root));
+    let root = git::top_level()?;
+    let rel_path = cmd::relative_path_for(&root)?;
     let tag_prefix = args
         .tag_prefix
         .clone()
@@ -278,7 +273,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             .replace("{{version}}", &current_version);
 
         shell::log_info(&format!("Creating git tag {}", tag_name));
-        if !try!(git::tag(&tag_name, &tag_message, sign, dry_run)) {
+        if !git::tag(&tag_name, &tag_message, sign, dry_run)? {
             // tag failed, abort release
             return Ok(104);
         }
@@ -293,12 +288,12 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         shell::log_info(&format!("Starting next development iteration {}", version));
         let updated_version_string = version.to_string();
         if !dry_run {
-            try!(config::rewrite_cargo_version(&updated_version_string));
+            config::rewrite_cargo_version(&updated_version_string)?;
         }
         let commit_msg =
             String::from(pro_release_commit_msg).replace("{{version}}", &updated_version_string);
 
-        if !try!(git::commit_all(".", &commit_msg, sign, dry_run)) {
+        if !git::commit_all(".", &commit_msg, sign, dry_run)? {
             return Ok(105);
         }
     }
@@ -306,10 +301,10 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // STEP 7: git push
     if !skip_push {
         shell::log_info("Pushing to git remote");
-        if !try!(git::push(&git_remote, dry_run)) {
+        if !git::push(&git_remote, dry_run)? {
             return Ok(106);
         }
-        if !skip_tag && !try!(git::push_tag(&git_remote, &tag_name, dry_run)) {
+        if !skip_tag && !git::push_tag(&git_remote, &tag_name, dry_run)? {
             return Ok(106);
         }
     }

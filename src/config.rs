@@ -4,11 +4,11 @@ use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::Path;
 
+use dirs;
 use regex::Regex;
 use semver::Version;
 use toml::value::Table;
 use toml::{self, Value};
-use dirs;
 
 use error::FatalError;
 
@@ -30,22 +30,22 @@ pub static DOC_COMMIT_MESSAGE: &'static str = "doc-commit-message";
 pub static DISABLE_TAG: &'static str = "disable-tag";
 
 fn load_from_file(path: &Path) -> io::Result<String> {
-    let mut file = try!(File::open(path));
+    let mut file = File::open(path)?;
     let mut s = String::new();
-    try!(file.read_to_string(&mut s));
+    file.read_to_string(&mut s)?;
     Ok(s)
 }
 
 fn save_to_file(path: &Path, content: &str) -> io::Result<()> {
-    let mut file = try!(File::create(path));
-    try!(file.write_all(&content.as_bytes()));
+    let mut file = File::create(path)?;
+    file.write_all(&content.as_bytes())?;
     Ok(())
 }
 
 pub fn parse_cargo_config() -> Result<Value, FatalError> {
     let cargo_file_path = Path::new("Cargo.toml");
 
-    let cargo_file_content = try!(load_from_file(&cargo_file_path).map_err(FatalError::from));
+    let cargo_file_content = load_from_file(&cargo_file_path).map_err(FatalError::from)?;
     cargo_file_content.parse().map_err(FatalError::from)
 }
 
@@ -142,24 +142,24 @@ pub fn save_cargo_config(config: &Value) -> Result<(), FatalError> {
 
     let serialized_data = toml::to_string(config).unwrap();
 
-    try!(save_to_file(&cargo_file_path, &serialized_data).map_err(FatalError::from));
+    save_to_file(&cargo_file_path, &serialized_data).map_err(FatalError::from)?;
     Ok(())
 }
 
 pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
     {
-        let file_in = try!(File::open("Cargo.toml").map_err(FatalError::from));
+        let file_in = File::open("Cargo.toml").map_err(FatalError::from)?;
         let mut bufreader = BufReader::new(file_in);
         let mut line = String::new();
 
-        let mut file_out = try!(File::create("Cargo.toml.work").map_err(FatalError::from));
+        let mut file_out = File::create("Cargo.toml.work").map_err(FatalError::from)?;
 
         let section_matcher = Regex::new("^\\[.+\\]").unwrap();
 
         let mut in_package = false;
 
         loop {
-            let b = try!(bufreader.read_line(&mut line).map_err(FatalError::from));
+            let b = bufreader.read_line(&mut line).map_err(FatalError::from)?;
             if b <= 0 {
                 break;
             }
@@ -172,22 +172,20 @@ pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
                 line = format!("version = \"{}\"\n", version);
             }
 
-            try!(
-                file_out
-                    .write_all(line.as_bytes())
-                    .map_err(FatalError::from)
-            );
+            file_out
+                .write_all(line.as_bytes())
+                .map_err(FatalError::from)?;
             line.clear();
         }
     }
-    try!(fs::rename("Cargo.toml.work", "Cargo.toml"));
+    fs::rename("Cargo.toml.work", "Cargo.toml")?;
 
     if Path::new("Cargo.lock").exists() {
-        let file_in = try!(File::open("Cargo.lock").map_err(FatalError::from));
+        let file_in = File::open("Cargo.lock").map_err(FatalError::from)?;
         let mut bufreader = BufReader::new(file_in);
         let mut line = String::new();
 
-        let mut file_out = try!(File::create("Cargo.lock.work").map_err(FatalError::from));
+        let mut file_out = File::create("Cargo.lock.work").map_err(FatalError::from)?;
 
         let section_matcher = Regex::new("^\\[\\[.+\\]\\]").unwrap();
 
@@ -202,7 +200,7 @@ pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
         let mut in_package = false;
 
         loop {
-            let b = try!(bufreader.read_line(&mut line).map_err(FatalError::from));
+            let b = bufreader.read_line(&mut line).map_err(FatalError::from)?;
             if b <= 0 {
                 break;
             }
@@ -219,14 +217,12 @@ pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
                 line = format!("version = \"{}\"\n", version);
             }
 
-            try!(
-                file_out
-                    .write_all(line.as_bytes())
-                    .map_err(FatalError::from)
-            );
+            file_out
+                .write_all(line.as_bytes())
+                .map_err(FatalError::from)?;
             line.clear();
         }
-        try!(fs::rename("Cargo.lock.work", "Cargo.lock"));
+        fs::rename("Cargo.lock.work", "Cargo.lock")?;
     }
 
     Ok(())
@@ -240,11 +236,9 @@ pub fn parse_version(version: &str) -> Result<Version, FatalError> {
 fn test_release_config() {
     if let Ok(cargo_file) = parse_cargo_config() {
         let release_config = resolve_release_config_table(&cargo_file).unwrap();
-        assert!(
-            get_release_config(release_config.as_ref(), "sign-commit")
-                .and_then(|f| f.as_bool())
-                .unwrap_or(false)
-        );
+        assert!(get_release_config(release_config.as_ref(), "sign-commit")
+            .and_then(|f| f.as_bool())
+            .unwrap_or(false));
     } else {
         panic!("paser cargo file failed");
     }

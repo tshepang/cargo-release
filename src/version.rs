@@ -97,7 +97,7 @@ impl VersionExt for Version {
     }
 
     fn increment_alpha(&mut self) -> Result<(), FatalError> {
-        if let Some((pre_ext, pre_ext_ver)) = try!(self.prerelease_id_version()) {
+        if let Some((pre_ext, pre_ext_ver)) = self.prerelease_id_version()? {
             if pre_ext == VERSION_BETA || pre_ext == VERSION_RC {
                 Err(FatalError::InvalidReleaseLevel(VERSION_ALPHA.to_owned()))
             } else {
@@ -123,7 +123,7 @@ impl VersionExt for Version {
     }
 
     fn increment_beta(&mut self) -> Result<(), FatalError> {
-        if let Some((pre_ext, pre_ext_ver)) = try!(self.prerelease_id_version()) {
+        if let Some((pre_ext, pre_ext_ver)) = self.prerelease_id_version()? {
             if pre_ext == VERSION_RC {
                 Err(FatalError::InvalidReleaseLevel(VERSION_BETA.to_owned()))
             } else {
@@ -149,7 +149,7 @@ impl VersionExt for Version {
     }
 
     fn increment_rc(&mut self) -> Result<(), FatalError> {
-        if let Some((pre_ext, pre_ext_ver)) = try!(self.prerelease_id_version()) {
+        if let Some((pre_ext, pre_ext_ver)) = self.prerelease_id_version()? {
             let new_ext_ver = if pre_ext == VERSION_RC {
                 pre_ext_ver.unwrap_or(0) + 1
             } else {

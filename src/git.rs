@@ -4,13 +4,11 @@ use cmd::{call, call_on_path};
 use error::FatalError;
 
 pub fn status() -> Result<bool, FatalError> {
-    let output = try!(
-        Command::new("git")
-            .arg("diff")
-            .arg("--exit-code")
-            .output()
-            .map_err(FatalError::from)
-    );
+    let output = Command::new("git")
+        .arg("diff")
+        .arg("--exit-code")
+        .output()
+        .map_err(FatalError::from)?;
     Ok(output.status.success())
 }
 
@@ -46,25 +44,21 @@ pub fn push_tag(remote: &str, tag: &str, dry_run: bool) -> Result<bool, FatalErr
 }
 
 pub fn top_level() -> Result<String, FatalError> {
-    let output = try!(
-        Command::new("git")
-            .arg("rev-parse")
-            .arg("--show-toplevel")
-            .output()
-            .map_err(FatalError::from)
-    );
+    let output = Command::new("git")
+        .arg("rev-parse")
+        .arg("--show-toplevel")
+        .output()
+        .map_err(FatalError::from)?;
     String::from_utf8(output.stdout).map_err(FatalError::from)
 }
 
 pub fn origin_url() -> Result<String, FatalError> {
-    let output = try!(
-        Command::new("git")
-            .arg("remote")
-            .arg("get-url")
-            .arg("origin")
-            .output()
-            .map_err(FatalError::from)
-    );
+    let output = Command::new("git")
+        .arg("remote")
+        .arg("get-url")
+        .arg("origin")
+        .output()
+        .map_err(FatalError::from)?;
     String::from_utf8(output.stdout).map_err(FatalError::from)
 }
 
