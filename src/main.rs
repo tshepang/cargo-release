@@ -266,6 +266,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             config::get_release_config(release_config.as_ref(), config::TAG_PREFIX)
                 .and_then(|f| f.as_str())
                 .map(|f| f.to_string())
+                .map(|f| replace_in(&f, &replacements))
         })
         .or_else(|| Some(format!("{}-", crate_name)));
     if let Some(p) = tag_prefix.clone() {
