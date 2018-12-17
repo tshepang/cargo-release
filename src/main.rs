@@ -296,7 +296,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             .push(Identifier::AlphaNumeric(dev_version_ext.to_owned()));
         shell::log_info(&format!("Starting next development iteration {}", version));
         let updated_version_string = version.to_string();
-        replacements.insert("{{new_version}}", updated_version_string.clone());
+        replacements.insert("{{next_version}}", updated_version_string.clone());
         if !dry_run {
             config::rewrite_cargo_version(&updated_version_string)?;
         }
