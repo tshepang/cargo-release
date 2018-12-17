@@ -28,6 +28,8 @@ pub static TAG_MESSAGE: &'static str = "tag-message";
 pub static TAG_PREFIX: &'static str = "tag-prefix";
 pub static DOC_COMMIT_MESSAGE: &'static str = "doc-commit-message";
 pub static DISABLE_TAG: &'static str = "disable-tag";
+pub static ENABLE_FEATURES: &'static str = "enable-features";
+pub static ENABLE_ALL_FEATURES: &'static str = "all-features";
 
 fn load_from_file(path: &Path) -> io::Result<String> {
     let mut file = File::open(path)?;
@@ -123,6 +125,8 @@ pub fn verify_release_config(config: &Table) -> Option<Vec<&str>> {
         TAG_PREFIX,
         DOC_COMMIT_MESSAGE,
         DISABLE_TAG,
+        ENABLE_FEATURES,
+        ENABLE_ALL_FEATURES
     ];
     let mut invalid_keys = Vec::new();
     for i in config.keys() {

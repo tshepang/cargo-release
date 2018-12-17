@@ -42,14 +42,32 @@ fn get_string_option(
             config::get_release_config(config_file, config_file_key)
                 .and_then(|f| f.as_str())
                 .map(|f| f.to_owned())
-        })
-        .unwrap_or(default_value.to_owned())
+        }).unwrap_or(default_value.to_owned())
 }
 
 fn get_bool_option(cli: bool, config_file: Option<&Table>, config_file_key: &str) -> bool {
     cli || config::get_release_config(config_file, config_file_key)
         .and_then(|f| f.as_bool())
         .unwrap_or(false)
+}
+
+/// Takes a list in form `"a,b,d,e"` and returns a Vec: `["a", "b", "c", "d"]`
+fn get_list_option(
+    cli: &Option<Vec<String>>,
+    config_file: Option<&Table>,
+    config_file_key: &str,
+) -> Option<Vec<String>> {
+    cli.clone().or_else(|| {
+        config::get_release_config(config_file, config_file_key)
+            .and_then(|f| f.as_array())
+            .and_then(|a| {
+                Some(
+                    a.iter()
+                        .map(|i| String::from(i.as_str().unwrap()))
+                        .collect::<Vec<String>>(),
+                )
+            })
+    })
 }
 
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
@@ -120,20 +138,20 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             .unwrap_or("(cargo-release) start next development iteration {{version}}");
     let pre_release_replacements =
         config::get_release_config(release_config.as_ref(), config::PRE_RELEASE_REPLACEMENTS);
-    let pre_release_hook =
-        config::get_release_config(release_config.as_ref(), config::PRE_RELEASE_HOOK).and_then(
-            |h| match h {
-                &Value::String(ref s) => Some(vec![s.as_ref()]),
-                &Value::Array(ref a) => Some(
-                    a.iter()
-                        .map(|v| v.as_str())
-                        .filter(|o| o.is_some())
-                        .map(|s| s.unwrap())
-                        .collect(),
-                ),
-                _ => None,
-            },
-        );
+    let pre_release_hook = config::get_release_config(
+        release_config.as_ref(),
+        config::PRE_RELEASE_HOOK,
+    ).and_then(|h| match h {
+        &Value::String(ref s) => Some(vec![s.as_ref()]),
+        &Value::Array(ref a) => Some(
+            a.iter()
+                .map(|v| v.as_str())
+                .filter(|o| o.is_some())
+                .map(|s| s.unwrap())
+                .collect(),
+        ),
+        _ => None,
+    });
     let tag_msg = config::get_release_config(release_config.as_ref(), config::TAG_MESSAGE)
         .and_then(|f| f.as_str())
         .unwrap_or("(cargo-release) {{prefix}} version {{version}}");
@@ -150,6 +168,29 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         .and_then(|f| f.as_bool())
         .unwrap_or(!skip_publish);
     let metadata = args.metadata.as_ref();
+    let feature_list = get_list_option(
+        &if args.features.is_empty() {
+            None
+        } else {
+            Some(args.features.clone())
+        },
+        release_config.as_ref(),
+        config::ENABLE_FEATURES,
+    );
+    let all_features = get_bool_option(
+        args.all_features,
+        release_config.as_ref(),
+        config::ENABLE_FEATURES,
+    );
+
+    let features = if all_features {
+        Features::All
+    } else {
+        match feature_list {
+            Some(vec) => Features::Selective(vec),
+            None => Features::None,
+        }
+    };
 
     // STEP 0: Check if working directory is clean
     if !git::status()? {
@@ -234,7 +275,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // STEP 3: cargo publish
     if publish {
         shell::log_info("Running cargo publish");
-        if !cargo::publish(dry_run)? {
+        if !cargo::publish(dry_run, features)? {
             return Ok(103);
         }
     }
@@ -267,11 +308,12 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
                 .and_then(|f| f.as_str())
                 .map(|f| f.to_string())
                 .map(|f| replace_in(&f, &replacements))
-        })
-        .or_else(|| Some(format!("{}-", crate_name)));
+        }).or_else(|| Some(format!("{}-", crate_name)));
+
     if let Some(p) = tag_prefix.clone() {
         replacements.insert("{{prefix}}", p.clone());
     }
+
     let current_version = version.to_string();
     let tag_name = tag_prefix.as_ref().map_or_else(
         || current_version.clone(),
@@ -320,6 +362,16 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
     shell::log_info("Finished");
     Ok(0)
+}
+
+/// Expresses what features flags should be used
+pub enum Features {
+    /// None - don't use special features
+    None,
+    /// Only use selected features
+    Selective(Vec<String>),
+    /// Use all features via `all-features`
+    All,
 }
 
 #[derive(Debug, StructOpt)]
@@ -382,6 +434,14 @@ struct ReleaseOpt {
     #[structopt(long = "no-confirm")]
     /// Skip release confirmation and version preview
     no_confirm: bool,
+
+    #[structopt(long = "features")]
+    /// Provide a set of features that need to be enabled
+    features: Vec<String>,
+
+    #[structopt(long = "all-features")]
+    /// Enable all features via `all-features`. Overrides `features`
+    all_features: bool,
 }
 
 #[derive(Debug, StructOpt)]
