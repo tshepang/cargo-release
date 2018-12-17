@@ -164,7 +164,7 @@ directory, or `.release.toml` at your home directory.
 
 The following placeholders in configuration values will be be replaced with the desired value:
 
-* `{{prev_version}}`: The version before `cargo-relase` was executed (before any version bump).
+* `{{prev_version}}`: The version before `cargo-release` was executed (before any version bump).
 * `{{version}}`: The current (bumped) crate version.
 * `{{crate_name}}`: The name of the current crate in `Cargo.toml`.
 * `{{date}}`: The current date in `%Y-%m-%d` format.
