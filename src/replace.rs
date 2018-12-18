@@ -1,9 +1,9 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 
-use chrono::prelude::Local;
 use error::FatalError;
 use regex::Regex;
 use toml::Value;
@@ -21,10 +21,18 @@ fn save_to_file(path: &Path, content: &str) -> io::Result<()> {
     Ok(())
 }
 
-pub fn do_replace_versions(
+pub type Replacements<'a> = HashMap<&'a str, String>;
+pub fn replace_in(input: &str, r: &Replacements) -> String {
+    let mut s = input.to_string();
+    for (k, v) in r {
+        s = s.replace(k, v);
+    }
+    s
+}
+
+pub fn do_file_replacements(
     replace_config: &Value,
-    prev_version: &str,
-    version: &str,
+    replacements: &Replacements,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
     if let &Value::Array(ref v) = replace_config {
@@ -38,14 +46,11 @@ pub fn do_replace_versions(
                     .get("search")
                     .and_then(|v| v.as_str())
                     .ok_or(FatalError::ReplacerConfigError)?;
-                let replace = t
+                let to_replace = t
                     .get("replace")
                     .and_then(|v| v.as_str())
                     .ok_or(FatalError::ReplacerConfigError)?;
-                let replace_string = replace
-                    .replace("{{version}}", version)
-                    .replace("{{prev_version}}", prev_version)
-                    .replace("{{date}}", &Local::now().format("%Y-%m-%d").to_string());
+                let replace_string = replace_in(to_replace, replacements);
                 let replacer = replace_string.as_str();
 
                 let data = load_from_file(&Path::new(file))?;

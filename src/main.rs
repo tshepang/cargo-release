@@ -15,6 +15,8 @@ extern crate toml;
 use std::path::Path;
 use std::process::exit;
 
+use chrono::prelude::Local;
+use replace::{do_file_replacements, replace_in, Replacements};
 use semver::Identifier;
 use structopt::StructOpt;
 use toml::value::Table;
@@ -157,7 +159,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         }
     }
 
-    // STEP 1: Read version from Cargo.toml and remove
+    // STEP 1: Query a bunch of information for later use.
     let mut version = cargo_file
         .get("package")
         .and_then(|f| f.as_table())
@@ -167,9 +169,23 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         .unwrap();
     let prev_version_string = version.to_string();
 
+    let crate_name = cargo_file
+        .get("package")
+        .and_then(|f| f.as_table())
+        .and_then(|f| f.get("name"))
+        .and_then(|f| f.as_str())
+        .unwrap();
+
+    let mut replacements = Replacements::new();
+    replacements.insert("{{prev_version}}", prev_version_string.to_string());
+    replacements.insert("{{version}}", version.to_string());
+    replacements.insert("{{crate_name}}", crate_name.to_string());
+    replacements.insert("{{date}}", Local::now().format("%Y-%m-%d").to_string());
+
     // STEP 2: update current version, save and commit
     if version::bump_version(&mut version, level, metadata)? {
         let new_version_string = version.to_string();
+        replacements.insert("{{version}}", new_version_string.clone());
         // Release Confirmation
         if !dry_run {
             if !no_confirm {
@@ -182,7 +198,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         // pre-release hook
         if let Some(pre_rel_hook) = pre_release_hook {
             shell::log_info(&format!("Calling pre-release hook: {:?}", pre_rel_hook));
-            let envs = btreemap!{
+            let envs = btreemap! {
                 "PREV_VERSION" => prev_version_string.as_ref(),
                 "NEW_VERSION" => new_version_string.as_ref(),
                 "DRY_RUN" => if dry_run { "true" } else { "false" }
@@ -204,17 +220,11 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         }
 
         if let Some(pre_rel_rep) = pre_release_replacements {
-            // try update version number in configured files
-            replace::do_replace_versions(
-                pre_rel_rep,
-                &prev_version_string,
-                &new_version_string,
-                dry_run,
-            )?;
+            // try replacing text in configured files
+            do_file_replacements(pre_rel_rep, &replacements, dry_run)?;
         }
 
-        let commit_msg =
-            String::from(pre_release_commit_msg).replace("{{version}}", &new_version_string);
+        let commit_msg = replace_in(&pre_release_commit_msg, &replacements);
         if !git::commit_all(".", &commit_msg, sign, dry_run)? {
             // commit failed, abort release
             return Ok(102);
@@ -249,8 +259,6 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     }
 
     // STEP 5: Tag
-    let root = git::top_level()?;
-    let rel_path = cmd::relative_path_for(&root)?;
     let tag_prefix = args
         .tag_prefix
         .clone()
@@ -258,9 +266,12 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             config::get_release_config(release_config.as_ref(), config::TAG_PREFIX)
                 .and_then(|f| f.as_str())
                 .map(|f| f.to_string())
+                .map(|f| replace_in(&f, &replacements))
         })
-        .or_else(|| rel_path.as_ref().map(|t| format!("{}-", t)));
-
+        .or_else(|| Some(format!("{}-", crate_name)));
+    if let Some(p) = tag_prefix.clone() {
+        replacements.insert("{{prefix}}", p.clone());
+    }
     let current_version = version.to_string();
     let tag_name = tag_prefix.as_ref().map_or_else(
         || current_version.clone(),
@@ -268,9 +279,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     );
 
     if !skip_tag {
-        let tag_message = String::from(tag_msg)
-            .replace("{{prefix}}", tag_prefix.as_ref().unwrap_or(&"".to_owned()))
-            .replace("{{version}}", &current_version);
+        let tag_message = replace_in(tag_msg, &replacements);
 
         shell::log_info(&format!("Creating git tag {}", tag_name));
         if !git::tag(&tag_name, &tag_message, sign, dry_run)? {
@@ -287,11 +296,11 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             .push(Identifier::AlphaNumeric(dev_version_ext.to_owned()));
         shell::log_info(&format!("Starting next development iteration {}", version));
         let updated_version_string = version.to_string();
+        replacements.insert("{{next_version}}", updated_version_string.clone());
         if !dry_run {
             config::rewrite_cargo_version(&updated_version_string)?;
         }
-        let commit_msg =
-            String::from(pro_release_commit_msg).replace("{{version}}", &updated_version_string);
+        let commit_msg = replace_in(&pro_release_commit_msg, &replacements);
 
         if !git::commit_all(".", &commit_msg, sign, dry_run)? {
             return Ok(105);
