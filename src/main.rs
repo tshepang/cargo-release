@@ -195,6 +195,19 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             }
         }
 
+        shell::log_info(&format!(
+            "Update to version {} and commit",
+            new_version_string
+        ));
+        if !dry_run {
+            config::rewrite_cargo_version(&new_version_string)?;
+        }
+
+        if let Some(pre_rel_rep) = pre_release_replacements {
+            // try replacing text in configured files
+            do_file_replacements(pre_rel_rep, &replacements, dry_run)?;
+        }
+
         // pre-release hook
         if let Some(pre_rel_hook) = pre_release_hook {
             shell::log_info(&format!("Calling pre-release hook: {:?}", pre_rel_hook));
@@ -209,19 +222,6 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
                 shell::log_warn("Release aborted by non-zero return of prerelease hook.");
                 return Ok(107);
             }
-        }
-
-        shell::log_info(&format!(
-            "Update to version {} and commit",
-            new_version_string
-        ));
-        if !dry_run {
-            config::rewrite_cargo_version(&new_version_string)?;
-        }
-
-        if let Some(pre_rel_rep) = pre_release_replacements {
-            // try replacing text in configured files
-            do_file_replacements(pre_rel_rep, &replacements, dry_run)?;
         }
 
         let commit_msg = replace_in(&pre_release_commit_msg, &replacements);
