@@ -66,7 +66,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-release"
-version = "0.10.6-alpha.0"
+version = "0.11.0"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "dirs 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
