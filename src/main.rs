@@ -304,28 +304,25 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let is_root = cmd::is_current_path(&Path::new(&root))?;
     let tag_prefix = args
         .tag_prefix
-        .clone()
+        .as_ref()
+        .map(|s| s.as_str())
         .or_else(|| {
             config::get_release_config(release_config.as_ref(), config::TAG_PREFIX)
                 .and_then(|f| f.as_str())
-                .map(|f| f.to_string())
-                .map(|f| replace_in(&f, &replacements))
-        }).or_else(|| {
+        }).unwrap_or_else(|| {
             // crate_name as default tag prefix for multi-crate project
             if !is_root {
-                Some(format!("{}-", crate_name))
+                "{{crate_name}}-"
             } else {
-                None
+                ""
             }
         });
+    let tag_prefix = replace_in(&tag_prefix, &replacements);
 
-    replacements.insert("{{prefix}}", tag_prefix.clone().unwrap_or("".to_owned()));
+    replacements.insert("{{prefix}}", tag_prefix.clone());
 
     let current_version = version.to_string();
-    let tag_name = tag_prefix.as_ref().map_or_else(
-        || current_version.clone(),
-        |x| format!("{}{}", x, current_version),
-    );
+    let tag_name = format!("{}{}", tag_prefix, current_version);
 
     if !skip_tag {
         let tag_message = replace_in(tag_msg, &replacements);
