@@ -2,34 +2,107 @@ use std::fs::{self, File};
 use std::io;
 use std::io::prelude::*;
 use std::io::BufReader;
-use std::path::Path;
+use std::path::{PathBuf, Path};
 
 use dirs;
 use regex::Regex;
 use semver::Version;
 use toml::value::Table;
-use toml::Value;
+use toml::{self, Value};
+use serde::{Deserialize, Serialize};
 
 use error::FatalError;
 
-pub static SIGN_COMMIT: &'static str = "sign-commit";
-pub static UPLOAD_DOC: &'static str = "upload-doc";
-pub static PUSH_REMOTE: &'static str = "push-remote";
-pub static DOC_BRANCH: &'static str = "doc-branch";
-pub static DISABLE_PUBLISH: &'static str = "disable-publish";
-pub static DISABLE_PUSH: &'static str = "disable-push";
-pub static DEV_VERSION_EXT: &'static str = "dev-version-ext";
-pub static NO_DEV_VERSION: &'static str = "no-dev-version";
-pub static PRE_RELEASE_COMMIT_MESSAGE: &'static str = "pre-release-commit-message";
-pub static PRO_RELEASE_COMMIT_MESSAGE: &'static str = "pro-release-commit-message";
-pub static PRE_RELEASE_REPLACEMENTS: &'static str = "pre-release-replacements";
-pub static PRE_RELEASE_HOOK: &'static str = "pre-release-hook";
-pub static TAG_MESSAGE: &'static str = "tag-message";
-pub static TAG_PREFIX: &'static str = "tag-prefix";
-pub static DOC_COMMIT_MESSAGE: &'static str = "doc-commit-message";
-pub static DISABLE_TAG: &'static str = "disable-tag";
-pub static ENABLE_FEATURES: &'static str = "enable-features";
-pub static ENABLE_ALL_FEATURES: &'static str = "all-features";
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+#[serde(rename_all = "kebab-case")]
+pub struct Config {
+    pub sign_commit: bool,
+    pub upload_doc: bool,
+    pub push_remote: String,
+    pub doc_branch: String,
+    pub disable_publish: bool,
+    pub disable_push: bool,
+    pub dev_version_ext: String,
+    pub no_dev_version: bool,
+    pub pre_release_commit_message: String,
+    pub pro_release_commit_message: String,
+    pub pre_release_replacements: Vec<Replace>,
+    pub pre_release_hook: Option<Command>,
+    pub tag_message: String,
+    pub tag_prefix: Option<String>,
+    pub doc_commit_message: String,
+    pub disable_tag: bool,
+    pub enable_features: Vec<String>,
+    pub enable_all_features: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            sign_commit: false,
+            upload_doc: false,
+            push_remote: "origin".into(),
+            doc_branch: "gh-pages".into(),
+            disable_publish: false,
+            disable_push: false,
+            dev_version_ext: "alpha.0".into(),
+            no_dev_version: false,
+            pre_release_commit_message: "(cargo-release) version {{version}}".into(),
+            pro_release_commit_message: "(cargo-release) start next development iteration {{version}}".into(),
+            pre_release_replacements: vec![],
+            pre_release_hook: None,
+            tag_message: "(cargo-release) {{crate_name}} version {{version}}".into(),
+            tag_prefix: None,
+            doc_commit_message: "(cargo-release) generate docs".into(),
+            disable_tag: false,
+            enable_features: vec![],
+            enable_all_features: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Replace {
+    pub file: PathBuf,
+    pub search: String,
+    pub replace: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Command {
+    Line(String),
+    Args(Vec<String>),
+}
+
+impl Command {
+    pub fn args(&self) -> Vec<&str> {
+        match self {
+            Command::Line(ref s) => vec![s.as_str()],
+            Command::Args(ref a) => a.iter().map(|s| s.as_str()).collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+struct CargoManifest {
+    package: Option<CargoPackage>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+struct CargoPackage {
+    metadata: Option<CargoMetadata>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+struct CargoMetadata {
+    release: Option<Config>,
+}
 
 fn load_from_file(path: &Path) -> io::Result<String> {
     let mut file = File::open(path)?;
@@ -61,16 +134,23 @@ fn get_release_config_table_from_cargo<'a>(cargo_config: &'a Value) -> Option<&'
         .and_then(|f| f.as_table())
 }
 
-pub fn get_release_config<'a>(config: Option<&'a Table>, key: &str) -> Option<&'a Value> {
-    config.and_then(|c| c.get(key))
+pub fn get_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
+    if manifest_path.exists() {
+        let m = load_from_file(manifest_path)
+            .map_err(FatalError::from)?;
+        let c: CargoManifest = toml::from_str(&m).map_err(FatalError::from)?;
+        Ok(c.package.and_then(|p| p.metadata).and_then(|m| m.release))
+    } else {
+        Ok(None)
+    }
 }
 
-pub fn get_release_config_table_from_file(file_path: &Path) -> Result<Option<Table>, FatalError> {
+pub fn get_config_from_file(file_path: &Path) -> Result<Option<Config>, FatalError> {
     if file_path.exists() {
-        load_from_file(file_path)
-            .map_err(FatalError::from)
-            .and_then(|c| c.parse::<Value>().map_err(FatalError::from))
-            .map(|v| v.as_table().map(|t| t.clone()))
+        let c = load_from_file(file_path)
+            .map_err(FatalError::from)?;
+        let config = toml::from_str(&c).map_err(FatalError::from)?;
+        Ok(Some(config))
     } else {
         Ok(None)
     }
@@ -83,16 +163,16 @@ pub fn get_release_config_table_from_file(file_path: &Path) -> Result<Option<Tab
 /// 2. $(pwd)/Cargo.toml `package.metadata.release` (with deprecation warning)
 /// 3. $HOME/.release.toml
 ///
-pub fn resolve_release_config_table(cargo_config: &Value) -> Result<Option<Table>, FatalError> {
+pub fn resolve_config() -> Result<Option<Config>, FatalError> {
     // Project release file.
-    let current_dir_config = get_release_config_table_from_file(Path::new("release.toml"))?;
+    let current_dir_config = get_config_from_file(Path::new("release.toml"))?;
     if let Some(cfg) = current_dir_config {
         return Ok(Some(cfg));
     };
 
     // Crate manifest.
-    let cargo_file_config = get_release_config_table_from_cargo(cargo_config);
-    if let Some(cfg) = cargo_file_config.cloned() {
+    let current_dir_config = get_config_from_manifest(Path::new("Cargo.toml"))?;
+    if let Some(cfg) = current_dir_config {
         return Ok(Some(cfg));
     };
 
@@ -100,45 +180,11 @@ pub fn resolve_release_config_table(cargo_config: &Value) -> Result<Option<Table
     let home_dir = dirs::home_dir();
     if let Some(mut home) = home_dir {
         home.push(".release.toml");
-        return get_release_config_table_from_file(home.as_path());
+        return get_config_from_file(home.as_path());
     };
 
     // No project-wide configuration.
     Ok(None)
-}
-
-pub fn verify_release_config(config: &Table) -> Option<Vec<&str>> {
-    let valid_keys = vec![
-        SIGN_COMMIT,
-        UPLOAD_DOC,
-        PUSH_REMOTE,
-        DOC_BRANCH,
-        DISABLE_PUBLISH,
-        DISABLE_PUSH,
-        DEV_VERSION_EXT,
-        NO_DEV_VERSION,
-        PRE_RELEASE_COMMIT_MESSAGE,
-        PRO_RELEASE_COMMIT_MESSAGE,
-        PRE_RELEASE_REPLACEMENTS,
-        PRE_RELEASE_HOOK,
-        TAG_MESSAGE,
-        TAG_PREFIX,
-        DOC_COMMIT_MESSAGE,
-        DISABLE_TAG,
-        ENABLE_FEATURES,
-        ENABLE_ALL_FEATURES
-    ];
-    let mut invalid_keys = Vec::new();
-    for i in config.keys() {
-        if !valid_keys.contains(&i.as_ref()) {
-            invalid_keys.push(i.as_ref());
-        }
-    }
-    if invalid_keys.is_empty() {
-        None
-    } else {
-        Some(invalid_keys)
-    }
 }
 
 pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
@@ -231,13 +277,12 @@ pub fn parse_version(version: &str) -> Result<Version, FatalError> {
 }
 
 #[test]
+fn test_parse_cargo_config() {
+    parse_cargo_config().unwrap();
+}
+
+#[test]
 fn test_release_config() {
-    if let Ok(cargo_file) = parse_cargo_config() {
-        let release_config = resolve_release_config_table(&cargo_file).unwrap();
-        assert!(get_release_config(release_config.as_ref(), "sign-commit")
-            .and_then(|f| f.as_bool())
-            .unwrap_or(false));
-    } else {
-        panic!("paser cargo file failed");
-    }
+    let release_config = resolve_config().unwrap().unwrap();
+    assert!(release_config.sign_commit);
 }
