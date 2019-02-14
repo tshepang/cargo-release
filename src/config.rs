@@ -8,7 +8,7 @@ use dirs;
 use regex::Regex;
 use semver::Version;
 use toml::value::Table;
-use toml::{self, Value};
+use toml::Value;
 
 use error::FatalError;
 
@@ -139,15 +139,6 @@ pub fn verify_release_config(config: &Table) -> Option<Vec<&str>> {
     } else {
         Some(invalid_keys)
     }
-}
-
-pub fn save_cargo_config(config: &Value) -> Result<(), FatalError> {
-    let cargo_file_path = Path::new("Cargo.toml");
-
-    let serialized_data = toml::to_string(config).unwrap();
-
-    save_to_file(&cargo_file_path, &serialized_data).map_err(FatalError::from)?;
-    Ok(())
 }
 
 pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
