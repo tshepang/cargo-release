@@ -180,7 +180,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let all_features = get_bool_option(
         args.all_features,
         release_config.as_ref(),
-        config::ENABLE_FEATURES,
+        config::ENABLE_ALL_FEATURES,
     );
 
     let features = if all_features {
