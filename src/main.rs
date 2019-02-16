@@ -154,7 +154,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     });
     let tag_msg = config::get_release_config(release_config.as_ref(), config::TAG_MESSAGE)
         .and_then(|f| f.as_str())
-        .unwrap_or("(cargo-release) {{prefix}} version {{version}}");
+        .unwrap_or("(cargo-release) {{crate_name}} version {{version}}");
     let skip_tag = get_bool_option(args.skip_tag, release_config.as_ref(), config::DISABLE_TAG);
     let doc_commit_msg =
         config::get_release_config(release_config.as_ref(), config::DOC_COMMIT_MESSAGE)
@@ -301,6 +301,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
     // STEP 5: Tag
     let root = git::top_level()?;
+    let is_root = cmd::is_current_path(&Path::new(&root))?;
     let tag_prefix = args
         .tag_prefix
         .clone()
@@ -311,7 +312,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
                 .map(|f| replace_in(&f, &replacements))
         }).or_else(|| {
             // crate_name as default tag prefix for multi-crate project
-            if !root {
+            if !is_root {
                 Some(format!("{}-", crate_name))
             } else {
                 None
