@@ -308,11 +308,9 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
                 .and_then(|f| f.as_str())
                 .map(|f| f.to_string())
                 .map(|f| replace_in(&f, &replacements))
-        }).or_else(|| Some(format!("{}-", crate_name)));
+        });
 
-    if let Some(p) = tag_prefix.clone() {
-        replacements.insert("{{prefix}}", p.clone());
-    }
+    replacements.insert("{{prefix}}", tag_prefix.clone().unwrap_or("".to_owned()));
 
     let current_version = version.to_string();
     let tag_name = tag_prefix.as_ref().map_or_else(
