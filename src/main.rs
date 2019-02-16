@@ -300,6 +300,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     }
 
     // STEP 5: Tag
+    let root = git::top_level()?;
     let tag_prefix = args
         .tag_prefix
         .clone()
@@ -308,6 +309,13 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
                 .and_then(|f| f.as_str())
                 .map(|f| f.to_string())
                 .map(|f| replace_in(&f, &replacements))
+        }).or_else(|| {
+            // crate_name as default tag prefix for multi-crate project
+            if !root {
+                Some(format!("{}-", crate_name))
+            } else {
+                None
+            }
         });
 
     replacements.insert("{{prefix}}", tag_prefix.clone().unwrap_or("".to_owned()));
