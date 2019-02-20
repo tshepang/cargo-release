@@ -185,47 +185,50 @@ pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
     fs::rename("Cargo.toml.work", "Cargo.toml")?;
 
     if Path::new("Cargo.lock").exists() {
-        let file_in = File::open("Cargo.lock").map_err(FatalError::from)?;
-        let mut bufreader = BufReader::new(file_in);
-        let mut line = String::new();
+        {
+            let file_in = File::open("Cargo.lock").map_err(FatalError::from)?;
+            let mut bufreader = BufReader::new(file_in);
+            let mut line = String::new();
 
-        let mut file_out = File::create("Cargo.lock.work").map_err(FatalError::from)?;
+            let mut file_out = File::create("Cargo.lock.work").map_err(FatalError::from)?;
 
-        let section_matcher = Regex::new("^\\[\\[.+\\]\\]").unwrap();
+            let section_matcher = Regex::new("^\\[\\[.+\\]\\]").unwrap();
 
-        let config = parse_cargo_config()?;
-        let crate_name = config
-            .get("package")
-            .and_then(|f| f.as_table())
-            .and_then(|f| f.get("name"))
-            .and_then(|f| f.as_str())
-            .unwrap();
+            let config = parse_cargo_config()?;
+            let crate_name = config
+                .get("package")
+                .and_then(|f| f.as_table())
+                .and_then(|f| f.get("name"))
+                .and_then(|f| f.as_str())
+                .unwrap();
 
-        let mut in_package = false;
+            let mut in_package = false;
 
-        loop {
-            let b = bufreader.read_line(&mut line).map_err(FatalError::from)?;
-            if b <= 0 {
-                break;
+            loop {
+                let b = bufreader.read_line(&mut line).map_err(FatalError::from)?;
+                if b <= 0 {
+                    break;
+                }
+
+                if section_matcher.is_match(&line) {
+                    in_package = line.trim() == "[[package]]";
+                }
+
+                if in_package && line.starts_with("name") {
+                    in_package = line == format!("name = \"{}\"\n", crate_name);
+                }
+
+                if in_package && line.starts_with("version") {
+                    line = format!("version = \"{}\"\n", version);
+                }
+
+                file_out
+                    .write_all(line.as_bytes())
+                    .map_err(FatalError::from)?;
+                line.clear();
             }
-
-            if section_matcher.is_match(&line) {
-                in_package = line.trim() == "[[package]]";
-            }
-
-            if in_package && line.starts_with("name") {
-                in_package = line == format!("name = \"{}\"\n", crate_name);
-            }
-
-            if in_package && line.starts_with("version") {
-                line = format!("version = \"{}\"\n", version);
-            }
-
-            file_out
-                .write_all(line.as_bytes())
-                .map_err(FatalError::from)?;
-            line.clear();
         }
+
         fs::rename("Cargo.lock.work", "Cargo.lock")?;
     }
 
