@@ -49,7 +49,9 @@ pub fn top_level() -> Result<String, FatalError> {
         .arg("--show-toplevel")
         .output()
         .map_err(FatalError::from)?;
-    String::from_utf8(output.stdout).map_err(FatalError::from)
+    String::from_utf8(output.stdout)
+        .map_err(FatalError::from)
+        .map(|s| s.trim_end().to_owned())
 }
 
 pub fn origin_url() -> Result<String, FatalError> {
