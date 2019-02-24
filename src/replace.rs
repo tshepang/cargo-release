@@ -4,9 +4,9 @@ use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 
+use config::Replace;
 use error::FatalError;
 use regex::Regex;
-use toml::Value;
 
 fn load_from_file(path: &Path) -> io::Result<String> {
     let mut file = try!(File::open(path));
@@ -31,37 +31,24 @@ pub fn replace_in(input: &str, r: &Replacements) -> String {
 }
 
 pub fn do_file_replacements(
-    replace_config: &Value,
+    replace_config: &[Replace],
     replacements: &Replacements,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
-    if let &Value::Array(ref v) = replace_config {
-        for tbl in v {
-            if let &Value::Table(ref t) = tbl {
-                let file = t
-                    .get("file")
-                    .and_then(|v| v.as_str())
-                    .ok_or(FatalError::ReplacerConfigError)?;
-                let pattern = t
-                    .get("search")
-                    .and_then(|v| v.as_str())
-                    .ok_or(FatalError::ReplacerConfigError)?;
-                let to_replace = t
-                    .get("replace")
-                    .and_then(|v| v.as_str())
-                    .ok_or(FatalError::ReplacerConfigError)?;
-                let replace_string = replace_in(to_replace, replacements);
-                let replacer = replace_string.as_str();
+    for replace in replace_config {
+        let file = replace.file.as_path();
+        let pattern = replace.search.as_str();
+        let to_replace = replace.replace.as_str();
 
-                let data = load_from_file(&Path::new(file))?;
+        let replacer = replace_in(to_replace, replacements);
 
-                let r = Regex::new(pattern).map_err(FatalError::from)?;
-                let result = r.replace_all(&data, replacer);
+        let data = load_from_file(file)?;
 
-                if !dry_run {
-                    save_to_file(&Path::new(file), &result)?;
-                }
-            }
+        let r = Regex::new(pattern).map_err(FatalError::from)?;
+        let result = r.replace_all(&data, replacer.as_str());
+
+        if !dry_run {
+            save_to_file(&Path::new(file), &result)?;
         }
     }
     Ok(true)

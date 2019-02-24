@@ -2,6 +2,7 @@
 
 extern crate chrono;
 extern crate termcolor;
+extern crate serde;
 #[macro_use]
 extern crate maplit;
 #[macro_use]
@@ -19,8 +20,6 @@ use chrono::prelude::Local;
 use replace::{do_file_replacements, replace_in, Replacements};
 use semver::Identifier;
 use structopt::StructOpt;
-use toml::value::Table;
-use toml::Value;
 
 mod cargo;
 mod cmd;
@@ -31,135 +30,46 @@ mod replace;
 mod shell;
 mod version;
 
-fn get_string_option(
-    cli: &Option<String>,
-    config_file: Option<&Table>,
-    config_file_key: &str,
-    default_value: &str,
-) -> String {
-    cli.clone()
-        .or_else(|| {
-            config::get_release_config(config_file, config_file_key)
-                .and_then(|f| f.as_str())
-                .map(|f| f.to_owned())
-        }).unwrap_or(default_value.to_owned())
-}
-
-fn get_bool_option(cli: bool, config_file: Option<&Table>, config_file_key: &str) -> bool {
-    cli || config::get_release_config(config_file, config_file_key)
-        .and_then(|f| f.as_bool())
-        .unwrap_or(false)
-}
-
-/// Takes a list in form `"a,b,d,e"` and returns a Vec: `["a", "b", "c", "d"]`
-fn get_list_option(
-    cli: &Option<Vec<String>>,
-    config_file: Option<&Table>,
-    config_file_key: &str,
-) -> Option<Vec<String>> {
-    cli.clone().or_else(|| {
-        config::get_release_config(config_file, config_file_key)
-            .and_then(|f| f.as_array())
-            .and_then(|a| {
-                Some(
-                    a.iter()
-                        .map(|i| String::from(i.as_str().unwrap()))
-                        .collect::<Vec<String>>(),
-                )
-            })
-    })
-}
-
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let cargo_file = config::parse_cargo_config()?;
     let custom_config_path_option = args.config.as_ref();
     // FIXME:
     let release_config = if let Some(custom_config_path) = custom_config_path_option {
         // when calling with -c option
-        config::get_release_config_table_from_file(Path::new(custom_config_path))?
+        config::get_config_from_file(Path::new(custom_config_path))?
     } else {
-        config::resolve_release_config_table(&cargo_file)?
-    };
+        config::resolve_config()?
+    }.unwrap_or_default();
 
     // step -1
-    if let Some(ref release_config_table) = release_config {
-        if let Some(invalid_keys) = config::verify_release_config(release_config_table) {
-            for i in invalid_keys {
-                shell::log_warn(&format!("Unknown config key \"{}\" found", i));
-            }
-            return Ok(109);
-        }
-    }
-
     let dry_run = args.dry_run;
     let level = args.level.as_ref();
-    let sign = get_bool_option(args.sign, release_config.as_ref(), config::SIGN_COMMIT);
-    let upload_doc = get_bool_option(args.upload_doc, release_config.as_ref(), config::UPLOAD_DOC);
-    let git_remote = get_string_option(
-        &args.push_remote,
-        release_config.as_ref(),
-        config::PUSH_REMOTE,
-        "origin",
-    );
-    let doc_branch = get_string_option(
-        &args.doc_branch,
-        release_config.as_ref(),
-        config::DOC_BRANCH,
-        "gh-pages",
-    );
-    let skip_publish = get_bool_option(
-        args.skip_publish,
-        release_config.as_ref(),
-        config::DISABLE_PUBLISH,
-    );
-    let skip_push = get_bool_option(
-        args.skip_push,
-        release_config.as_ref(),
-        config::DISABLE_PUSH,
-    );
-    let dev_version_ext = get_string_option(
-        &args.dev_version_ext,
-        release_config.as_ref(),
-        config::DEV_VERSION_EXT,
-        "alpha.0",
-    );
-    let no_dev_version = get_bool_option(
-        args.no_dev_version,
-        release_config.as_ref(),
-        config::NO_DEV_VERSION,
-    );
-    let pre_release_commit_msg =
-        config::get_release_config(release_config.as_ref(), config::PRE_RELEASE_COMMIT_MESSAGE)
-            .and_then(|f| f.as_str())
-            .unwrap_or("(cargo-release) version {{version}}");
-    let pro_release_commit_msg =
-        config::get_release_config(release_config.as_ref(), config::PRO_RELEASE_COMMIT_MESSAGE)
-            .and_then(|f| f.as_str())
-            .unwrap_or("(cargo-release) start next development iteration {{version}}");
-    let pre_release_replacements =
-        config::get_release_config(release_config.as_ref(), config::PRE_RELEASE_REPLACEMENTS);
-    let pre_release_hook = config::get_release_config(
-        release_config.as_ref(),
-        config::PRE_RELEASE_HOOK,
-    ).and_then(|h| match h {
-        &Value::String(ref s) => Some(vec![s.as_ref()]),
-        &Value::Array(ref a) => Some(
-            a.iter()
-                .map(|v| v.as_str())
-                .filter(|o| o.is_some())
-                .map(|s| s.unwrap())
-                .collect(),
-        ),
-        _ => None,
-    });
-    let tag_msg = config::get_release_config(release_config.as_ref(), config::TAG_MESSAGE)
-        .and_then(|f| f.as_str())
-        .unwrap_or("(cargo-release) {{crate_name}} version {{version}}");
-    let skip_tag = get_bool_option(args.skip_tag, release_config.as_ref(), config::DISABLE_TAG);
-    let doc_commit_msg =
-        config::get_release_config(release_config.as_ref(), config::DOC_COMMIT_MESSAGE)
-            .and_then(|f| f.as_str())
-            .unwrap_or("(cargo-release) generate docs");
+    let sign = args.sign || release_config.sign_commit;
+    let upload_doc = args.upload_doc || release_config.upload_doc;
+    let git_remote = args.push_remote
+        .as_ref()
+        .map(|s| s.as_str())
+        .unwrap_or_else(|| release_config.push_remote.as_str());
+    let doc_branch = args.doc_branch
+        .as_ref()
+        .map(|s| s.as_str())
+        .unwrap_or_else(|| release_config.doc_branch.as_str());
+    let skip_publish = args.skip_publish || release_config.disable_publish;
+    let skip_push = args.skip_push || release_config.disable_push;
+    let dev_version_ext = args.dev_version_ext
+        .as_ref()
+        .map(|s| s.as_str())
+        .unwrap_or_else(|| release_config.dev_version_ext.as_str());
+    let no_dev_version = args.no_dev_version || release_config.no_dev_version;
+    let pre_release_commit_msg = release_config.pre_release_commit_message.as_str();
+    let pro_release_commit_msg = release_config.pro_release_commit_message.as_str();
+    let pre_release_replacements = &release_config.pre_release_replacements;
+    let pre_release_hook = release_config.pre_release_hook
+        .as_ref()
+        .map(|h| h.args());
+    let tag_msg = release_config.tag_message.as_str();
+    let skip_tag = args.skip_tag || release_config.disable_tag;
+    let doc_commit_msg = release_config.doc_commit_message.as_str();
     let no_confirm = args.no_confirm;
     let publish = cargo_file
         .get("package")
@@ -168,20 +78,16 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         .and_then(|f| f.as_bool())
         .unwrap_or(!skip_publish);
     let metadata = args.metadata.as_ref();
-    let feature_list = get_list_option(
-        &if args.features.is_empty() {
-            None
-        } else {
+    let feature_list = {
+        if ! args.features.is_empty() {
             Some(args.features.clone())
-        },
-        release_config.as_ref(),
-        config::ENABLE_FEATURES,
-    );
-    let all_features = get_bool_option(
-        args.all_features,
-        release_config.as_ref(),
-        config::ENABLE_ALL_FEATURES,
-    );
+        } else if release_config.enable_features.is_empty() {
+            Some(release_config.enable_features.clone())
+        } else {
+            None
+        }
+    };
+    let all_features = args.all_features || release_config.enable_all_features;
 
     let features = if all_features {
         Features::All
@@ -244,9 +150,9 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             config::rewrite_cargo_version(&new_version_string)?;
         }
 
-        if let Some(pre_rel_rep) = pre_release_replacements {
+        if ! pre_release_replacements.is_empty() {
             // try replacing text in configured files
-            do_file_replacements(pre_rel_rep, &replacements, dry_run)?;
+            do_file_replacements(pre_release_replacements, &replacements, dry_run)?;
         }
 
         // pre-release hook
@@ -304,28 +210,23 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let is_root = cmd::is_current_path(&Path::new(&root))?;
     let tag_prefix = args
         .tag_prefix
-        .clone()
-        .or_else(|| {
-            config::get_release_config(release_config.as_ref(), config::TAG_PREFIX)
-                .and_then(|f| f.as_str())
-                .map(|f| f.to_string())
-                .map(|f| replace_in(&f, &replacements))
-        }).or_else(|| {
+        .as_ref()
+        .map(|s| s.as_str())
+        .or_else(|| release_config.tag_prefix.as_ref().map(|s| s.as_str()))
+        .unwrap_or_else(|| {
             // crate_name as default tag prefix for multi-crate project
             if !is_root {
-                Some(format!("{}-", crate_name))
+                "{{crate_name}}-"
             } else {
-                None
+                ""
             }
         });
+    let tag_prefix = replace_in(&tag_prefix, &replacements);
 
-    replacements.insert("{{prefix}}", tag_prefix.clone().unwrap_or("".to_owned()));
+    replacements.insert("{{prefix}}", tag_prefix.clone());
 
     let current_version = version.to_string();
-    let tag_name = tag_prefix.as_ref().map_or_else(
-        || current_version.clone(),
-        |x| format!("{}{}", x, current_version),
-    );
+    let tag_name = format!("{}{}", tag_prefix, current_version);
 
     if !skip_tag {
         let tag_message = replace_in(tag_msg, &replacements);
