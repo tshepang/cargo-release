@@ -81,7 +81,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let feature_list = {
         if ! args.features.is_empty() {
             Some(args.features.clone())
-        } else if release_config.enable_features.is_empty() {
+        } else if ! release_config.enable_features.is_empty() {
             Some(release_config.enable_features.clone())
         } else {
             None
