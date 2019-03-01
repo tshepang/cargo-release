@@ -7,7 +7,6 @@ use std::path::{PathBuf, Path};
 use dirs;
 use regex::Regex;
 use semver::Version;
-use toml::value::Table;
 use toml::{self, Value};
 use serde::{Deserialize, Serialize};
 
@@ -122,16 +121,6 @@ pub fn parse_cargo_config() -> Result<Value, FatalError> {
 
     let cargo_file_content = load_from_file(&cargo_file_path).map_err(FatalError::from)?;
     cargo_file_content.parse().map_err(FatalError::from)
-}
-
-fn get_release_config_table_from_cargo<'a>(cargo_config: &'a Value) -> Option<&'a Table> {
-    cargo_config
-        .get("package")
-        .and_then(|f| f.as_table())
-        .and_then(|f| f.get("metadata"))
-        .and_then(|f| f.as_table())
-        .and_then(|f| f.get("release"))
-        .and_then(|f| f.as_table())
 }
 
 pub fn get_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
