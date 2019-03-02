@@ -13,6 +13,11 @@ extern crate semver;
 extern crate structopt;
 extern crate toml;
 
+#[cfg(test)]
+extern crate assert_fs;
+#[cfg(test)]
+extern crate cargo_metadata;
+
 use std::path::Path;
 use std::process::exit;
 
@@ -147,7 +152,13 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             new_version_string
         ));
         if !dry_run {
-            cargo::rewrite_cargo_version(&new_version_string)?;
+            let manifest_path = Path::new("Cargo.toml");
+            cargo::set_manifest_version(manifest_path, &new_version_string)?;
+
+            let lock_path = Path::new("Cargo.lock");
+            if lock_path.exists() {
+                cargo::set_lock_version(lock_path, crate_name, &new_version_string)?;
+            }
         }
 
         if ! pre_release_replacements.is_empty() {
@@ -248,7 +259,13 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         let updated_version_string = version.to_string();
         replacements.insert("{{next_version}}", updated_version_string.clone());
         if !dry_run {
-            cargo::rewrite_cargo_version(&updated_version_string)?;
+            let manifest_path = Path::new("Cargo.toml");
+            cargo::set_manifest_version(manifest_path, &updated_version_string)?;
+
+            let lock_path = Path::new("Cargo.lock");
+            if lock_path.exists() {
+                cargo::set_lock_version(lock_path, crate_name, &updated_version_string)?;
+            }
         }
         let commit_msg = replace_in(&pro_release_commit_msg, &replacements);
 
