@@ -31,7 +31,7 @@ mod shell;
 mod version;
 
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
-    let cargo_file = config::parse_cargo_config()?;
+    let cargo_file = cargo::parse_cargo_config()?;
     let custom_config_path_option = args.config.as_ref();
     // FIXME:
     let release_config = if let Some(custom_config_path) = custom_config_path_option {
@@ -112,7 +112,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         .and_then(|f| f.as_table())
         .and_then(|f| f.get("version"))
         .and_then(|f| f.as_str())
-        .and_then(|f| config::parse_version(f).ok())
+        .and_then(|f| cargo::parse_version(f).ok())
         .unwrap();
     let prev_version_string = version.to_string();
 
@@ -147,7 +147,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             new_version_string
         ));
         if !dry_run {
-            config::rewrite_cargo_version(&new_version_string)?;
+            cargo::rewrite_cargo_version(&new_version_string)?;
         }
 
         if ! pre_release_replacements.is_empty() {
@@ -248,7 +248,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         let updated_version_string = version.to_string();
         replacements.insert("{{next_version}}", updated_version_string.clone());
         if !dry_run {
-            config::rewrite_cargo_version(&updated_version_string)?;
+            cargo::rewrite_cargo_version(&updated_version_string)?;
         }
         let commit_msg = replace_in(&pro_release_commit_msg, &replacements);
 

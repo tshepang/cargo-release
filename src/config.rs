@@ -1,13 +1,10 @@
-use std::fs::{self, File};
+use std::fs::File;
 use std::io;
 use std::io::prelude::*;
-use std::io::BufReader;
 use std::path::{PathBuf, Path};
 
 use dirs;
-use regex::Regex;
-use semver::Version;
-use toml::{self, Value};
+use toml;
 use serde::{Deserialize, Serialize};
 
 use error::FatalError;
@@ -116,13 +113,6 @@ fn save_to_file(path: &Path, content: &str) -> io::Result<()> {
     Ok(())
 }
 
-pub fn parse_cargo_config() -> Result<Value, FatalError> {
-    let cargo_file_path = Path::new("Cargo.toml");
-
-    let cargo_file_content = load_from_file(&cargo_file_path).map_err(FatalError::from)?;
-    cargo_file_content.parse().map_err(FatalError::from)
-}
-
 pub fn get_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
     if manifest_path.exists() {
         let m = load_from_file(manifest_path)
@@ -174,100 +164,6 @@ pub fn resolve_config() -> Result<Option<Config>, FatalError> {
 
     // No project-wide configuration.
     Ok(None)
-}
-
-pub fn rewrite_cargo_version(version: &str) -> Result<(), FatalError> {
-    {
-        let file_in = File::open("Cargo.toml").map_err(FatalError::from)?;
-        let mut bufreader = BufReader::new(file_in);
-        let mut line = String::new();
-
-        let mut file_out = File::create("Cargo.toml.work").map_err(FatalError::from)?;
-
-        let section_matcher = Regex::new("^\\[.+\\]").unwrap();
-
-        let mut in_package = false;
-
-        loop {
-            let b = bufreader.read_line(&mut line).map_err(FatalError::from)?;
-            if b <= 0 {
-                break;
-            }
-
-            if section_matcher.is_match(&line) {
-                in_package = line.trim() == "[package]";
-            }
-
-            if in_package && line.starts_with("version") {
-                line = format!("version = \"{}\"\n", version);
-            }
-
-            file_out
-                .write_all(line.as_bytes())
-                .map_err(FatalError::from)?;
-            line.clear();
-        }
-    }
-    fs::rename("Cargo.toml.work", "Cargo.toml")?;
-
-    if Path::new("Cargo.lock").exists() {
-        {
-            let file_in = File::open("Cargo.lock").map_err(FatalError::from)?;
-            let mut bufreader = BufReader::new(file_in);
-            let mut line = String::new();
-
-            let mut file_out = File::create("Cargo.lock.work").map_err(FatalError::from)?;
-
-            let section_matcher = Regex::new("^\\[\\[.+\\]\\]").unwrap();
-
-            let config = parse_cargo_config()?;
-            let crate_name = config
-                .get("package")
-                .and_then(|f| f.as_table())
-                .and_then(|f| f.get("name"))
-                .and_then(|f| f.as_str())
-                .unwrap();
-
-            let mut in_package = false;
-
-            loop {
-                let b = bufreader.read_line(&mut line).map_err(FatalError::from)?;
-                if b <= 0 {
-                    break;
-                }
-
-                if section_matcher.is_match(&line) {
-                    in_package = line.trim() == "[[package]]";
-                }
-
-                if in_package && line.starts_with("name") {
-                    in_package = line == format!("name = \"{}\"\n", crate_name);
-                }
-
-                if in_package && line.starts_with("version") {
-                    line = format!("version = \"{}\"\n", version);
-                }
-
-                file_out
-                    .write_all(line.as_bytes())
-                    .map_err(FatalError::from)?;
-                line.clear();
-            }
-        }
-
-        fs::rename("Cargo.lock.work", "Cargo.lock")?;
-    }
-
-    Ok(())
-}
-
-pub fn parse_version(version: &str) -> Result<Version, FatalError> {
-    Version::parse(version).map_err(|e| FatalError::from(e))
-}
-
-#[test]
-fn test_parse_cargo_config() {
-    parse_cargo_config().unwrap();
 }
 
 #[test]
