@@ -12,19 +12,49 @@ use cmd::call;
 use error::FatalError;
 use Features;
 
-pub fn publish(dry_run: bool, features: Features) -> Result<bool, FatalError> {
+pub fn publish(dry_run: bool, manifest_path: &Path, features: Features) -> Result<bool, FatalError> {
     match features {
-        Features::None => call(vec![env!("CARGO"), "publish"], dry_run),
+        Features::None => call(
+            vec![
+                env!("CARGO"),
+                "publish",
+                "--manifest-path",
+                manifest_path.to_str().unwrap(),
+            ],
+            dry_run
+        ),
         Features::Selective(vec) => call(
-            vec![env!("CARGO"), "publish", "--features", &vec.join(" ")],
+            vec![
+                env!("CARGO"),
+                "publish",
+                "--features",
+                &vec.join(" "),
+                "--manifest-path",
+                manifest_path.to_str().unwrap(),
+            ],
             dry_run,
         ),
-        Features::All => call(vec![env!("CARGO"), "publish", "--all-features"], dry_run),
+        Features::All => call(
+            vec![
+                env!("CARGO"),
+                "publish",
+                "--all-features",
+                "--manifest-path",
+                manifest_path.to_str().unwrap(),
+            ],
+            dry_run,
+        ),
     }
 }
 
-pub fn doc(dry_run: bool) -> Result<bool, FatalError> {
-    call(vec![env!("CARGO"), "doc", "--no-deps"], dry_run)
+pub fn doc(dry_run: bool, manifest_path: &Path) -> Result<bool, FatalError> {
+    call(vec![
+        env!("CARGO"),
+        "doc",
+        "--no-deps",
+        "--manifest-path",
+        manifest_path.to_str().unwrap(),
+    ], dry_run)
 }
 
 pub fn set_manifest_version(manifest_path: &Path, version: &str) -> Result<(), FatalError> {

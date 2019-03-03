@@ -34,6 +34,9 @@ mod shell;
 mod version;
 
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
+    let manifest_path = Path::new("Cargo.toml");
+    let lock_path = Path::new("Cargo.lock");
+
     let cargo_file = cargo::parse_cargo_config()?;
     let custom_config_path_option = args.config.as_ref();
     // FIXME:
@@ -150,10 +153,8 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             new_version_string
         ));
         if !dry_run {
-            let manifest_path = Path::new("Cargo.toml");
             cargo::set_manifest_version(manifest_path, &new_version_string)?;
 
-            let lock_path = Path::new("Cargo.lock");
             if lock_path.exists() {
                 cargo::set_lock_version(lock_path, crate_name, &new_version_string)?;
             }
@@ -190,7 +191,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // STEP 3: cargo publish
     if publish {
         shell::log_info("Running cargo publish");
-        if !cargo::publish(dry_run, features)? {
+        if !cargo::publish(dry_run, manifest_path, features)? {
             return Ok(103);
         }
     }
@@ -198,7 +199,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // STEP 4: upload doc
     if upload_doc {
         shell::log_info("Building and exporting docs.");
-        cargo::doc(dry_run)?;
+        cargo::doc(dry_run, manifest_path)?;
 
         let doc_path = "target/doc/";
 
@@ -257,10 +258,8 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         let updated_version_string = version.to_string();
         replacements.insert("{{next_version}}", updated_version_string.clone());
         if !dry_run {
-            let manifest_path = Path::new("Cargo.toml");
             cargo::set_manifest_version(manifest_path, &updated_version_string)?;
 
-            let lock_path = Path::new("Cargo.lock");
             if lock_path.exists() {
                 cargo::set_lock_version(lock_path, crate_name, &updated_version_string)?;
             }
