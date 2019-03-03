@@ -37,14 +37,14 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let manifest_path = Path::new("Cargo.toml");
     let lock_path = Path::new("Cargo.lock");
 
-    let cargo_file = cargo::parse_cargo_config()?;
+    let cargo_file = cargo::parse_cargo_config(manifest_path)?;
     let custom_config_path_option = args.config.as_ref();
     // FIXME:
     let release_config = if let Some(custom_config_path) = custom_config_path_option {
         // when calling with -c option
         config::get_config_from_file(Path::new(custom_config_path))?
     } else {
-        config::resolve_config()?
+        config::resolve_config(manifest_path)?
     }.unwrap_or_default();
 
     // step -1

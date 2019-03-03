@@ -153,10 +153,8 @@ pub fn parse_version(version: &str) -> Result<Version, FatalError> {
     Version::parse(version).map_err(|e| FatalError::from(e))
 }
 
-pub fn parse_cargo_config() -> Result<Value, FatalError> {
-    let cargo_file_path = Path::new("Cargo.toml");
-
-    let cargo_file_content = load_from_file(&cargo_file_path).map_err(FatalError::from)?;
+pub fn parse_cargo_config(manifest_path: &Path) -> Result<Value, FatalError> {
+    let cargo_file_content = load_from_file(&manifest_path).map_err(FatalError::from)?;
     cargo_file_content.parse().map_err(FatalError::from)
 }
 
@@ -177,7 +175,7 @@ mod test {
 
     #[test]
     fn test_parse_cargo_config() {
-        parse_cargo_config().unwrap();
+        parse_cargo_config(Path::new("Cargo.toml")).unwrap();
     }
 
     #[test]

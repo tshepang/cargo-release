@@ -136,7 +136,7 @@ pub fn get_config_from_file(file_path: &Path) -> Result<Option<Config>, FatalErr
 /// 2. $(pwd)/Cargo.toml `package.metadata.release` (with deprecation warning)
 /// 3. $HOME/.release.toml
 ///
-pub fn resolve_config() -> Result<Option<Config>, FatalError> {
+pub fn resolve_config(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
     // Project release file.
     let current_dir_config = get_config_from_file(Path::new("release.toml"))?;
     if let Some(cfg) = current_dir_config {
@@ -144,7 +144,7 @@ pub fn resolve_config() -> Result<Option<Config>, FatalError> {
     };
 
     // Crate manifest.
-    let current_dir_config = get_config_from_manifest(Path::new("Cargo.toml"))?;
+    let current_dir_config = get_config_from_manifest(manifest_path)?;
     if let Some(cfg) = current_dir_config {
         return Ok(Some(cfg));
     };
@@ -162,6 +162,6 @@ pub fn resolve_config() -> Result<Option<Config>, FatalError> {
 
 #[test]
 fn test_release_config() {
-    let release_config = resolve_config().unwrap().unwrap();
+    let release_config = resolve_config(Path::new("Cargo.toml")).unwrap().unwrap();
     assert!(release_config.sign_commit);
 }
