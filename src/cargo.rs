@@ -14,7 +14,7 @@ use error::FatalError;
 use Features;
 
 fn cargo() -> String {
-    env::var("CARGO").unwrap_or("cargo".to_owned())
+    env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned())
 }
 
 pub fn publish(dry_run: bool, manifest_path: &Path, features: Features) -> Result<bool, FatalError> {
