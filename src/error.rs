@@ -1,5 +1,6 @@
 use regex::Error as RegexError;
 use semver::SemVerError;
+use std::env::VarError as VarError;
 use std::io::Error as IOError;
 use std::string::FromUtf8Error;
 use toml::de::Error as TomlError;
@@ -52,6 +53,12 @@ quick_error! {
             cause(err)
             display("RegexError {}", err)
             description(err.description())
+        }
+        VarError(err: VarError) {
+            from()
+            cause(err)
+            description(err.description())
+            display("Environment Variable Error: {}", err)
         }
     }
 }

@@ -1,3 +1,4 @@
+use std::env;
 use std::fs::{self, File};
 use std::io;
 use std::io::prelude::*;
@@ -13,10 +14,11 @@ use error::FatalError;
 use Features;
 
 pub fn publish(dry_run: bool, manifest_path: &Path, features: Features) -> Result<bool, FatalError> {
+    let cargo = env::var("CARGO")?;
     match features {
         Features::None => call(
             vec![
-                env!("CARGO"),
+                &cargo,
                 "publish",
                 "--manifest-path",
                 manifest_path.to_str().unwrap(),
@@ -25,7 +27,7 @@ pub fn publish(dry_run: bool, manifest_path: &Path, features: Features) -> Resul
         ),
         Features::Selective(vec) => call(
             vec![
-                env!("CARGO"),
+                &cargo,
                 "publish",
                 "--features",
                 &vec.join(" "),
@@ -36,7 +38,7 @@ pub fn publish(dry_run: bool, manifest_path: &Path, features: Features) -> Resul
         ),
         Features::All => call(
             vec![
-                env!("CARGO"),
+                &cargo,
                 "publish",
                 "--all-features",
                 "--manifest-path",
@@ -48,8 +50,9 @@ pub fn publish(dry_run: bool, manifest_path: &Path, features: Features) -> Resul
 }
 
 pub fn doc(dry_run: bool, manifest_path: &Path) -> Result<bool, FatalError> {
+    let cargo = env::var("CARGO")?;
     call(vec![
-        env!("CARGO"),
+        &cargo,
         "doc",
         "--no-deps",
         "--manifest-path",
