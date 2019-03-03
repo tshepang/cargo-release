@@ -67,12 +67,3 @@ pub fn call_with_env(
 pub fn is_current_path(path: &Path) -> Result<bool, FatalError> {
     Ok(current_dir()? == path)
 }
-
-pub fn relative_path_for(root: &str) -> Result<Option<String>, FatalError> {
-    let pwd = current_dir()?.to_str().unwrap().to_owned();
-    if pwd.len() > root.len() {
-        Ok(Some(pwd[root.len()..].to_string()))
-    } else {
-        Ok(None)
-    }
-}

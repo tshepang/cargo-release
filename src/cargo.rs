@@ -23,10 +23,6 @@ pub fn publish(dry_run: bool, features: Features) -> Result<bool, FatalError> {
     }
 }
 
-pub fn update(dry_run: bool) -> Result<bool, FatalError> {
-    call(vec![env!("CARGO"), "update"], dry_run)
-}
-
 pub fn doc(dry_run: bool) -> Result<bool, FatalError> {
     call(vec![env!("CARGO"), "doc", "--no-deps"], dry_run)
 }

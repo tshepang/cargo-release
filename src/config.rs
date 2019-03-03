@@ -107,12 +107,6 @@ fn load_from_file(path: &Path) -> io::Result<String> {
     Ok(s)
 }
 
-fn save_to_file(path: &Path, content: &str) -> io::Result<()> {
-    let mut file = File::create(path)?;
-    file.write_all(&content.as_bytes())?;
-    Ok(())
-}
-
 pub fn get_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
     if manifest_path.exists() {
         let m = load_from_file(manifest_path)
