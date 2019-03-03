@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 extern crate chrono;
 extern crate termcolor;
 extern crate serde;
@@ -12,6 +10,11 @@ extern crate regex;
 extern crate semver;
 extern crate structopt;
 extern crate toml;
+
+#[cfg(test)]
+extern crate assert_fs;
+#[cfg(test)]
+extern crate cargo_metadata;
 
 use std::path::Path;
 use std::process::exit;
@@ -31,14 +34,17 @@ mod shell;
 mod version;
 
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
-    let cargo_file = config::parse_cargo_config()?;
+    let manifest_path = Path::new("Cargo.toml");
+    let lock_path = Path::new("Cargo.lock");
+
+    let cargo_file = cargo::parse_cargo_config(manifest_path)?;
     let custom_config_path_option = args.config.as_ref();
     // FIXME:
     let release_config = if let Some(custom_config_path) = custom_config_path_option {
         // when calling with -c option
         config::get_config_from_file(Path::new(custom_config_path))?
     } else {
-        config::resolve_config()?
+        config::resolve_config(manifest_path)?
     }.unwrap_or_default();
 
     // step -1
@@ -112,7 +118,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         .and_then(|f| f.as_table())
         .and_then(|f| f.get("version"))
         .and_then(|f| f.as_str())
-        .and_then(|f| config::parse_version(f).ok())
+        .and_then(|f| cargo::parse_version(f).ok())
         .unwrap();
     let prev_version_string = version.to_string();
 
@@ -147,7 +153,11 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             new_version_string
         ));
         if !dry_run {
-            config::rewrite_cargo_version(&new_version_string)?;
+            cargo::set_manifest_version(manifest_path, &new_version_string)?;
+
+            if lock_path.exists() {
+                cargo::set_lock_version(lock_path, crate_name, &new_version_string)?;
+            }
         }
 
         if ! pre_release_replacements.is_empty() {
@@ -181,7 +191,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // STEP 3: cargo publish
     if publish {
         shell::log_info("Running cargo publish");
-        if !cargo::publish(dry_run, features)? {
+        if !cargo::publish(dry_run, manifest_path, features)? {
             return Ok(103);
         }
     }
@@ -189,7 +199,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // STEP 4: upload doc
     if upload_doc {
         shell::log_info("Building and exporting docs.");
-        cargo::doc(dry_run)?;
+        cargo::doc(dry_run, manifest_path)?;
 
         let doc_path = "target/doc/";
 
@@ -248,7 +258,11 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         let updated_version_string = version.to_string();
         replacements.insert("{{next_version}}", updated_version_string.clone());
         if !dry_run {
-            config::rewrite_cargo_version(&updated_version_string)?;
+            cargo::set_manifest_version(manifest_path, &updated_version_string)?;
+
+            if lock_path.exists() {
+                cargo::set_lock_version(lock_path, crate_name, &updated_version_string)?;
+            }
         }
         let commit_msg = replace_in(&pro_release_commit_msg, &replacements);
 

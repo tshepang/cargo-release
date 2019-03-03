@@ -21,5 +21,9 @@ chrono = "0.4"
 dirs = "1.0"
 structopt = {version = "0.2.7", default-features = false}
 
+[dev-dependencies]
+assert_fs = "0.11"
+cargo_metadata = "0.7"
+
 [badges]
 travis-ci = { repository = "sunng87/cargo-release", branch="0.12.0-beta.1" }
