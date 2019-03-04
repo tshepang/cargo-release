@@ -13,8 +13,12 @@ use cmd::call;
 use error::FatalError;
 use Features;
 
+fn cargo() -> String {
+    env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned())
+}
+
 pub fn publish(dry_run: bool, manifest_path: &Path, features: Features) -> Result<bool, FatalError> {
-    let cargo = env::var("CARGO")?;
+    let cargo = cargo();
     match features {
         Features::None => call(
             vec![
@@ -50,7 +54,7 @@ pub fn publish(dry_run: bool, manifest_path: &Path, features: Features) -> Resul
 }
 
 pub fn doc(dry_run: bool, manifest_path: &Path) -> Result<bool, FatalError> {
-    let cargo = env::var("CARGO")?;
+    let cargo = cargo();
     call(vec![
         &cargo,
         "doc",
