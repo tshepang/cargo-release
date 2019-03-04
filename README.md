@@ -111,7 +111,7 @@ Cargo.toml configuration below.
 ### Pre-release hook
 
 Since 0.9, you can configure `pre-release-hook` command in
-`Cargo.toml`, for example:
+`release.toml`, for example:
 
 ```toml
 pre-release-hook = ["echo", "ok"]
