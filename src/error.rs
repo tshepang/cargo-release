@@ -4,6 +4,7 @@ use std::env::VarError as VarError;
 use std::io::Error as IOError;
 use std::string::FromUtf8Error;
 use toml::de::Error as TomlError;
+use toml_edit::TomlError as TomlEditError;
 
 quick_error! {
     #[derive(Debug)]
@@ -15,6 +16,12 @@ quick_error! {
             display("IO Error: {}", err)
         }
         InvalidCargoFileFormat(err: TomlError) {
+            display("Invalid TOML file format: {}", err)
+            description(err.description())
+            from()
+            cause(err)
+        }
+        InvalidCargoFileFormat2(err: TomlEditError) {
             display("Invalid TOML file format: {}", err)
             description(err.description())
             from()

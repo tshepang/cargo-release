@@ -8,6 +8,7 @@ use std::path::Path;
 use regex::Regex;
 use semver::Version;
 use toml::Value;
+use toml_edit;
 
 use cmd::call;
 use error::FatalError;
@@ -71,35 +72,13 @@ pub fn set_manifest_version(manifest_path: &Path, version: &str) -> Result<(), F
         .join("Cargo.toml.work");
 
     {
-        let file_in = File::open(manifest_path).map_err(FatalError::from)?;
-        let mut bufreader = BufReader::new(file_in);
-        let mut line = String::new();
+        let manifest = load_from_file(manifest_path)?;
+        let mut manifest: toml_edit::Document = manifest.parse().map_err(FatalError::from)?;
+        manifest["package"]["version"] = toml_edit::value(version);
 
         let mut file_out = File::create(&temp_manifest_path).map_err(FatalError::from)?;
-
-        let section_matcher = Regex::new("^\\[.+\\]").unwrap();
-
-        let mut in_package = false;
-
-        loop {
-            let b = bufreader.read_line(&mut line).map_err(FatalError::from)?;
-            if b <= 0 {
-                break;
-            }
-
-            if section_matcher.is_match(&line) {
-                in_package = line.trim() == "[package]";
-            }
-
-            if in_package && line.starts_with("version") {
-                line = format!("version = \"{}\"\n", version);
-            }
-
-            file_out
-                .write_all(line.as_bytes())
+        file_out.write(manifest.to_string().as_bytes())
                 .map_err(FatalError::from)?;
-            line.clear();
-        }
     }
     fs::rename(temp_manifest_path, manifest_path)?;
 

@@ -10,6 +10,7 @@ extern crate regex;
 extern crate semver;
 extern crate structopt;
 extern crate toml;
+extern crate toml_edit;
 
 #[cfg(test)]
 extern crate assert_fs;
