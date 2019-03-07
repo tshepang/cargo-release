@@ -155,6 +155,7 @@ mod test {
     use assert_fs::prelude::*;
     use assert_fs;
     use cargo_metadata;
+    use predicates::prelude::*;
 
     #[test]
     fn test_parse_cargo_config() {
@@ -180,6 +181,49 @@ mod test {
             .exec()
             .unwrap();
         assert_eq!(meta.packages[0].version.to_string(), "2.0.0");
+
+        temp.close().unwrap();
+    }
+
+    #[test]
+    fn test_set_lock_version_in_pkg() {
+        let temp = assert_fs::TempDir::new().unwrap();
+        temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+        let manifest_path = temp.child("Cargo.toml");
+        let lock_path = temp.child("Cargo.lock");
+
+        set_manifest_version(manifest_path.path(), "2.0.0").unwrap();
+        set_lock_version(lock_path.path(), "simple", "2.0.0").unwrap();
+        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/simple/Cargo.lock")).not());
+
+        temp.close().unwrap();
+    }
+
+    #[test]
+    #[ignore]
+    fn test_set_lock_version_in_pure_workspace() {
+        let temp = assert_fs::TempDir::new().unwrap();
+        temp.copy_from("tests/fixtures/pure_ws", &["*"]).unwrap();
+        let manifest_path = temp.child("b/Cargo.toml");
+        let lock_path = temp.child("Cargo.lock");
+
+        set_manifest_version(manifest_path.path(), "2.0.0").unwrap();
+        set_lock_version(lock_path.path(), "b", "2.0.0").unwrap();
+        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/pure_ws/Cargo.lock")).not());
+
+        temp.close().unwrap();
+    }
+
+    #[test]
+    fn test_set_lock_version_in_mixed_workspace() {
+        let temp = assert_fs::TempDir::new().unwrap();
+        temp.copy_from("tests/fixtures/mixed_ws", &["*"]).unwrap();
+        let manifest_path = temp.child("Cargo.toml");
+        let lock_path = temp.child("Cargo.lock");
+
+        set_manifest_version(manifest_path.path(), "2.0.0").unwrap();
+        set_lock_version(lock_path.path(), "b", "2.0.0").unwrap();
+        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/mixed_ws/Cargo.lock")).not());
 
         temp.close().unwrap();
     }

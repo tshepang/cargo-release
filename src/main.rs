@@ -16,6 +16,8 @@ extern crate toml_edit;
 extern crate assert_fs;
 #[cfg(test)]
 extern crate cargo_metadata;
+#[cfg(test)]
+extern crate predicates;
 
 use std::path::Path;
 use std::process::exit;
