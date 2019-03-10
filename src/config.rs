@@ -107,7 +107,7 @@ fn load_from_file(path: &Path) -> io::Result<String> {
     Ok(s)
 }
 
-pub fn get_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
+fn get_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
     if manifest_path.exists() {
         let m = load_from_file(manifest_path)
             .map_err(FatalError::from)?;
