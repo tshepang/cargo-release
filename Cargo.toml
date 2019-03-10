@@ -10,7 +10,9 @@ repository = "https://github.com/sunng87/cargo-release"
 readme = "README.md"
 
 [dependencies]
+cargo_metadata = "0.7"
 toml = {version = "0.4", default-features = false}
+toml_edit = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 semver = "0.6.0"
 quick-error = "1.1.0"
@@ -23,7 +25,7 @@ structopt = {version = "0.2.7", default-features = false}
 
 [dev-dependencies]
 assert_fs = "0.11"
-cargo_metadata = "0.7"
+predicates = "1.0"
 
 [badges]
 travis-ci = { repository = "sunng87/cargo-release", branch="0.12.0-beta.1" }

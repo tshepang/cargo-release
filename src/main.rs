@@ -1,3 +1,4 @@
+extern crate cargo_metadata;
 extern crate chrono;
 extern crate termcolor;
 extern crate serde;
@@ -10,11 +11,12 @@ extern crate regex;
 extern crate semver;
 extern crate structopt;
 extern crate toml;
+extern crate toml_edit;
 
 #[cfg(test)]
 extern crate assert_fs;
 #[cfg(test)]
-extern crate cargo_metadata;
+extern crate predicates;
 
 use std::path::Path;
 use std::process::exit;
@@ -35,7 +37,6 @@ mod version;
 
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let manifest_path = Path::new("Cargo.toml");
-    let lock_path = Path::new("Cargo.lock");
 
     let cargo_file = cargo::parse_cargo_config(manifest_path)?;
     let custom_config_path_option = args.config.as_ref();
@@ -154,10 +155,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         ));
         if !dry_run {
             cargo::set_manifest_version(manifest_path, &new_version_string)?;
-
-            if lock_path.exists() {
-                cargo::set_lock_version(lock_path, crate_name, &new_version_string)?;
-            }
+            cargo::update_lock(manifest_path)?;
         }
 
         if ! pre_release_replacements.is_empty() {
@@ -259,10 +257,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         replacements.insert("{{next_version}}", updated_version_string.clone());
         if !dry_run {
             cargo::set_manifest_version(manifest_path, &updated_version_string)?;
-
-            if lock_path.exists() {
-                cargo::set_lock_version(lock_path, crate_name, &updated_version_string)?;
-            }
+            cargo::update_lock(manifest_path)?;
         }
         let commit_msg = replace_in(&pro_release_commit_msg, &replacements);
 

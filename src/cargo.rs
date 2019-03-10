@@ -2,12 +2,12 @@ use std::env;
 use std::fs::{self, File};
 use std::io;
 use std::io::prelude::*;
-use std::io::BufReader;
 use std::path::Path;
 
-use regex::Regex;
+use cargo_metadata;
 use semver::Version;
 use toml::Value;
+use toml_edit;
 
 use cmd::call;
 use error::FatalError;
@@ -71,84 +71,24 @@ pub fn set_manifest_version(manifest_path: &Path, version: &str) -> Result<(), F
         .join("Cargo.toml.work");
 
     {
-        let file_in = File::open(manifest_path).map_err(FatalError::from)?;
-        let mut bufreader = BufReader::new(file_in);
-        let mut line = String::new();
+        let manifest = load_from_file(manifest_path)?;
+        let mut manifest: toml_edit::Document = manifest.parse().map_err(FatalError::from)?;
+        manifest["package"]["version"] = toml_edit::value(version);
 
         let mut file_out = File::create(&temp_manifest_path).map_err(FatalError::from)?;
-
-        let section_matcher = Regex::new("^\\[.+\\]").unwrap();
-
-        let mut in_package = false;
-
-        loop {
-            let b = bufreader.read_line(&mut line).map_err(FatalError::from)?;
-            if b <= 0 {
-                break;
-            }
-
-            if section_matcher.is_match(&line) {
-                in_package = line.trim() == "[package]";
-            }
-
-            if in_package && line.starts_with("version") {
-                line = format!("version = \"{}\"\n", version);
-            }
-
-            file_out
-                .write_all(line.as_bytes())
+        file_out.write(manifest.to_string().as_bytes())
                 .map_err(FatalError::from)?;
-            line.clear();
-        }
     }
     fs::rename(temp_manifest_path, manifest_path)?;
 
     Ok(())
 }
 
-pub fn set_lock_version(lock_path: &Path, crate_name: &str, version: &str) -> Result<(), FatalError> {
-    let temp_lock_path = lock_path
-        .parent()
-        .unwrap_or_else(|| Path::new("."))
-        .join("Cargo.lock.work");
-
-    {
-        let file_in = File::open(lock_path).map_err(FatalError::from)?;
-        let mut bufreader = BufReader::new(file_in);
-        let mut line = String::new();
-
-        let mut file_out = File::create(&temp_lock_path).map_err(FatalError::from)?;
-
-        let section_matcher = Regex::new("^\\[\\[.+\\]\\]").unwrap();
-
-        let mut in_package = false;
-
-        loop {
-            let b = bufreader.read_line(&mut line).map_err(FatalError::from)?;
-            if b <= 0 {
-                break;
-            }
-
-            if section_matcher.is_match(&line) {
-                in_package = line.trim() == "[[package]]";
-            }
-
-            if in_package && line.starts_with("name") {
-                in_package = line == format!("name = \"{}\"\n", crate_name);
-            }
-
-            if in_package && line.starts_with("version") {
-                line = format!("version = \"{}\"\n", version);
-            }
-
-            file_out
-                .write_all(line.as_bytes())
-                .map_err(FatalError::from)?;
-            line.clear();
-        }
-    }
-
-    fs::rename(temp_lock_path, lock_path)?;
+pub fn update_lock(manifest_path: &Path) -> Result<(), FatalError> {
+    cargo_metadata::MetadataCommand::new()
+        .manifest_path(manifest_path)
+        .exec()
+        .map_err(FatalError::from)?;
 
     Ok(())
 }
@@ -175,7 +115,7 @@ mod test {
 
     use assert_fs::prelude::*;
     use assert_fs;
-    use cargo_metadata;
+    use predicates::prelude::*;
 
     #[test]
     fn test_parse_cargo_config() {
@@ -201,6 +141,54 @@ mod test {
             .exec()
             .unwrap();
         assert_eq!(meta.packages[0].version.to_string(), "2.0.0");
+
+        temp.close().unwrap();
+    }
+
+    #[test]
+    fn test_update_lock_in_pkg() {
+        let temp = assert_fs::TempDir::new().unwrap();
+        temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+        let manifest_path = temp.child("Cargo.toml");
+        let lock_path = temp.child("Cargo.lock");
+
+        set_manifest_version(manifest_path.path(), "2.0.0").unwrap();
+        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/simple/Cargo.lock")));
+
+        update_lock(manifest_path.path()).unwrap();
+        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/simple/Cargo.lock")).not());
+
+        temp.close().unwrap();
+    }
+
+    #[test]
+    fn test_update_lock_in_pure_workspace() {
+        let temp = assert_fs::TempDir::new().unwrap();
+        temp.copy_from("tests/fixtures/pure_ws", &["*"]).unwrap();
+        let manifest_path = temp.child("b/Cargo.toml");
+        let lock_path = temp.child("Cargo.lock");
+
+        set_manifest_version(manifest_path.path(), "2.0.0").unwrap();
+        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/pure_ws/Cargo.lock")));
+
+        update_lock(manifest_path.path()).unwrap();
+        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/pure_ws/Cargo.lock")).not());
+
+        temp.close().unwrap();
+    }
+
+    #[test]
+    fn test_update_lock_in_mixed_workspace() {
+        let temp = assert_fs::TempDir::new().unwrap();
+        temp.copy_from("tests/fixtures/mixed_ws", &["*"]).unwrap();
+        let manifest_path = temp.child("Cargo.toml");
+        let lock_path = temp.child("Cargo.lock");
+
+        set_manifest_version(manifest_path.path(), "2.0.0").unwrap();
+        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/mixed_ws/Cargo.lock")));
+
+        update_lock(manifest_path.path()).unwrap();
+        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/mixed_ws/Cargo.lock")).not());
 
         temp.close().unwrap();
     }
