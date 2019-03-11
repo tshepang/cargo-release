@@ -37,6 +37,7 @@ mod version;
 
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let manifest_path = Path::new("Cargo.toml");
+    let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
     let cargo_file = cargo::parse_cargo_config(manifest_path)?;
     let custom_config_path_option = args.config.as_ref();
@@ -106,7 +107,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     };
 
     // STEP 0: Check if working directory is clean
-    if !git::status()? {
+    if !git::status(cwd)? {
         shell::log_warn("Uncommitted changes detected, please commit before release.");
         if !dry_run {
             return Ok(101);
@@ -180,7 +181,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         }
 
         let commit_msg = replace_in(&pre_release_commit_msg, &replacements);
-        if !git::commit_all(Path::new("."), &commit_msg, sign, dry_run)? {
+        if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
             // commit failed, abort release
             return Ok(102);
         }
@@ -199,22 +200,22 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         shell::log_info("Building and exporting docs.");
         cargo::doc(dry_run, manifest_path)?;
 
-        let doc_path = Path::new("target/doc/");
+        let doc_path = cwd.join("target/doc/");
 
         shell::log_info("Commit and push docs.");
-        git::init(doc_path, dry_run)?;
-        git::add_all(doc_path, dry_run)?;
-        git::commit_all(doc_path, doc_commit_msg, sign, dry_run)?;
-        let default_remote = git::origin_url()?;
+        git::init(&doc_path, dry_run)?;
+        git::add_all(&doc_path, dry_run)?;
+        git::commit_all(&doc_path, doc_commit_msg, sign, dry_run)?;
+        let default_remote = git::origin_url(cwd)?;
 
         let mut refspec = String::from("master:");
         refspec.push_str(&doc_branch);
 
-        git::force_push(doc_path, default_remote.trim(), &refspec, dry_run)?;
+        git::force_push(&doc_path, default_remote.trim(), &refspec, dry_run)?;
     }
 
     // STEP 5: Tag
-    let root = git::top_level()?;
+    let root = git::top_level(cwd)?;
     let is_root = cmd::is_current_path(&Path::new(&root))?;
     let tag_prefix = args
         .tag_prefix
@@ -240,7 +241,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         let tag_message = replace_in(tag_msg, &replacements);
 
         shell::log_info(&format!("Creating git tag {}", tag_name));
-        if !git::tag(&tag_name, &tag_message, sign, dry_run)? {
+        if !git::tag(cwd, &tag_name, &tag_message, sign, dry_run)? {
             // tag failed, abort release
             return Ok(104);
         }
@@ -261,7 +262,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         }
         let commit_msg = replace_in(&pro_release_commit_msg, &replacements);
 
-        if !git::commit_all(Path::new("."), &commit_msg, sign, dry_run)? {
+        if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
             return Ok(105);
         }
     }
@@ -269,10 +270,10 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // STEP 7: git push
     if !skip_push {
         shell::log_info("Pushing to git remote");
-        if !git::push(&git_remote, dry_run)? {
+        if !git::push(cwd, &git_remote, dry_run)? {
             return Ok(106);
         }
-        if !skip_tag && !git::push_tag(&git_remote, &tag_name, dry_run)? {
+        if !skip_tag && !git::push_tag(cwd, &git_remote, &tag_name, dry_run)? {
             return Ok(106);
         }
     }

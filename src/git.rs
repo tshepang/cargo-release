@@ -1,13 +1,14 @@
 use std::path::Path;
 use std::process::Command;
 
-use cmd::{call, call_on_path};
+use cmd::call_on_path;
 use error::FatalError;
 
-pub fn status() -> Result<bool, FatalError> {
+pub fn status(dir: &Path) -> Result<bool, FatalError> {
     let output = Command::new("git")
         .arg("diff")
         .arg("--exit-code")
+        .current_dir(dir)
         .output()
         .map_err(FatalError::from)?;
     Ok(output.status.success())
@@ -21,8 +22,8 @@ pub fn commit_all(dir: &Path, msg: &str, sign: bool, dry_run: bool) -> Result<bo
     )
 }
 
-pub fn tag(name: &str, msg: &str, sign: bool, dry_run: bool) -> Result<bool, FatalError> {
-    call(
+pub fn tag(dir: &Path, name: &str, msg: &str, sign: bool, dry_run: bool) -> Result<bool, FatalError> {
+    call_on_path(
         vec![
             "git",
             "tag",
@@ -32,22 +33,24 @@ pub fn tag(name: &str, msg: &str, sign: bool, dry_run: bool) -> Result<bool, Fat
             msg,
             if sign { "-s" } else { "" },
         ],
+        dir,
         dry_run,
     )
 }
 
-pub fn push(remote: &str, dry_run: bool) -> Result<bool, FatalError> {
-    call(vec!["git", "push", remote], dry_run)
+pub fn push(dir: &Path, remote: &str, dry_run: bool) -> Result<bool, FatalError> {
+    call_on_path(vec!["git", "push", remote], dir, dry_run)
 }
 
-pub fn push_tag(remote: &str, tag: &str, dry_run: bool) -> Result<bool, FatalError> {
-    call(vec!["git", "push", remote, tag], dry_run)
+pub fn push_tag(dir: &Path, remote: &str, tag: &str, dry_run: bool) -> Result<bool, FatalError> {
+    call_on_path(vec!["git", "push", remote, tag], dir, dry_run)
 }
 
-pub fn top_level() -> Result<String, FatalError> {
+pub fn top_level(dir: &Path) -> Result<String, FatalError> {
     let output = Command::new("git")
         .arg("rev-parse")
         .arg("--show-toplevel")
+        .current_dir(dir)
         .output()
         .map_err(FatalError::from)?;
     String::from_utf8(output.stdout)
@@ -55,11 +58,12 @@ pub fn top_level() -> Result<String, FatalError> {
         .map(|s| s.trim_end().to_owned())
 }
 
-pub fn origin_url() -> Result<String, FatalError> {
+pub fn origin_url(dir: &Path) -> Result<String, FatalError> {
     let output = Command::new("git")
         .arg("remote")
         .arg("get-url")
         .arg("origin")
+        .current_dir(dir)
         .output()
         .map_err(FatalError::from)?;
     String::from_utf8(output.stdout).map_err(FatalError::from)
