@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::process::Command;
 
 use cmd::{call, call_on_path};
@@ -12,7 +13,7 @@ pub fn status() -> Result<bool, FatalError> {
     Ok(output.status.success())
 }
 
-pub fn commit_all(dir: &str, msg: &str, sign: bool, dry_run: bool) -> Result<bool, FatalError> {
+pub fn commit_all(dir: &Path, msg: &str, sign: bool, dry_run: bool) -> Result<bool, FatalError> {
     call_on_path(
         vec!["git", "commit", if sign { "-S" } else { "" }, "-am", msg],
         dir,
@@ -64,16 +65,16 @@ pub fn origin_url() -> Result<String, FatalError> {
     String::from_utf8(output.stdout).map_err(FatalError::from)
 }
 
-pub fn init(dir: &str, dry_run: bool) -> Result<bool, FatalError> {
+pub fn init(dir: &Path, dry_run: bool) -> Result<bool, FatalError> {
     call_on_path(vec!["git", "init"], dir, dry_run)
 }
 
-pub fn add_all(dir: &str, dry_run: bool) -> Result<bool, FatalError> {
+pub fn add_all(dir: &Path, dry_run: bool) -> Result<bool, FatalError> {
     call_on_path(vec!["git", "add", "."], dir, dry_run)
 }
 
 pub fn force_push(
-    dir: &str,
+    dir: &Path,
     remote: &str,
     refspec: &str,
     dry_run: bool,

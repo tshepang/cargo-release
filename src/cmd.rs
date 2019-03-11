@@ -7,13 +7,13 @@ use error::FatalError;
 
 fn do_call(
     command: Vec<&str>,
-    path: Option<&str>,
+    path: Option<&Path>,
     envs: Option<BTreeMap<&str, &str>>,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
     if dry_run {
         if path.is_some() {
-            println!("cd {}", path.unwrap());
+            println!("cd {}", path.unwrap().display());
         }
         println!("{}", command.join(" "));
         if path.is_some() {
@@ -52,7 +52,7 @@ pub fn call(command: Vec<&str>, dry_run: bool) -> Result<bool, FatalError> {
     do_call(command, None, None, dry_run)
 }
 
-pub fn call_on_path(command: Vec<&str>, path: &str, dry_run: bool) -> Result<bool, FatalError> {
+pub fn call_on_path(command: Vec<&str>, path: &Path, dry_run: bool) -> Result<bool, FatalError> {
     do_call(command, Some(path), None, dry_run)
 }
 

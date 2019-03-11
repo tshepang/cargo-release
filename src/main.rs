@@ -180,7 +180,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         }
 
         let commit_msg = replace_in(&pre_release_commit_msg, &replacements);
-        if !git::commit_all(".", &commit_msg, sign, dry_run)? {
+        if !git::commit_all(Path::new("."), &commit_msg, sign, dry_run)? {
             // commit failed, abort release
             return Ok(102);
         }
@@ -199,7 +199,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         shell::log_info("Building and exporting docs.");
         cargo::doc(dry_run, manifest_path)?;
 
-        let doc_path = "target/doc/";
+        let doc_path = Path::new("target/doc/");
 
         shell::log_info("Commit and push docs.");
         git::init(doc_path, dry_run)?;
@@ -261,7 +261,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         }
         let commit_msg = replace_in(&pro_release_commit_msg, &replacements);
 
-        if !git::commit_all(".", &commit_msg, sign, dry_run)? {
+        if !git::commit_all(Path::new("."), &commit_msg, sign, dry_run)? {
             return Ok(105);
         }
     }
