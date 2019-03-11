@@ -33,22 +33,23 @@ pub fn replace_in(input: &str, r: &Replacements) -> String {
 pub fn do_file_replacements(
     replace_config: &[Replace],
     replacements: &Replacements,
+    cwd: &Path,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
     for replace in replace_config {
-        let file = replace.file.as_path();
+        let file = cwd.join(replace.file.as_path());
         let pattern = replace.search.as_str();
         let to_replace = replace.replace.as_str();
 
         let replacer = replace_in(to_replace, replacements);
 
-        let data = load_from_file(file)?;
+        let data = load_from_file(&file)?;
 
         let r = Regex::new(pattern).map_err(FatalError::from)?;
         let result = r.replace_all(&data, replacer.as_str());
 
         if !dry_run {
-            save_to_file(&Path::new(file), &result)?;
+            save_to_file(&file, &result)?;
         }
     }
     Ok(true)

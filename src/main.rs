@@ -161,7 +161,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
         if ! pre_release_replacements.is_empty() {
             // try replacing text in configured files
-            do_file_replacements(pre_release_replacements, &replacements, dry_run)?;
+            do_file_replacements(pre_release_replacements, &replacements, cwd, dry_run)?;
         }
 
         // pre-release hook
