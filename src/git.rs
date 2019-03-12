@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
 
 use cmd::call_on_path;
@@ -46,16 +47,17 @@ pub fn push_tag(dir: &Path, remote: &str, tag: &str, dry_run: bool) -> Result<bo
     call_on_path(vec!["git", "push", remote, tag], dir, dry_run)
 }
 
-pub fn top_level(dir: &Path) -> Result<String, FatalError> {
+pub fn top_level(dir: &Path) -> Result<PathBuf, FatalError> {
     let output = Command::new("git")
         .arg("rev-parse")
         .arg("--show-toplevel")
         .current_dir(dir)
         .output()
         .map_err(FatalError::from)?;
-    String::from_utf8(output.stdout)
-        .map_err(FatalError::from)
-        .map(|s| s.trim_end().to_owned())
+    let path = std::str::from_utf8(&output.stdout)
+        .map_err(FatalError::from)?
+        .trim_end();
+    Ok(Path::new(path).to_owned())
 }
 
 pub fn origin_url(dir: &Path) -> Result<String, FatalError> {

@@ -3,6 +3,7 @@ use semver::SemVerError;
 use std::env::VarError as VarError;
 use std::io::Error as IOError;
 use std::string::FromUtf8Error;
+use std::str::Utf8Error;
 use toml::de::Error as TomlError;
 use toml_edit::TomlError as TomlEditError;
 use cargo_metadata::Error as CargoMetaError;
@@ -42,6 +43,12 @@ quick_error! {
             from()
             cause(err)
             display("SemVerError {}", err)
+            description(err.description())
+        }
+        Utf8Error(err: Utf8Error) {
+            from()
+            cause(err)
+            display("Utf8Error {}", err)
             description(err.description())
         }
         FromUtf8Error(err: FromUtf8Error) {

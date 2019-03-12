@@ -22,9 +22,11 @@ use std::path::Path;
 use std::process::exit;
 
 use chrono::prelude::Local;
-use replace::{do_file_replacements, replace_in, Replacements};
 use semver::Identifier;
 use structopt::StructOpt;
+
+use error::FatalError;
+use replace::{do_file_replacements, replace_in, Replacements};
 
 mod cargo;
 mod cmd;
@@ -36,17 +38,19 @@ mod shell;
 mod version;
 
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
-    let manifest_path = Path::new("Cargo.toml");
+    let manifest_path = Path::new("Cargo.toml")
+        .canonicalize()
+        .map_err(FatalError::from)?;
     let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
-    let cargo_file = cargo::parse_cargo_config(manifest_path)?;
+    let cargo_file = cargo::parse_cargo_config(&manifest_path)?;
     let custom_config_path_option = args.config.as_ref();
     // FIXME:
     let release_config = if let Some(custom_config_path) = custom_config_path_option {
         // when calling with -c option
         config::get_config_from_file(Path::new(custom_config_path))?
     } else {
-        config::resolve_config(manifest_path)?
+        config::resolve_config(&manifest_path)?
     }.unwrap_or_default();
 
     // step -1
@@ -155,8 +159,8 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             new_version_string
         ));
         if !dry_run {
-            cargo::set_manifest_version(manifest_path, &new_version_string)?;
-            cargo::update_lock(manifest_path)?;
+            cargo::set_manifest_version(&manifest_path, &new_version_string)?;
+            cargo::update_lock(&manifest_path)?;
         }
 
         if ! pre_release_replacements.is_empty() {
@@ -190,7 +194,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // STEP 3: cargo publish
     if publish {
         shell::log_info("Running cargo publish");
-        if !cargo::publish(dry_run, manifest_path, features)? {
+        if !cargo::publish(dry_run, &manifest_path, features)? {
             return Ok(103);
         }
     }
@@ -198,7 +202,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // STEP 4: upload doc
     if upload_doc {
         shell::log_info("Building and exporting docs.");
-        cargo::doc(dry_run, manifest_path)?;
+        cargo::doc(dry_run, &manifest_path)?;
 
         let doc_path = cwd.join("target/doc/");
 
@@ -216,7 +220,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
     // STEP 5: Tag
     let root = git::top_level(cwd)?;
-    let is_root = cmd::is_current_path(&Path::new(&root))?;
+    let is_root = root == cwd;
     let tag_prefix = args
         .tag_prefix
         .as_ref()
@@ -257,8 +261,8 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         let updated_version_string = version.to_string();
         replacements.insert("{{next_version}}", updated_version_string.clone());
         if !dry_run {
-            cargo::set_manifest_version(manifest_path, &updated_version_string)?;
-            cargo::update_lock(manifest_path)?;
+            cargo::set_manifest_version(&manifest_path, &updated_version_string)?;
+            cargo::update_lock(&manifest_path)?;
         }
         let commit_msg = replace_in(&pro_release_commit_msg, &replacements);
 

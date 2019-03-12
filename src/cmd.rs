@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::env::current_dir;
 use std::path::Path;
 use std::process::Command;
 
@@ -62,8 +61,4 @@ pub fn call_with_env(
     dry_run: bool,
 ) -> Result<bool, FatalError> {
     do_call(command, None, Some(envs), dry_run)
-}
-
-pub fn is_current_path(path: &Path) -> Result<bool, FatalError> {
-    Ok(current_dir()? == path)
 }
