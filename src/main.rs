@@ -221,7 +221,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         shell::log_info("Building and exporting docs.");
         cargo::doc(dry_run, &manifest_path)?;
 
-        let doc_path = cwd.join("target/doc/");
+        let doc_path = ws_meta.target_directory.join("doc");
 
         shell::log_info("Commit and push docs.");
         git::init(&doc_path, dry_run)?;
