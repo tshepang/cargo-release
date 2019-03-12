@@ -81,5 +81,9 @@ quick_error! {
             description(err.description())
             display("Environment Variable Error: {}", err)
         }
+        GitError {
+            description("git is not found")
+            display("git is not found. git is required for cargo-release workflow.")
+        }
     }
 }
