@@ -58,7 +58,8 @@ pub fn call_on_path(command: Vec<&str>, path: &Path, dry_run: bool) -> Result<bo
 pub fn call_with_env(
     command: Vec<&str>,
     envs: BTreeMap<&str, &str>,
+    path: &Path,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
-    do_call(command, None, Some(envs), dry_run)
+    do_call(command, Some(path), Some(envs), dry_run)
 }

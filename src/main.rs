@@ -181,7 +181,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             };
             // we use dry_run environmental variable to run the script
             // so here we set dry_run=false and always execute the command.
-            if !cmd::call_with_env(pre_rel_hook, envs, false)? {
+            if !cmd::call_with_env(pre_rel_hook, envs, cwd, false)? {
                 shell::log_warn("Release aborted by non-zero return of prerelease hook.");
                 return Ok(107);
             }
