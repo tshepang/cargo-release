@@ -37,10 +37,24 @@ mod replace;
 mod shell;
 mod version;
 
+fn find_root_package(meta: &cargo_metadata::Metadata) -> Result<&cargo_metadata::Package, error::FatalError> {
+    let resolve = meta.resolve.as_ref().expect("unclear when this is optional");
+    let root_id = resolve.root.as_ref()
+        // Cargo.toml has a workspace but no package
+        .ok_or_else(|| error::FatalError::NoPackage)?;
+    let pkg = meta.packages.iter()
+        .find(|p| p.id == *root_id)
+        .expect("the root package must exist");
+    Ok(pkg)
+}
+
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
-    let manifest_path = Path::new("Cargo.toml")
-        .canonicalize()
+    let ws_meta = cargo_metadata::MetadataCommand::new()
+        .exec()
         .map_err(FatalError::from)?;
+    let pkg_meta = find_root_package(&ws_meta)?;
+
+    let manifest_path = pkg_meta.manifest_path.as_path();
     let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
     let cargo_file = cargo::parse_cargo_config(&manifest_path)?;
