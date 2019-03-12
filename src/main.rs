@@ -136,21 +136,10 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     }
 
     // STEP 1: Query a bunch of information for later use.
-    let mut version = cargo_file
-        .get("package")
-        .and_then(|f| f.as_table())
-        .and_then(|f| f.get("version"))
-        .and_then(|f| f.as_str())
-        .and_then(|f| cargo::parse_version(f).ok())
-        .unwrap();
+    let mut version = pkg_meta.version.clone();
     let prev_version_string = version.to_string();
 
-    let crate_name = cargo_file
-        .get("package")
-        .and_then(|f| f.as_table())
-        .and_then(|f| f.get("name"))
-        .and_then(|f| f.as_str())
-        .unwrap();
+    let crate_name = pkg_meta.name.as_str();
 
     let mut replacements = Replacements::new();
     replacements.insert("{{prev_version}}", prev_version_string.to_string());

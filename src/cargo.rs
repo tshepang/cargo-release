@@ -5,7 +5,6 @@ use std::io::prelude::*;
 use std::path::Path;
 
 use cargo_metadata;
-use semver::Version;
 use toml::Value;
 use toml_edit;
 
@@ -91,10 +90,6 @@ pub fn update_lock(manifest_path: &Path) -> Result<(), FatalError> {
         .map_err(FatalError::from)?;
 
     Ok(())
-}
-
-pub fn parse_version(version: &str) -> Result<Version, FatalError> {
-    Version::parse(version).map_err(|e| FatalError::from(e))
 }
 
 pub fn parse_cargo_config(manifest_path: &Path) -> Result<Value, FatalError> {
