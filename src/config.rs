@@ -107,7 +107,7 @@ fn load_from_file(path: &Path) -> io::Result<String> {
     Ok(s)
 }
 
-pub fn get_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
+fn get_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
     if manifest_path.exists() {
         let m = load_from_file(manifest_path)
             .map_err(FatalError::from)?;
@@ -138,7 +138,10 @@ pub fn get_config_from_file(file_path: &Path) -> Result<Option<Config>, FatalErr
 ///
 pub fn resolve_config(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
     // Project release file.
-    let current_dir_config = get_config_from_file(Path::new("release.toml"))?;
+    let default_config = manifest_path.parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("release.toml");
+    let current_dir_config = get_config_from_file(&default_config)?;
     if let Some(cfg) = current_dir_config {
         return Ok(Some(cfg));
     };
