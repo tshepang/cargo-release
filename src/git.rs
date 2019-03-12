@@ -8,6 +8,7 @@ use error::FatalError;
 pub fn status(dir: &Path) -> Result<bool, FatalError> {
     let output = Command::new("git")
         .arg("diff")
+        .arg("HEAD")
         .arg("--exit-code")
         .current_dir(dir)
         .output()
