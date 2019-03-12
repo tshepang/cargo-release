@@ -110,6 +110,9 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         }
     };
 
+    // STEP -1: Check if git is available
+    git::git_version()?;
+
     // STEP 0: Check if working directory is clean
     if !git::status(cwd)? {
         shell::log_warn("Uncommitted changes detected, please commit before release.");

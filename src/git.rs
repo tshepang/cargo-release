@@ -87,3 +87,11 @@ pub fn force_push(
 ) -> Result<bool, FatalError> {
     call_on_path(vec!["git", "push", "-f", remote, refspec], dir, dry_run)
 }
+
+pub(crate) fn git_version() -> Result<(), FatalError> {
+    Command::new("git")
+        .arg("--version")
+        .output()
+        .map(|_| ())
+        .map_err(|_| FatalError::GitError)
+}
