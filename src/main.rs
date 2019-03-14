@@ -37,10 +37,24 @@ mod replace;
 mod shell;
 mod version;
 
+fn find_root_package(meta: &cargo_metadata::Metadata) -> Result<&cargo_metadata::Package, error::FatalError> {
+    let resolve = meta.resolve.as_ref().expect("unclear when this is optional");
+    let root_id = resolve.root.as_ref()
+        // Cargo.toml has a workspace but no package
+        .ok_or_else(|| error::FatalError::NoPackage)?;
+    let pkg = meta.packages.iter()
+        .find(|p| p.id == *root_id)
+        .expect("the root package must exist");
+    Ok(pkg)
+}
+
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
-    let manifest_path = Path::new("Cargo.toml")
-        .canonicalize()
+    let ws_meta = cargo_metadata::MetadataCommand::new()
+        .exec()
         .map_err(FatalError::from)?;
+    let pkg_meta = find_root_package(&ws_meta)?;
+
+    let manifest_path = pkg_meta.manifest_path.as_path();
     let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
     let cargo_file = cargo::parse_cargo_config(&manifest_path)?;
@@ -122,21 +136,10 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     }
 
     // STEP 1: Query a bunch of information for later use.
-    let mut version = cargo_file
-        .get("package")
-        .and_then(|f| f.as_table())
-        .and_then(|f| f.get("version"))
-        .and_then(|f| f.as_str())
-        .and_then(|f| cargo::parse_version(f).ok())
-        .unwrap();
+    let mut version = pkg_meta.version.clone();
     let prev_version_string = version.to_string();
 
-    let crate_name = cargo_file
-        .get("package")
-        .and_then(|f| f.as_table())
-        .and_then(|f| f.get("name"))
-        .and_then(|f| f.as_str())
-        .unwrap();
+    let crate_name = pkg_meta.name.as_str();
 
     let mut replacements = Replacements::new();
     replacements.insert("{{prev_version}}", prev_version_string.to_string());
@@ -181,7 +184,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             };
             // we use dry_run environmental variable to run the script
             // so here we set dry_run=false and always execute the command.
-            if !cmd::call_with_env(pre_rel_hook, envs, false)? {
+            if !cmd::call_with_env(pre_rel_hook, envs, cwd, false)? {
                 shell::log_warn("Release aborted by non-zero return of prerelease hook.");
                 return Ok(107);
             }
@@ -207,7 +210,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         shell::log_info("Building and exporting docs.");
         cargo::doc(dry_run, &manifest_path)?;
 
-        let doc_path = cwd.join("target/doc/");
+        let doc_path = ws_meta.target_directory.join("doc");
 
         shell::log_info("Commit and push docs.");
         git::init(&doc_path, dry_run)?;

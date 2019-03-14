@@ -57,6 +57,10 @@ quick_error! {
             display("FromUtf8Error {}", err)
             description(err.description())
         }
+        NoPackage {
+            display("No package in manifest file")
+            description("No package in manifest file")
+        }
         InvalidReleaseLevel(level: String) {
             display("Unsupported release level {}", level)
             description("Unsupported release level, only major, minor and patch are supported")
