@@ -195,7 +195,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             new_version_string
         ));
         if !dry_run {
-            cargo::set_manifest_version(&manifest_path, &new_version_string)?;
+            cargo::set_package_version(&manifest_path, &new_version_string)?;
             cargo::update_lock(&manifest_path)?;
         }
         for (pkg, dep) in find_dependents(&ws_meta, &pkg_meta) {
@@ -302,7 +302,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         let updated_version_string = version.to_string();
         replacements.insert("{{next_version}}", updated_version_string.clone());
         if !dry_run {
-            cargo::set_manifest_version(&manifest_path, &updated_version_string)?;
+            cargo::set_package_version(&manifest_path, &updated_version_string)?;
             cargo::update_lock(&manifest_path)?;
         }
         let commit_msg = replace_in(&pro_release_commit_msg, &replacements);

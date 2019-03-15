@@ -63,7 +63,7 @@ pub fn doc(dry_run: bool, manifest_path: &Path) -> Result<bool, FatalError> {
     ], dry_run)
 }
 
-pub fn set_manifest_version(manifest_path: &Path, version: &str) -> Result<(), FatalError> {
+pub fn set_package_version(manifest_path: &Path, version: &str) -> Result<(), FatalError> {
     let temp_manifest_path = manifest_path
         .parent()
         .unwrap_or_else(|| Path::new("."))
@@ -118,7 +118,7 @@ mod test {
     }
 
     #[test]
-    fn test_set_manifest_version() {
+    fn test_set_package_version() {
         let temp = assert_fs::TempDir::new().unwrap();
         temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
         let manifest_path = temp.child("Cargo.toml");
@@ -129,7 +129,7 @@ mod test {
             .unwrap();
         assert_eq!(meta.packages[0].version.to_string(), "0.1.0");
 
-        set_manifest_version(manifest_path.path(), "2.0.0").unwrap();
+        set_package_version(manifest_path.path(), "2.0.0").unwrap();
 
         let meta = cargo_metadata::MetadataCommand::new()
             .manifest_path(manifest_path.path())
@@ -147,7 +147,7 @@ mod test {
         let manifest_path = temp.child("Cargo.toml");
         let lock_path = temp.child("Cargo.lock");
 
-        set_manifest_version(manifest_path.path(), "2.0.0").unwrap();
+        set_package_version(manifest_path.path(), "2.0.0").unwrap();
         lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/simple/Cargo.lock")));
 
         update_lock(manifest_path.path()).unwrap();
@@ -163,7 +163,7 @@ mod test {
         let manifest_path = temp.child("b/Cargo.toml");
         let lock_path = temp.child("Cargo.lock");
 
-        set_manifest_version(manifest_path.path(), "2.0.0").unwrap();
+        set_package_version(manifest_path.path(), "2.0.0").unwrap();
         lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/pure_ws/Cargo.lock")));
 
         update_lock(manifest_path.path()).unwrap();
@@ -179,7 +179,7 @@ mod test {
         let manifest_path = temp.child("Cargo.toml");
         let lock_path = temp.child("Cargo.lock");
 
-        set_manifest_version(manifest_path.path(), "2.0.0").unwrap();
+        set_package_version(manifest_path.path(), "2.0.0").unwrap();
         lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/mixed_ws/Cargo.lock")));
 
         update_lock(manifest_path.path()).unwrap();
