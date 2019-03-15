@@ -48,6 +48,16 @@ fn find_root_package(meta: &cargo_metadata::Metadata) -> Result<&cargo_metadata:
     Ok(pkg)
 }
 
+fn find_dependents<'w>(ws_meta: &'w cargo_metadata::Metadata, pkg_meta: &'w cargo_metadata::Package) -> impl Iterator<Item=(&'w cargo_metadata::Package, &'w cargo_metadata::Dependency)> {
+    ws_meta.packages.iter().filter_map(move |p| {
+        if ws_meta.workspace_members.iter().find(|m| **m == p.id).is_some() {
+            p.dependencies.iter().find(|d| d.name == pkg_meta.name).map(|d| (p, d))
+        } else {
+            None
+        }
+    })
+}
+
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let ws_meta = cargo_metadata::MetadataCommand::new()
         .exec()
@@ -187,6 +197,11 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         if !dry_run {
             cargo::set_manifest_version(&manifest_path, &new_version_string)?;
             cargo::update_lock(&manifest_path)?;
+        }
+        for (pkg, dep) in find_dependents(&ws_meta, &pkg_meta) {
+            if ! dep.req.matches(&version) {
+                shell::log_warn(&format!("{}'s dependency on {} is now incompatible (currently {})", pkg.name, pkg_meta.name, dep.req));
+            }
         }
 
         if ! pre_release_replacements.is_empty() {
