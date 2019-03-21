@@ -108,83 +108,96 @@ fn load_from_file(path: &Path) -> io::Result<String> {
 mod test {
     use super::*;
 
+    #[allow(unused_imports)] // Not being detected
     use assert_fs::prelude::*;
     use assert_fs;
     use predicates::prelude::*;
 
-    #[test]
-    fn test_parse_cargo_config() {
-        parse_cargo_config(Path::new("Cargo.toml")).unwrap();
+    mod parse_cargo_config {
+        use super::*;
+
+        #[test]
+        fn doesnt_panic() {
+            parse_cargo_config(Path::new("Cargo.toml")).unwrap();
+        }
     }
 
-    #[test]
-    fn test_set_package_version() {
-        let temp = assert_fs::TempDir::new().unwrap();
-        temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
-        let manifest_path = temp.child("Cargo.toml");
+    mod set_package_version {
+        use super::*;
 
-        let meta = cargo_metadata::MetadataCommand::new()
-            .manifest_path(manifest_path.path())
-            .exec()
-            .unwrap();
-        assert_eq!(meta.packages[0].version.to_string(), "0.1.0");
+        #[test]
+        fn succeeds() {
+            let temp = assert_fs::TempDir::new().unwrap();
+            temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+            let manifest_path = temp.child("Cargo.toml");
 
-        set_package_version(manifest_path.path(), "2.0.0").unwrap();
+            let meta = cargo_metadata::MetadataCommand::new()
+                .manifest_path(manifest_path.path())
+                .exec()
+                .unwrap();
+            assert_eq!(meta.packages[0].version.to_string(), "0.1.0");
 
-        let meta = cargo_metadata::MetadataCommand::new()
-            .manifest_path(manifest_path.path())
-            .exec()
-            .unwrap();
-        assert_eq!(meta.packages[0].version.to_string(), "2.0.0");
+            set_package_version(manifest_path.path(), "2.0.0").unwrap();
 
-        temp.close().unwrap();
+            let meta = cargo_metadata::MetadataCommand::new()
+                .manifest_path(manifest_path.path())
+                .exec()
+                .unwrap();
+            assert_eq!(meta.packages[0].version.to_string(), "2.0.0");
+
+            temp.close().unwrap();
+        }
     }
 
-    #[test]
-    fn test_update_lock_in_pkg() {
-        let temp = assert_fs::TempDir::new().unwrap();
-        temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
-        let manifest_path = temp.child("Cargo.toml");
-        let lock_path = temp.child("Cargo.lock");
+    mod update_lock {
+        use super::*;
 
-        set_package_version(manifest_path.path(), "2.0.0").unwrap();
-        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/simple/Cargo.lock")));
+        #[test]
+        fn in_pkg() {
+            let temp = assert_fs::TempDir::new().unwrap();
+            temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+            let manifest_path = temp.child("Cargo.toml");
+            let lock_path = temp.child("Cargo.lock");
 
-        update_lock(manifest_path.path()).unwrap();
-        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/simple/Cargo.lock")).not());
+            set_package_version(manifest_path.path(), "2.0.0").unwrap();
+            lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/simple/Cargo.lock")));
 
-        temp.close().unwrap();
-    }
+            update_lock(manifest_path.path()).unwrap();
+            lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/simple/Cargo.lock")).not());
 
-    #[test]
-    fn test_update_lock_in_pure_workspace() {
-        let temp = assert_fs::TempDir::new().unwrap();
-        temp.copy_from("tests/fixtures/pure_ws", &["*"]).unwrap();
-        let manifest_path = temp.child("b/Cargo.toml");
-        let lock_path = temp.child("Cargo.lock");
+            temp.close().unwrap();
+        }
 
-        set_package_version(manifest_path.path(), "2.0.0").unwrap();
-        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/pure_ws/Cargo.lock")));
+        #[test]
+        fn in_pure_workspace() {
+            let temp = assert_fs::TempDir::new().unwrap();
+            temp.copy_from("tests/fixtures/pure_ws", &["*"]).unwrap();
+            let manifest_path = temp.child("b/Cargo.toml");
+            let lock_path = temp.child("Cargo.lock");
 
-        update_lock(manifest_path.path()).unwrap();
-        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/pure_ws/Cargo.lock")).not());
+            set_package_version(manifest_path.path(), "2.0.0").unwrap();
+            lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/pure_ws/Cargo.lock")));
 
-        temp.close().unwrap();
-    }
+            update_lock(manifest_path.path()).unwrap();
+            lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/pure_ws/Cargo.lock")).not());
 
-    #[test]
-    fn test_update_lock_in_mixed_workspace() {
-        let temp = assert_fs::TempDir::new().unwrap();
-        temp.copy_from("tests/fixtures/mixed_ws", &["*"]).unwrap();
-        let manifest_path = temp.child("Cargo.toml");
-        let lock_path = temp.child("Cargo.lock");
+            temp.close().unwrap();
+        }
 
-        set_package_version(manifest_path.path(), "2.0.0").unwrap();
-        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/mixed_ws/Cargo.lock")));
+        #[test]
+        fn in_mixed_workspace() {
+            let temp = assert_fs::TempDir::new().unwrap();
+            temp.copy_from("tests/fixtures/mixed_ws", &["*"]).unwrap();
+            let manifest_path = temp.child("Cargo.toml");
+            let lock_path = temp.child("Cargo.lock");
 
-        update_lock(manifest_path.path()).unwrap();
-        lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/mixed_ws/Cargo.lock")).not());
+            set_package_version(manifest_path.path(), "2.0.0").unwrap();
+            lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/mixed_ws/Cargo.lock")));
 
-        temp.close().unwrap();
+            update_lock(manifest_path.path()).unwrap();
+            lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/mixed_ws/Cargo.lock")).not());
+
+            temp.close().unwrap();
+        }
     }
 }

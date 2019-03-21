@@ -163,8 +163,17 @@ pub fn resolve_config(manifest_path: &Path) -> Result<Option<Config>, FatalError
     Ok(None)
 }
 
-#[test]
-fn test_release_config() {
-    let release_config = resolve_config(Path::new("Cargo.toml")).unwrap().unwrap();
-    assert!(release_config.sign_commit);
+#[cfg(test)]
+mod test{
+    use super::*;
+
+    mod resolve_config {
+        use super::*;
+
+        #[test]
+        fn doesnt_panic() {
+            let release_config = resolve_config(Path::new("Cargo.toml")).unwrap().unwrap();
+            assert!(release_config.sign_commit);
+        }
+    }
 }
