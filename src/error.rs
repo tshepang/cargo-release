@@ -69,6 +69,10 @@ quick_error! {
             display("This version scheme is not supported by cargo-release.")
             description("This version scheme is not supported by cargo-release. Use format like `pre`, `dev` or `alpha.1` for prerelease symbol")
         }
+        UnsupportedVersionReq(req: String) {
+            display("Support for modifying {} is currently unsupported", req)
+            description("Support for modifying this version req is currently unsupported.")
+        }
         ReplacerConfigError {
             display("Insuffient replacer config: file, search and replace are required.")
             description("Insuffient replacer config: file, search and replace are required.")

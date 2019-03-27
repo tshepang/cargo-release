@@ -9,6 +9,7 @@ extern crate quick_error;
 extern crate dirs;
 extern crate regex;
 extern crate semver;
+extern crate semver_parser;
 extern crate structopt;
 extern crate toml;
 extern crate toml_edit;
@@ -199,8 +200,13 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             cargo::update_lock(&manifest_path)?;
         }
         for (pkg, dep) in find_dependents(&ws_meta, &pkg_meta) {
-            if ! dep.req.matches(&version) {
-                shell::log_warn(&format!("{}'s dependency on {} is now incompatible (currently {})", pkg.name, pkg_meta.name, dep.req));
+            if dry_run {
+                if ! dep.req.matches(&version) {
+                    shell::log_warn(&format!("{}'s dependency on {} is now incompatible (currently {})", pkg.name, pkg_meta.name, dep.req));
+                }
+            } else {
+                let new_req = version::set_requirement(&dep.req, &version)?;
+                cargo::set_dependency_version(&pkg.manifest_path, &pkg_meta.name, &new_req)?;
             }
         }
 

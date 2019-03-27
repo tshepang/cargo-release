@@ -1,5 +1,6 @@
 use error::FatalError;
 use semver::{Identifier, Version};
+use semver_parser;
 
 static VERSION_ALPHA: &'static str = "alpha";
 static VERSION_BETA: &'static str = "beta";
@@ -176,6 +177,182 @@ impl VersionExt for Version {
     }
 }
 
+pub fn set_requirement(req: &semver::VersionReq, version: &semver::Version) -> Result<String, FatalError> {
+    let req_text = req.to_string();
+    let raw_req = semver_parser::range::parse(&req_text)
+        .expect("semver to generate valid version requirements");
+    if raw_req.predicates.is_empty() {
+        // Empty matches everything, no-change.
+        Ok(req_text)
+    } else {
+        let predicates: Result<Vec<_>, _> = raw_req.predicates
+            .into_iter()
+            .map(|p| set_predicate(p, version))
+            .collect();
+        let predicates = predicates?;
+        let new_req = semver_parser::range::VersionReq { predicates };
+        let new_req = display::DisplayVersionReq::new(&new_req).to_string();
+        // Validate contract
+        #[cfg(debug_assert)]
+        {
+            let req = semver::VersionReq::parse(new_req).unwrap();
+            assert!(req.matches(version), "Invalid req created: {}", new_req)
+        }
+        Ok(new_req)
+    }
+}
+
+fn set_predicate(mut pred: semver_parser::range::Predicate, version: &semver::Version) -> Result<semver_parser::range::Predicate, FatalError> {
+    match pred.op {
+        semver_parser::range::Op::Wildcard(semver_parser::range::WildcardVersion::Minor) => {
+            pred.major = version.major;
+            Ok(pred)
+        },
+        semver_parser::range::Op::Wildcard(semver_parser::range::WildcardVersion::Patch) => {
+            pred.major = version.major;
+            if pred.minor.is_some() {
+                pred.minor = Some(version.minor);
+            }
+            Ok(pred)
+        },
+        semver_parser::range::Op::Ex => {
+            assign_partial_req(version, pred)
+        },
+        semver_parser::range::Op::Gt |
+        semver_parser::range::Op::GtEq |
+        semver_parser::range::Op::Lt |
+        semver_parser::range::Op::LtEq => {
+            let user_pred = display::DisplayPredicate::new(&pred).to_string();
+            Err(FatalError::UnsupportedVersionReq(user_pred))
+        },
+        semver_parser::range::Op::Tilde => {
+            assign_partial_req(version, pred)
+        },
+        semver_parser::range::Op::Compatible => {
+            assign_partial_req(version, pred)
+        },
+    }
+}
+
+fn assign_partial_req(version: &semver::Version, mut pred: semver_parser::range::Predicate) -> Result<semver_parser::range::Predicate, FatalError> {
+    pred.major = version.major;
+    if pred.minor.is_some() {
+        pred.minor = Some(version.minor);
+    }
+    if pred.patch.is_some() {
+        pred.patch = Some(version.patch);
+    }
+    pred.pre = version.pre.iter().map(|i| {
+        match i {
+            semver::Identifier::Numeric(n) => semver_parser::version::Identifier::Numeric(*n),
+            semver::Identifier::AlphaNumeric(s) => semver_parser::version::Identifier::AlphaNumeric(s.clone()),
+        }
+    }).collect();
+    Ok(pred)
+}
+
+// imo this should be moved to semver_parser, see
+// https://github.com/steveklabnik/semver-parser/issues/45
+mod display {
+    use std::fmt;
+
+    use semver_parser::range::Op::{Ex, Gt, GtEq, Lt, LtEq, Tilde, Compatible, Wildcard};
+    use semver_parser::range::WildcardVersion::{Minor, Patch};
+
+    pub(crate) struct DisplayVersionReq<'v>(&'v semver_parser::range::VersionReq);
+
+    impl<'v> DisplayVersionReq<'v> {
+        pub(crate) fn new(req: &'v semver_parser::range::VersionReq) -> Self {
+            Self(req)
+        }
+    }
+
+    impl<'v> fmt::Display for DisplayVersionReq<'v> {
+        fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+            if self.0.predicates.is_empty() {
+                try!(write!(fmt, "*"));
+            } else {
+                for (i, ref pred) in self.0.predicates.iter().enumerate() {
+                    if i == 0 {
+                        try!(write!(fmt, "{}", DisplayPredicate(pred)));
+                    } else {
+                        try!(write!(fmt, ", {}", DisplayPredicate(pred)));
+                    }
+                }
+            }
+
+            Ok(())
+        }
+    }
+
+    pub(crate) struct DisplayPredicate<'v>(&'v semver_parser::range::Predicate);
+
+    impl<'v> DisplayPredicate<'v> {
+        pub(crate) fn new(pred: &'v semver_parser::range::Predicate) -> Self {
+            Self(pred)
+        }
+    }
+
+    impl<'v> fmt::Display for DisplayPredicate<'v> {
+        fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+            match &self.0.op {
+                Wildcard(Minor) => try!(write!(fmt, "{}.*", self.0.major)),
+                Wildcard(Patch) => {
+                    if let Some(minor) = self.0.minor {
+                        try!(write!(fmt, "{}.{}.*", self.0.major, minor))
+                    } else {
+                        try!(write!(fmt, "{}.*.*", self.0.major))
+                    }
+                }
+                _ => {
+                    try!(write!(fmt, "{}{}", DisplayOp(&self.0.op), self.0.major));
+
+                    match self.0.minor {
+                        Some(v) => try!(write!(fmt, ".{}", v)),
+                        None => (),
+                    }
+
+                    match self.0.patch {
+                        Some(v) => try!(write!(fmt, ".{}", v)),
+                        None => (),
+                    }
+
+                    if !self.0.pre.is_empty() {
+                        try!(write!(fmt, "-"));
+                        for (i, x) in self.0.pre.iter().enumerate() {
+                            if i != 0 {
+                                try!(write!(fmt, "."))
+                            }
+                            try!(write!(fmt, "{}", x));
+                        }
+                    }
+                }
+            }
+
+            Ok(())
+        }
+    }
+
+    pub(crate) struct DisplayOp<'v>(&'v semver_parser::range::Op);
+
+    impl<'v> fmt::Display for DisplayOp<'v> {
+        fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+            match self.0 {
+                Ex => try!(write!(fmt, "= ")),
+                Gt => try!(write!(fmt, "> ")),
+                GtEq => try!(write!(fmt, ">= ")),
+                Lt => try!(write!(fmt, "< ")),
+                LtEq => try!(write!(fmt, "<= ")),
+                Tilde => try!(write!(fmt, "~")),
+                Compatible => try!(write!(fmt, "^")),
+                // gets handled specially in Predicate::fmt
+                Wildcard(_) => try!(write!(fmt, "")),
+            }
+            Ok(())
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -249,6 +426,125 @@ mod test {
             let mut v = Version::parse("1.0.0").unwrap();
             let _ = v.metadata("git.123456");
             assert_eq!(v, Version::parse("1.0.0+git.123456").unwrap());
+        }
+    }
+
+    mod set_requirement {
+        use super::*;
+
+        fn assert_req_bump(version: &str, req: &str, expected: &str) {
+            let version = Version::parse(version).unwrap();
+            let req = semver::VersionReq::parse(req).unwrap();
+            let actual = set_requirement(&req, &version).unwrap();
+            assert_eq!(actual, expected);
+        }
+
+        #[test]
+        fn wildcard_major() {
+            assert_req_bump("1.0.0", "*", "*");
+        }
+
+        #[test]
+        fn wildcard_minor() {
+            assert_req_bump("1.0.0", "1.*", "1.*");
+            assert_req_bump("1.1.0", "1.*", "1.*");
+            assert_req_bump("2.0.0", "1.*", "2.*");
+        }
+
+        #[test]
+        fn wildcard_patch() {
+            assert_req_bump("1.0.0", "1.0.*", "1.0.*");
+            assert_req_bump("1.1.0", "1.0.*", "1.1.*");
+            assert_req_bump("1.1.1", "1.0.*", "1.1.*");
+            assert_req_bump("2.0.0", "1.0.*", "2.0.*");
+        }
+
+        #[test]
+        fn caret_major() {
+            assert_req_bump("1.0.0", "1", "^1");
+            assert_req_bump("1.0.0", "^1", "^1");
+
+            assert_req_bump("1.1.0", "1", "^1");
+            assert_req_bump("1.1.0", "^1", "^1");
+
+            assert_req_bump("2.0.0", "1", "^2");
+            assert_req_bump("2.0.0", "^1", "^2");
+        }
+
+        #[test]
+        fn caret_minor() {
+            assert_req_bump("1.0.0", "1.0", "^1.0");
+            assert_req_bump("1.0.0", "^1.0", "^1.0");
+
+            assert_req_bump("1.1.0", "1.0", "^1.1");
+            assert_req_bump("1.1.0", "^1.0", "^1.1");
+
+            assert_req_bump("1.1.1", "1.0", "^1.1");
+            assert_req_bump("1.1.1", "^1.0", "^1.1");
+
+            assert_req_bump("2.0.0", "1.0", "^2.0");
+            assert_req_bump("2.0.0", "^1.0", "^2.0");
+        }
+
+        #[test]
+        fn caret_patch() {
+            assert_req_bump("1.0.0", "1.0.0", "^1.0.0");
+            assert_req_bump("1.0.0", "^1.0.0", "^1.0.0");
+
+            assert_req_bump("1.1.0", "1.0.0", "^1.1.0");
+            assert_req_bump("1.1.0", "^1.0.0", "^1.1.0");
+
+            assert_req_bump("1.1.1", "1.0.0", "^1.1.1");
+            assert_req_bump("1.1.1", "^1.0.0", "^1.1.1");
+
+            assert_req_bump("2.0.0", "1.0.0", "^2.0.0");
+            assert_req_bump("2.0.0", "^1.0.0", "^2.0.0");
+        }
+
+        #[test]
+        fn tilde_major() {
+            assert_req_bump("1.0.0", "~1", "~1");
+            assert_req_bump("1.1.0", "~1", "~1");
+            assert_req_bump("2.0.0", "~1", "~2");
+        }
+
+        #[test]
+        fn tilde_minor() {
+            assert_req_bump("1.0.0", "~1.0", "~1.0");
+            assert_req_bump("1.1.0", "~1.0", "~1.1");
+            assert_req_bump("1.1.1", "~1.0", "~1.1");
+            assert_req_bump("2.0.0", "~1.0", "~2.0");
+        }
+
+        #[test]
+        fn tilde_patch() {
+            assert_req_bump("1.0.0", "~1.0.0", "~1.0.0");
+            assert_req_bump("1.1.0", "~1.0.0", "~1.1.0");
+            assert_req_bump("1.1.1", "~1.0.0", "~1.1.1");
+            assert_req_bump("2.0.0", "~1.0.0", "~2.0.0");
+        }
+
+        #[test]
+        fn equal_major() {
+            assert_req_bump("1.0.0", "= 1", "= 1");
+            assert_req_bump("1.1.0", "= 1", "= 1");
+            assert_req_bump("2.0.0", "= 1", "= 2");
+        }
+
+        #[test]
+        fn equal_minor() {
+            assert_req_bump("1.0.0", "= 1.0", "= 1.0");
+            assert_req_bump("1.1.0", "= 1.0", "= 1.1");
+            assert_req_bump("1.1.1", "= 1.0", "= 1.1");
+            assert_req_bump("2.0.0", "= 1.0", "= 2.0");
+        }
+
+        #[test]
+        fn equal_patch() {
+            assert_req_bump("1.0.0", "= 1.0.0", "= 1.0.0");
+            assert_req_bump("1.1.0", "= 1.0.0", "= 1.1.0");
+            assert_req_bump("1.1.1", "= 1.0.0", "= 1.1.1");
+            assert_req_bump("2.0.0", "= 1.0.0", "= 2.0.0");
         }
     }
 }

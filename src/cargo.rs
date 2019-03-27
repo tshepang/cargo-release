@@ -83,6 +83,26 @@ pub fn set_package_version(manifest_path: &Path, version: &str) -> Result<(), Fa
     Ok(())
 }
 
+pub fn set_dependency_version(manifest_path: &Path, name: &str, version: &str) -> Result<(), FatalError> {
+    let temp_manifest_path = manifest_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("Cargo.toml.work");
+
+    {
+        let manifest = load_from_file(manifest_path)?;
+        let mut manifest: toml_edit::Document = manifest.parse().map_err(FatalError::from)?;
+        manifest["dependencies"][name]["version"] = toml_edit::value(version);
+
+        let mut file_out = File::create(&temp_manifest_path).map_err(FatalError::from)?;
+        file_out.write(manifest.to_string().as_bytes())
+                .map_err(FatalError::from)?;
+    }
+    fs::rename(temp_manifest_path, manifest_path)?;
+
+    Ok(())
+}
+
 pub fn update_lock(manifest_path: &Path) -> Result<(), FatalError> {
     cargo_metadata::MetadataCommand::new()
         .manifest_path(manifest_path)
@@ -144,6 +164,42 @@ mod test {
                 .exec()
                 .unwrap();
             assert_eq!(meta.packages[0].version.to_string(), "2.0.0");
+
+            temp.close().unwrap();
+        }
+    }
+
+    mod set_dependency_version {
+        use super::*;
+
+        #[test]
+        fn succeeds() {
+            let temp = assert_fs::TempDir::new().unwrap();
+            temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+            let manifest_path = temp.child("Cargo.toml");
+            manifest_path.write_str(r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [dependencies]
+    foo = { version = "1.0", path = "../" }
+    "#).unwrap();
+
+            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+
+            manifest_path.assert(predicate::str::similar(r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [dependencies]
+    foo = { version = "2.0", path = "../" }
+    "#).from_utf8().from_file_path());
 
             temp.close().unwrap();
         }
