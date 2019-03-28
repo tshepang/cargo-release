@@ -6,29 +6,43 @@ static VERSION_ALPHA: &'static str = "alpha";
 static VERSION_BETA: &'static str = "beta";
 static VERSION_RC: &'static str = "rc";
 
-pub fn is_pre_release(level: Option<&String>) -> bool {
-    level
-        .map(|l| l == VERSION_ALPHA || l == VERSION_BETA || l == VERSION_RC)
-        .unwrap_or(false)
+arg_enum! {
+    #[derive(Debug, Clone, Copy)]
+    pub enum BumpLevel {
+        Major,
+        Minor,
+        Patch,
+        Rc,
+        Beta,
+        Alpha,
+        Release,
+    }
 }
 
-pub fn bump_version(
-    version: &mut Version,
-    level: Option<&String>,
-    metadata: Option<&String>,
-) -> Result<bool, FatalError> {
-    let mut need_commit = false;
-    match level {
-        Some(level) => match level.as_str() {
-            "major" => {
+impl BumpLevel {
+    pub fn is_pre_release(self) -> bool {
+        match self {
+            BumpLevel::Alpha | BumpLevel::Beta | BumpLevel::Rc => true,
+            _ => false,
+        }
+    }
+
+    pub fn bump_version(
+        self,
+        version: &mut Version,
+        metadata: Option<&String>,
+    ) -> Result<bool, FatalError> {
+        let mut need_commit = false;
+        match self {
+            BumpLevel::Major => {
                 version.increment_major();
                 need_commit = true;
             }
-            "minor" => {
+            BumpLevel::Minor => {
                 version.increment_minor();
                 need_commit = true;
             }
-            "patch" => {
+            BumpLevel::Patch => {
                 if !version.is_prerelease() {
                     version.increment_patch();
                 } else {
@@ -36,33 +50,32 @@ pub fn bump_version(
                 }
                 need_commit = true;
             }
-            "rc" => {
+            BumpLevel::Rc => {
                 version.increment_rc()?;
                 need_commit = true;
             }
-            "beta" => {
+            BumpLevel::Beta => {
                 version.increment_beta()?;
                 need_commit = true;
             }
-            "alpha" => {
+            BumpLevel::Alpha => {
                 version.increment_alpha()?;
                 need_commit = true;
             }
-            _ => return Err(FatalError::InvalidReleaseLevel(level.to_owned())),
-        },
-        None => {
-            if version.is_prerelease() {
-                version.pre.clear();
-                need_commit = true;
+            BumpLevel::Release => {
+                if version.is_prerelease() {
+                    version.pre.clear();
+                    need_commit = true;
+                }
             }
+        };
+
+        if let Some(metadata) = metadata {
+            version.metadata(metadata)?;
         }
-    };
 
-    if let Some(metadata) = metadata {
-        version.metadata(metadata)?;
+        Ok(need_commit)
     }
-
-    Ok(need_commit)
 }
 
 trait VersionExt {

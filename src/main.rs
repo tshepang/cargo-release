@@ -1,5 +1,7 @@
 extern crate cargo_metadata;
 extern crate chrono;
+#[macro_use]
+extern crate clap;
 extern crate termcolor;
 extern crate serde;
 #[macro_use]
@@ -81,7 +83,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // if this execution is dry-run
     let dry_run = args.dry_run;
     // the release level
-    let level = args.level.as_ref();
+    let level = args.level;
     // flag for gpg signing git commit and tag
     let sign = args.sign || release_config.sign_commit;
     // flag for uploading doc to remote branch
@@ -179,7 +181,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     replacements.insert("{{date}}", Local::now().format("%Y-%m-%d").to_string());
 
     // STEP 2: update current version, save and commit
-    if version::bump_version(&mut version, level, metadata)? {
+    if level.bump_version(&mut version, metadata)? {
         let new_version_string = version.to_string();
         replacements.insert("{{version}}", new_version_string.clone());
         // Release Confirmation
@@ -299,7 +301,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     }
 
     // STEP 6: bump version
-    if !version::is_pre_release(level) && !no_dev_version {
+    if !level.is_pre_release() && !no_dev_version {
         version.increment_patch();
         version
             .pre
@@ -345,8 +347,9 @@ pub enum Features {
 
 #[derive(Debug, StructOpt)]
 struct ReleaseOpt {
-    /// Release level:  bumping major|minor|patch|rc|beta|alpha version on release or removing prerelease extensions by default
-    level: Option<String>,
+    /// Release level: bumping specified version field or remove prerelease extensions by default
+    #[structopt(raw(possible_values = "&version::BumpLevel::variants()", case_insensitive = "true"), default_value="release")]
+    level: version::BumpLevel,
 
     #[structopt(short = "c", long = "config")]
     /// Custom config file
