@@ -199,6 +199,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         if !dry_run {
             cargo::set_package_version(&manifest_path, &new_version_string)?;
         }
+        let mut dependents_failed = false;
         for (pkg, dep) in find_dependents(&ws_meta, &pkg_meta) {
             match dependent_version {
                 config::DependentVersion::Ignore => (),
@@ -210,7 +211,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
                 config::DependentVersion::Error => {
                     if ! dep.req.matches(&version) {
                         shell::log_warn(&format!("{}'s dependency on {} `{}` is incompatible with {}", pkg.name, pkg_meta.name, dep.req, new_version_string));
-                        return Ok(110);
+                        dependents_failed = true;
                     }
                 },
                 config::DependentVersion::Fix => {
@@ -236,6 +237,9 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
                     }
                 },
             }
+        }
+        if dependents_failed {
+            return Ok(110);
         }
         if dry_run {
             println!("Updating lock file");
