@@ -147,6 +147,8 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     };
     // flag to release all features
     let all_features = args.all_features || release_config.enable_all_features;
+    // flag for dependent's dependency on this crate
+    let dependent_version = args.dependent_version.unwrap_or(release_config.dependent_version);
 
     let features = if all_features {
         Features::All
@@ -193,23 +195,48 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             }
         }
 
-        shell::log_info(&format!(
-            "Update to version {} and commit",
-            new_version_string
-        ));
+        shell::log_info(&format!("Update to version {}", new_version_string));
         if !dry_run {
             cargo::set_package_version(&manifest_path, &new_version_string)?;
-            cargo::update_lock(&manifest_path)?;
         }
         for (pkg, dep) in find_dependents(&ws_meta, &pkg_meta) {
-            if dry_run {
-                if ! dep.req.matches(&version) {
-                    shell::log_warn(&format!("{}'s dependency on {} is now incompatible (currently {})", pkg.name, pkg_meta.name, dep.req));
-                }
-            } else {
-                let new_req = version::set_requirement(&dep.req, &version)?;
-                cargo::set_dependency_version(&pkg.manifest_path, &pkg_meta.name, &new_req)?;
+            match dependent_version {
+                config::DependentVersion::Ignore => (),
+                config::DependentVersion::Warn => {
+                    if ! dep.req.matches(&version) {
+                        shell::log_warn(&format!("{}'s dependency on {} `{}` is incompatible with {}", pkg.name, pkg_meta.name, dep.req, new_version_string));
+                    }
+                },
+                config::DependentVersion::Error => {
+                    if ! dep.req.matches(&version) {
+                        shell::log_warn(&format!("{}'s dependency on {} `{}` is incompatible with {}", pkg.name, pkg_meta.name, dep.req, new_version_string));
+                        return Ok(110);
+                    }
+                },
+                config::DependentVersion::Fix => {
+                    if ! dep.req.matches(&version) {
+                        let new_req = version::set_requirement(&dep.req, &version)?;
+                        if dry_run {
+                            println!("Fixing {}'s dependency on {} to `{}` (from `{}`)", pkg.name, pkg_meta.name, new_req, dep.req);
+                        } else {
+                            cargo::set_dependency_version(&pkg.manifest_path, &pkg_meta.name, &new_req)?;
+                        }
+                    }
+                },
+                config::DependentVersion::Upgrade => {
+                    let new_req = version::set_requirement(&dep.req, &version)?;
+                    if dry_run {
+                        println!("Upgrading {}'s dependency on {} to `{}` (from `{}`)", pkg.name, pkg_meta.name, new_req, dep.req);
+                    } else {
+                        cargo::set_dependency_version(&pkg.manifest_path, &pkg_meta.name, &new_req)?;
+                    }
+                },
             }
+        }
+        if dry_run {
+            println!("Updating lock file");
+        } else {
+            cargo::update_lock(&manifest_path)?;
         }
 
         if ! pre_release_replacements.is_empty() {
@@ -386,6 +413,10 @@ struct ReleaseOpt {
     #[structopt(long = "skip-tag")]
     /// Do not create git tag
     skip_tag: bool,
+
+    #[structopt(long = "dependent-version")]
+    /// Specify how workspace dependencies on this crate should be handed.
+    dependent_version: Option<config::DependentVersion>,
 
     #[structopt(long = "doc-branch")]
     /// Git branch to push documentation on
