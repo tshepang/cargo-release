@@ -190,13 +190,13 @@ impl VersionExt for Version {
     }
 }
 
-pub fn set_requirement(req: &semver::VersionReq, version: &semver::Version) -> Result<String, FatalError> {
+pub fn set_requirement(req: &semver::VersionReq, version: &semver::Version) -> Result<Option<String>, FatalError> {
     let req_text = req.to_string();
     let raw_req = semver_parser::range::parse(&req_text)
         .expect("semver to generate valid version requirements");
     if raw_req.predicates.is_empty() {
         // Empty matches everything, no-change.
-        Ok(req_text)
+        Ok(None)
     } else {
         let predicates: Result<Vec<_>, _> = raw_req.predicates
             .into_iter()
@@ -204,14 +204,18 @@ pub fn set_requirement(req: &semver::VersionReq, version: &semver::Version) -> R
             .collect();
         let predicates = predicates?;
         let new_req = semver_parser::range::VersionReq { predicates };
-        let new_req = display::DisplayVersionReq::new(&new_req).to_string();
+        let new_req_text = display::DisplayVersionReq::new(&new_req).to_string();
         // Validate contract
         #[cfg(debug_assert)]
         {
-            let req = semver::VersionReq::parse(new_req).unwrap();
-            assert!(req.matches(version), "Invalid req created: {}", new_req)
+            let req = semver::VersionReq::parse(new_req_text).unwrap();
+            assert!(req.matches(version), "Invalid req created: {}", new_req_text)
         }
-        Ok(new_req)
+        if new_req_text == req_text {
+            Ok(None)
+        } else {
+            Ok(Some(new_req_text))
+        }
     }
 }
 
@@ -445,28 +449,29 @@ mod test {
     mod set_requirement {
         use super::*;
 
-        fn assert_req_bump(version: &str, req: &str, expected: &str) {
+        fn assert_req_bump<'a, O: Into<Option<&'a str>>>(version: &str, req: &str, expected: O) {
             let version = Version::parse(version).unwrap();
             let req = semver::VersionReq::parse(req).unwrap();
             let actual = set_requirement(&req, &version).unwrap();
-            assert_eq!(actual, expected);
+            let expected = expected.into();
+            assert_eq!(actual.as_ref().map(|s| s.as_str()), expected);
         }
 
         #[test]
         fn wildcard_major() {
-            assert_req_bump("1.0.0", "*", "*");
+            assert_req_bump("1.0.0", "*", None);
         }
 
         #[test]
         fn wildcard_minor() {
-            assert_req_bump("1.0.0", "1.*", "1.*");
-            assert_req_bump("1.1.0", "1.*", "1.*");
+            assert_req_bump("1.0.0", "1.*", None);
+            assert_req_bump("1.1.0", "1.*", None);
             assert_req_bump("2.0.0", "1.*", "2.*");
         }
 
         #[test]
         fn wildcard_patch() {
-            assert_req_bump("1.0.0", "1.0.*", "1.0.*");
+            assert_req_bump("1.0.0", "1.0.*", None);
             assert_req_bump("1.1.0", "1.0.*", "1.1.*");
             assert_req_bump("1.1.1", "1.0.*", "1.1.*");
             assert_req_bump("2.0.0", "1.0.*", "2.0.*");
@@ -474,11 +479,11 @@ mod test {
 
         #[test]
         fn caret_major() {
-            assert_req_bump("1.0.0", "1", "^1");
-            assert_req_bump("1.0.0", "^1", "^1");
+            assert_req_bump("1.0.0", "1", None);
+            assert_req_bump("1.0.0", "^1", None);
 
-            assert_req_bump("1.1.0", "1", "^1");
-            assert_req_bump("1.1.0", "^1", "^1");
+            assert_req_bump("1.1.0", "1", None);
+            assert_req_bump("1.1.0", "^1", None);
 
             assert_req_bump("2.0.0", "1", "^2");
             assert_req_bump("2.0.0", "^1", "^2");
@@ -486,8 +491,8 @@ mod test {
 
         #[test]
         fn caret_minor() {
-            assert_req_bump("1.0.0", "1.0", "^1.0");
-            assert_req_bump("1.0.0", "^1.0", "^1.0");
+            assert_req_bump("1.0.0", "1.0", None);
+            assert_req_bump("1.0.0", "^1.0", None);
 
             assert_req_bump("1.1.0", "1.0", "^1.1");
             assert_req_bump("1.1.0", "^1.0", "^1.1");
@@ -501,8 +506,8 @@ mod test {
 
         #[test]
         fn caret_patch() {
-            assert_req_bump("1.0.0", "1.0.0", "^1.0.0");
-            assert_req_bump("1.0.0", "^1.0.0", "^1.0.0");
+            assert_req_bump("1.0.0", "1.0.0", None);
+            assert_req_bump("1.0.0", "^1.0.0", None);
 
             assert_req_bump("1.1.0", "1.0.0", "^1.1.0");
             assert_req_bump("1.1.0", "^1.0.0", "^1.1.0");
@@ -516,14 +521,14 @@ mod test {
 
         #[test]
         fn tilde_major() {
-            assert_req_bump("1.0.0", "~1", "~1");
-            assert_req_bump("1.1.0", "~1", "~1");
+            assert_req_bump("1.0.0", "~1", None);
+            assert_req_bump("1.1.0", "~1", None);
             assert_req_bump("2.0.0", "~1", "~2");
         }
 
         #[test]
         fn tilde_minor() {
-            assert_req_bump("1.0.0", "~1.0", "~1.0");
+            assert_req_bump("1.0.0", "~1.0", None);
             assert_req_bump("1.1.0", "~1.0", "~1.1");
             assert_req_bump("1.1.1", "~1.0", "~1.1");
             assert_req_bump("2.0.0", "~1.0", "~2.0");
@@ -531,7 +536,7 @@ mod test {
 
         #[test]
         fn tilde_patch() {
-            assert_req_bump("1.0.0", "~1.0.0", "~1.0.0");
+            assert_req_bump("1.0.0", "~1.0.0", None);
             assert_req_bump("1.1.0", "~1.0.0", "~1.1.0");
             assert_req_bump("1.1.1", "~1.0.0", "~1.1.1");
             assert_req_bump("2.0.0", "~1.0.0", "~2.0.0");
@@ -539,14 +544,14 @@ mod test {
 
         #[test]
         fn equal_major() {
-            assert_req_bump("1.0.0", "= 1", "= 1");
-            assert_req_bump("1.1.0", "= 1", "= 1");
+            assert_req_bump("1.0.0", "= 1", None);
+            assert_req_bump("1.1.0", "= 1", None);
             assert_req_bump("2.0.0", "= 1", "= 2");
         }
 
         #[test]
         fn equal_minor() {
-            assert_req_bump("1.0.0", "= 1.0", "= 1.0");
+            assert_req_bump("1.0.0", "= 1.0", None);
             assert_req_bump("1.1.0", "= 1.0", "= 1.1");
             assert_req_bump("1.1.1", "= 1.0", "= 1.1");
             assert_req_bump("2.0.0", "= 1.0", "= 2.0");
@@ -554,7 +559,7 @@ mod test {
 
         #[test]
         fn equal_patch() {
-            assert_req_bump("1.0.0", "= 1.0.0", "= 1.0.0");
+            assert_req_bump("1.0.0", "= 1.0.0", None);
             assert_req_bump("1.1.0", "= 1.0.0", "= 1.1.0");
             assert_req_bump("1.1.1", "= 1.0.0", "= 1.1.1");
             assert_req_bump("2.0.0", "= 1.0.0", "= 2.0.0");

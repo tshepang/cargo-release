@@ -216,19 +216,23 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
                 config::DependentVersion::Fix => {
                     if ! dep.req.matches(&version) {
                         let new_req = version::set_requirement(&dep.req, &version)?;
-                        if dry_run {
-                            println!("Fixing {}'s dependency on {} to `{}` (from `{}`)", pkg.name, pkg_meta.name, new_req, dep.req);
-                        } else {
-                            cargo::set_dependency_version(&pkg.manifest_path, &pkg_meta.name, &new_req)?;
+                        if let Some(new_req) = new_req {
+                            if dry_run {
+                                println!("Fixing {}'s dependency on {} to `{}` (from `{}`)", pkg.name, pkg_meta.name, new_req, dep.req);
+                            } else {
+                                cargo::set_dependency_version(&pkg.manifest_path, &pkg_meta.name, &new_req)?;
+                            }
                         }
                     }
                 },
                 config::DependentVersion::Upgrade => {
                     let new_req = version::set_requirement(&dep.req, &version)?;
-                    if dry_run {
-                        println!("Upgrading {}'s dependency on {} to `{}` (from `{}`)", pkg.name, pkg_meta.name, new_req, dep.req);
-                    } else {
-                        cargo::set_dependency_version(&pkg.manifest_path, &pkg_meta.name, &new_req)?;
+                    if let Some(new_req) = new_req {
+                        if dry_run {
+                            println!("Upgrading {}'s dependency on {} to `{}` (from `{}`)", pkg.name, pkg_meta.name, new_req, dep.req);
+                        } else {
+                            cargo::set_dependency_version(&pkg.manifest_path, &pkg_meta.name, &new_req)?;
+                        }
                     }
                 },
             }
