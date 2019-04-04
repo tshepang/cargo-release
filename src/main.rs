@@ -418,7 +418,7 @@ struct ReleaseOpt {
     /// Do not create git tag
     skip_tag: bool,
 
-    #[structopt(long = "dependent-version")]
+    #[structopt(long = "dependent-version", raw(possible_values = "&config::DependentVersion::variants()", case_insensitive = "true"))]
     /// Specify how workspace dependencies on this crate should be handed.
     dependent_version: Option<config::DependentVersion>,
 
