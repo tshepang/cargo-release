@@ -1,5 +1,7 @@
 extern crate cargo_metadata;
 extern crate chrono;
+#[macro_use]
+extern crate clap;
 extern crate termcolor;
 extern crate serde;
 #[macro_use]
@@ -9,6 +11,7 @@ extern crate quick_error;
 extern crate dirs;
 extern crate regex;
 extern crate semver;
+extern crate semver_parser;
 extern crate structopt;
 extern crate toml;
 extern crate toml_edit;
@@ -48,6 +51,16 @@ fn find_root_package(meta: &cargo_metadata::Metadata) -> Result<&cargo_metadata:
     Ok(pkg)
 }
 
+fn find_dependents<'w>(ws_meta: &'w cargo_metadata::Metadata, pkg_meta: &'w cargo_metadata::Package) -> impl Iterator<Item=(&'w cargo_metadata::Package, &'w cargo_metadata::Dependency)> {
+    ws_meta.packages.iter().filter_map(move |p| {
+        if ws_meta.workspace_members.iter().find(|m| **m == p.id).is_some() {
+            p.dependencies.iter().find(|d| d.name == pkg_meta.name).map(|d| (p, d))
+        } else {
+            None
+        }
+    })
+}
+
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let ws_meta = cargo_metadata::MetadataCommand::new()
         .exec()
@@ -70,7 +83,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // if this execution is dry-run
     let dry_run = args.dry_run;
     // the release level
-    let level = args.level.as_ref();
+    let level = args.level;
     // flag for gpg signing git commit and tag
     let sign = args.sign || release_config.sign_commit;
     // flag for uploading doc to remote branch
@@ -134,6 +147,8 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     };
     // flag to release all features
     let all_features = args.all_features || release_config.enable_all_features;
+    // flag for dependent's dependency on this crate
+    let dependent_version = args.dependent_version.unwrap_or(release_config.dependent_version);
 
     let features = if all_features {
         Features::All
@@ -168,7 +183,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     replacements.insert("{{date}}", Local::now().format("%Y-%m-%d").to_string());
 
     // STEP 2: update current version, save and commit
-    if version::bump_version(&mut version, level, metadata)? {
+    if level.bump_version(&mut version, metadata)? {
         let new_version_string = version.to_string();
         replacements.insert("{{version}}", new_version_string.clone());
         // Release Confirmation
@@ -180,12 +195,55 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             }
         }
 
-        shell::log_info(&format!(
-            "Update to version {} and commit",
-            new_version_string
-        ));
+        shell::log_info(&format!("Update to version {}", new_version_string));
         if !dry_run {
-            cargo::set_manifest_version(&manifest_path, &new_version_string)?;
+            cargo::set_package_version(&manifest_path, &new_version_string)?;
+        }
+        let mut dependents_failed = false;
+        for (pkg, dep) in find_dependents(&ws_meta, &pkg_meta) {
+            match dependent_version {
+                config::DependentVersion::Ignore => (),
+                config::DependentVersion::Warn => {
+                    if ! dep.req.matches(&version) {
+                        shell::log_warn(&format!("{}'s dependency on {} `{}` is incompatible with {}", pkg.name, pkg_meta.name, dep.req, new_version_string));
+                    }
+                },
+                config::DependentVersion::Error => {
+                    if ! dep.req.matches(&version) {
+                        shell::log_warn(&format!("{}'s dependency on {} `{}` is incompatible with {}", pkg.name, pkg_meta.name, dep.req, new_version_string));
+                        dependents_failed = true;
+                    }
+                },
+                config::DependentVersion::Fix => {
+                    if ! dep.req.matches(&version) {
+                        let new_req = version::set_requirement(&dep.req, &version)?;
+                        if let Some(new_req) = new_req {
+                            if dry_run {
+                                println!("Fixing {}'s dependency on {} to `{}` (from `{}`)", pkg.name, pkg_meta.name, new_req, dep.req);
+                            } else {
+                                cargo::set_dependency_version(&pkg.manifest_path, &pkg_meta.name, &new_req)?;
+                            }
+                        }
+                    }
+                },
+                config::DependentVersion::Upgrade => {
+                    let new_req = version::set_requirement(&dep.req, &version)?;
+                    if let Some(new_req) = new_req {
+                        if dry_run {
+                            println!("Upgrading {}'s dependency on {} to `{}` (from `{}`)", pkg.name, pkg_meta.name, new_req, dep.req);
+                        } else {
+                            cargo::set_dependency_version(&pkg.manifest_path, &pkg_meta.name, &new_req)?;
+                        }
+                    }
+                },
+            }
+        }
+        if dependents_failed {
+            return Ok(110);
+        }
+        if dry_run {
+            println!("Updating lock file");
+        } else {
             cargo::update_lock(&manifest_path)?;
         }
 
@@ -278,7 +336,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     }
 
     // STEP 6: bump version
-    if !version::is_pre_release(level) && !no_dev_version {
+    if !level.is_pre_release() && !no_dev_version {
         version.increment_patch();
         version
             .pre
@@ -287,7 +345,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         let updated_version_string = version.to_string();
         replacements.insert("{{next_version}}", updated_version_string.clone());
         if !dry_run {
-            cargo::set_manifest_version(&manifest_path, &updated_version_string)?;
+            cargo::set_package_version(&manifest_path, &updated_version_string)?;
             cargo::update_lock(&manifest_path)?;
         }
         let commit_msg = replace_in(&pro_release_commit_msg, &replacements);
@@ -324,8 +382,9 @@ pub enum Features {
 
 #[derive(Debug, StructOpt)]
 struct ReleaseOpt {
-    /// Release level:  bumping major|minor|patch|rc|beta|alpha version on release or removing prerelease extensions by default
-    level: Option<String>,
+    /// Release level: bumping specified version field or remove prerelease extensions by default
+    #[structopt(raw(possible_values = "&version::BumpLevel::variants()", case_insensitive = "true"), default_value="release")]
+    level: version::BumpLevel,
 
     #[structopt(short = "c", long = "config")]
     /// Custom config file
@@ -362,6 +421,10 @@ struct ReleaseOpt {
     #[structopt(long = "skip-tag")]
     /// Do not create git tag
     skip_tag: bool,
+
+    #[structopt(long = "dependent-version", raw(possible_values = "&config::DependentVersion::variants()", case_insensitive = "true"))]
+    /// Specify how workspace dependencies on this crate should be handed.
+    dependent_version: Option<config::DependentVersion>,
 
     #[structopt(long = "doc-branch")]
     /// Git branch to push documentation on
