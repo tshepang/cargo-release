@@ -178,7 +178,7 @@ Available configuration keys are:
 * `push-remote`: string, default git remote to push
 * `disable-push`: bool, don't do git push
 * `disable-tag`: bool, don't do git tag
-* `disable-publish`: bool, don't do cargo publish
+* `disable-publish`: bool, don't do cargo publish right now, see [manifest `publish` field](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional) to permanently disable publish.
 * `dev-version-ext`: string, pre-release extension to use on the next
   development version.
 * `pre-release-commit-message`: string, a commit message template for
