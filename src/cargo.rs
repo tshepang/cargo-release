@@ -16,7 +16,11 @@ fn cargo() -> String {
     env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned())
 }
 
-pub fn publish(dry_run: bool, manifest_path: &Path, features: Features) -> Result<bool, FatalError> {
+pub fn publish(
+    dry_run: bool,
+    manifest_path: &Path,
+    features: Features,
+) -> Result<bool, FatalError> {
     let cargo = cargo();
     match features {
         Features::None => call(
@@ -26,7 +30,7 @@ pub fn publish(dry_run: bool, manifest_path: &Path, features: Features) -> Resul
                 "--manifest-path",
                 manifest_path.to_str().unwrap(),
             ],
-            dry_run
+            dry_run,
         ),
         Features::Selective(vec) => call(
             vec![
@@ -54,13 +58,16 @@ pub fn publish(dry_run: bool, manifest_path: &Path, features: Features) -> Resul
 
 pub fn doc(dry_run: bool, manifest_path: &Path) -> Result<bool, FatalError> {
     let cargo = cargo();
-    call(vec![
-        &cargo,
-        "doc",
-        "--no-deps",
-        "--manifest-path",
-        manifest_path.to_str().unwrap(),
-    ], dry_run)
+    call(
+        vec![
+            &cargo,
+            "doc",
+            "--no-deps",
+            "--manifest-path",
+            manifest_path.to_str().unwrap(),
+        ],
+        dry_run,
+    )
 }
 
 pub fn set_package_version(manifest_path: &Path, version: &str) -> Result<(), FatalError> {
@@ -75,15 +82,20 @@ pub fn set_package_version(manifest_path: &Path, version: &str) -> Result<(), Fa
         manifest["package"]["version"] = toml_edit::value(version);
 
         let mut file_out = File::create(&temp_manifest_path).map_err(FatalError::from)?;
-        file_out.write(manifest.to_string().as_bytes())
-                .map_err(FatalError::from)?;
+        file_out
+            .write(manifest.to_string().as_bytes())
+            .map_err(FatalError::from)?;
     }
     fs::rename(temp_manifest_path, manifest_path)?;
 
     Ok(())
 }
 
-pub fn set_dependency_version(manifest_path: &Path, name: &str, version: &str) -> Result<(), FatalError> {
+pub fn set_dependency_version(
+    manifest_path: &Path,
+    name: &str,
+    version: &str,
+) -> Result<(), FatalError> {
     let temp_manifest_path = manifest_path
         .parent()
         .unwrap_or_else(|| Path::new("."))
@@ -95,8 +107,9 @@ pub fn set_dependency_version(manifest_path: &Path, name: &str, version: &str) -
         manifest["dependencies"][name]["version"] = toml_edit::value(version);
 
         let mut file_out = File::create(&temp_manifest_path).map_err(FatalError::from)?;
-        file_out.write(manifest.to_string().as_bytes())
-                .map_err(FatalError::from)?;
+        file_out
+            .write(manifest.to_string().as_bytes())
+            .map_err(FatalError::from)?;
     }
     fs::rename(temp_manifest_path, manifest_path)?;
 
@@ -128,9 +141,9 @@ fn load_from_file(path: &Path) -> io::Result<String> {
 mod test {
     use super::*;
 
+    use assert_fs;
     #[allow(unused_imports)] // Not being detected
     use assert_fs::prelude::*;
-    use assert_fs;
     use predicates::prelude::*;
 
     mod parse_cargo_config {
@@ -177,7 +190,9 @@ mod test {
             let temp = assert_fs::TempDir::new().unwrap();
             temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
             let manifest_path = temp.child("Cargo.toml");
-            manifest_path.write_str(r#"
+            manifest_path
+                .write_str(
+                    r#"
     [package]
     name = "t"
     version = "0.1.0"
@@ -186,11 +201,15 @@ mod test {
 
     [dependencies]
     foo = { version = "1.0", path = "../" }
-    "#).unwrap();
+    "#,
+                )
+                .unwrap();
 
             set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
 
-            manifest_path.assert(predicate::str::similar(r#"
+            manifest_path.assert(
+                predicate::str::similar(
+                    r#"
     [package]
     name = "t"
     version = "0.1.0"
@@ -199,7 +218,11 @@ mod test {
 
     [dependencies]
     foo = { version = "2.0", path = "../" }
-    "#).from_utf8().from_file_path());
+    "#,
+                )
+                .from_utf8()
+                .from_file_path(),
+            );
 
             temp.close().unwrap();
         }
@@ -216,10 +239,14 @@ mod test {
             let lock_path = temp.child("Cargo.lock");
 
             set_package_version(manifest_path.path(), "2.0.0").unwrap();
-            lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/simple/Cargo.lock")));
+            lock_path.assert(predicate::path::eq_file(Path::new(
+                "tests/fixtures/simple/Cargo.lock",
+            )));
 
             update_lock(manifest_path.path()).unwrap();
-            lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/simple/Cargo.lock")).not());
+            lock_path.assert(
+                predicate::path::eq_file(Path::new("tests/fixtures/simple/Cargo.lock")).not(),
+            );
 
             temp.close().unwrap();
         }
@@ -232,10 +259,14 @@ mod test {
             let lock_path = temp.child("Cargo.lock");
 
             set_package_version(manifest_path.path(), "2.0.0").unwrap();
-            lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/pure_ws/Cargo.lock")));
+            lock_path.assert(predicate::path::eq_file(Path::new(
+                "tests/fixtures/pure_ws/Cargo.lock",
+            )));
 
             update_lock(manifest_path.path()).unwrap();
-            lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/pure_ws/Cargo.lock")).not());
+            lock_path.assert(
+                predicate::path::eq_file(Path::new("tests/fixtures/pure_ws/Cargo.lock")).not(),
+            );
 
             temp.close().unwrap();
         }
@@ -248,10 +279,14 @@ mod test {
             let lock_path = temp.child("Cargo.lock");
 
             set_package_version(manifest_path.path(), "2.0.0").unwrap();
-            lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/mixed_ws/Cargo.lock")));
+            lock_path.assert(predicate::path::eq_file(Path::new(
+                "tests/fixtures/mixed_ws/Cargo.lock",
+            )));
 
             update_lock(manifest_path.path()).unwrap();
-            lock_path.assert(predicate::path::eq_file(Path::new("tests/fixtures/mixed_ws/Cargo.lock")).not());
+            lock_path.assert(
+                predicate::path::eq_file(Path::new("tests/fixtures/mixed_ws/Cargo.lock")).not(),
+            );
 
             temp.close().unwrap();
         }

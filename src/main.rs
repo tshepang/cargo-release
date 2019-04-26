@@ -2,8 +2,8 @@ extern crate cargo_metadata;
 extern crate chrono;
 #[macro_use]
 extern crate clap;
-extern crate termcolor;
 extern crate serde;
+extern crate termcolor;
 #[macro_use]
 extern crate maplit;
 #[macro_use]
@@ -40,21 +40,41 @@ mod replace;
 mod shell;
 mod version;
 
-fn find_root_package(meta: &cargo_metadata::Metadata) -> Result<&cargo_metadata::Package, error::FatalError> {
-    let resolve = meta.resolve.as_ref().expect("unclear when this is optional");
-    let root_id = resolve.root.as_ref()
+fn find_root_package(
+    meta: &cargo_metadata::Metadata,
+) -> Result<&cargo_metadata::Package, error::FatalError> {
+    let resolve = meta
+        .resolve
+        .as_ref()
+        .expect("unclear when this is optional");
+    let root_id = resolve
+        .root
+        .as_ref()
         // Cargo.toml has a workspace but no package
         .ok_or_else(|| error::FatalError::NoPackage)?;
-    let pkg = meta.packages.iter()
+    let pkg = meta
+        .packages
+        .iter()
         .find(|p| p.id == *root_id)
         .expect("the root package must exist");
     Ok(pkg)
 }
 
-fn find_dependents<'w>(ws_meta: &'w cargo_metadata::Metadata, pkg_meta: &'w cargo_metadata::Package) -> impl Iterator<Item=(&'w cargo_metadata::Package, &'w cargo_metadata::Dependency)> {
+fn find_dependents<'w>(
+    ws_meta: &'w cargo_metadata::Metadata,
+    pkg_meta: &'w cargo_metadata::Package,
+) -> impl Iterator<Item = (&'w cargo_metadata::Package, &'w cargo_metadata::Dependency)> {
     ws_meta.packages.iter().filter_map(move |p| {
-        if ws_meta.workspace_members.iter().find(|m| **m == p.id).is_some() {
-            p.dependencies.iter().find(|d| d.name == pkg_meta.name).map(|d| (p, d))
+        if ws_meta
+            .workspace_members
+            .iter()
+            .find(|m| **m == p.id)
+            .is_some()
+        {
+            p.dependencies
+                .iter()
+                .find(|d| d.name == pkg_meta.name)
+                .map(|d| (p, d))
         } else {
             None
         }
@@ -78,7 +98,8 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         config::get_config_from_file(Path::new(custom_config_path))?
     } else {
         config::resolve_config(&manifest_path)?
-    }.unwrap_or_default();
+    }
+    .unwrap_or_default();
 
     // if this execution is dry-run
     let dry_run = args.dry_run;
@@ -89,12 +110,14 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // flag for uploading doc to remote branch
     let upload_doc = args.upload_doc || release_config.upload_doc;
     // default remote for git push
-    let git_remote = args.push_remote
+    let git_remote = args
+        .push_remote
         .as_ref()
         .map(|s| s.as_str())
         .unwrap_or_else(|| release_config.push_remote.as_str());
     // default branch for doc push
-    let doc_branch = args.doc_branch
+    let doc_branch = args
+        .doc_branch
         .as_ref()
         .map(|s| s.as_str())
         .unwrap_or_else(|| release_config.doc_branch.as_str());
@@ -103,7 +126,8 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // flag to skip `git push`
     let skip_push = args.skip_push || release_config.disable_push;
     // version extension to add after successful release
-    let dev_version_ext = args.dev_version_ext
+    let dev_version_ext = args
+        .dev_version_ext
         .as_ref()
         .map(|s| s.as_str())
         .unwrap_or_else(|| release_config.dev_version_ext.as_str());
@@ -116,9 +140,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // the replacements to execute before release
     let pre_release_replacements = &release_config.pre_release_replacements;
     // the hook script to call after release
-    let pre_release_hook = release_config.pre_release_hook
-        .as_ref()
-        .map(|h| h.args());
+    let pre_release_hook = release_config.pre_release_hook.as_ref().map(|h| h.args());
     // the commit message for `git tag`
     let tag_msg = release_config.tag_message.as_str();
     // flag to skip `git tag`
@@ -137,9 +159,9 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let metadata = args.metadata.as_ref();
     // feature list to release
     let feature_list = {
-        if ! args.features.is_empty() {
+        if !args.features.is_empty() {
             Some(args.features.clone())
-        } else if ! release_config.enable_features.is_empty() {
+        } else if !release_config.enable_features.is_empty() {
             Some(release_config.enable_features.clone())
         } else {
             None
@@ -148,7 +170,9 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // flag to release all features
     let all_features = args.all_features || release_config.enable_all_features;
     // flag for dependent's dependency on this crate
-    let dependent_version = args.dependent_version.unwrap_or(release_config.dependent_version);
+    let dependent_version = args
+        .dependent_version
+        .unwrap_or(release_config.dependent_version);
 
     let features = if all_features {
         Features::All
@@ -204,38 +228,58 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             match dependent_version {
                 config::DependentVersion::Ignore => (),
                 config::DependentVersion::Warn => {
-                    if ! dep.req.matches(&version) {
-                        shell::log_warn(&format!("{}'s dependency on {} `{}` is incompatible with {}", pkg.name, pkg_meta.name, dep.req, new_version_string));
+                    if !dep.req.matches(&version) {
+                        shell::log_warn(&format!(
+                            "{}'s dependency on {} `{}` is incompatible with {}",
+                            pkg.name, pkg_meta.name, dep.req, new_version_string
+                        ));
                     }
-                },
+                }
                 config::DependentVersion::Error => {
-                    if ! dep.req.matches(&version) {
-                        shell::log_warn(&format!("{}'s dependency on {} `{}` is incompatible with {}", pkg.name, pkg_meta.name, dep.req, new_version_string));
+                    if !dep.req.matches(&version) {
+                        shell::log_warn(&format!(
+                            "{}'s dependency on {} `{}` is incompatible with {}",
+                            pkg.name, pkg_meta.name, dep.req, new_version_string
+                        ));
                         dependents_failed = true;
                     }
-                },
+                }
                 config::DependentVersion::Fix => {
-                    if ! dep.req.matches(&version) {
+                    if !dep.req.matches(&version) {
                         let new_req = version::set_requirement(&dep.req, &version)?;
                         if let Some(new_req) = new_req {
                             if dry_run {
-                                println!("Fixing {}'s dependency on {} to `{}` (from `{}`)", pkg.name, pkg_meta.name, new_req, dep.req);
+                                println!(
+                                    "Fixing {}'s dependency on {} to `{}` (from `{}`)",
+                                    pkg.name, pkg_meta.name, new_req, dep.req
+                                );
                             } else {
-                                cargo::set_dependency_version(&pkg.manifest_path, &pkg_meta.name, &new_req)?;
+                                cargo::set_dependency_version(
+                                    &pkg.manifest_path,
+                                    &pkg_meta.name,
+                                    &new_req,
+                                )?;
                             }
                         }
                     }
-                },
+                }
                 config::DependentVersion::Upgrade => {
                     let new_req = version::set_requirement(&dep.req, &version)?;
                     if let Some(new_req) = new_req {
                         if dry_run {
-                            println!("Upgrading {}'s dependency on {} to `{}` (from `{}`)", pkg.name, pkg_meta.name, new_req, dep.req);
+                            println!(
+                                "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
+                                pkg.name, pkg_meta.name, new_req, dep.req
+                            );
                         } else {
-                            cargo::set_dependency_version(&pkg.manifest_path, &pkg_meta.name, &new_req)?;
+                            cargo::set_dependency_version(
+                                &pkg.manifest_path,
+                                &pkg_meta.name,
+                                &new_req,
+                            )?;
                         }
                     }
-                },
+                }
             }
         }
         if dependents_failed {
@@ -247,7 +291,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             cargo::update_lock(&manifest_path)?;
         }
 
-        if ! pre_release_replacements.is_empty() {
+        if !pre_release_replacements.is_empty() {
             // try replacing text in configured files
             do_file_replacements(pre_release_replacements, &replacements, cwd, dry_run)?;
         }
@@ -383,7 +427,13 @@ pub enum Features {
 #[derive(Debug, StructOpt)]
 struct ReleaseOpt {
     /// Release level: bumping specified version field or remove prerelease extensions by default
-    #[structopt(raw(possible_values = "&version::BumpLevel::variants()", case_insensitive = "true"), default_value="release")]
+    #[structopt(
+        raw(
+            possible_values = "&version::BumpLevel::variants()",
+            case_insensitive = "true"
+        ),
+        default_value = "release"
+    )]
     level: version::BumpLevel,
 
     #[structopt(short = "c", long = "config")]
@@ -422,7 +472,13 @@ struct ReleaseOpt {
     /// Do not create git tag
     skip_tag: bool,
 
-    #[structopt(long = "dependent-version", raw(possible_values = "&config::DependentVersion::variants()", case_insensitive = "true"))]
+    #[structopt(
+        long = "dependent-version",
+        raw(
+            possible_values = "&config::DependentVersion::variants()",
+            case_insensitive = "true"
+        )
+    )]
     /// Specify how workspace dependencies on this crate should be handed.
     dependent_version: Option<config::DependentVersion>,
 

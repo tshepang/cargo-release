@@ -4,6 +4,14 @@ rust:
 - stable
 - beta
 - nightly
+matrix:
+  include:
+  - env: RUSTFMT
+    rust: 1.31.0  # `stable`: Locking down for consistent behavior
+    install:
+      - rustup component add rustfmt
+    script:
+      - cargo fmt -- --check
 
 install:
 - rustc -Vv

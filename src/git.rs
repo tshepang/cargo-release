@@ -24,7 +24,13 @@ pub fn commit_all(dir: &Path, msg: &str, sign: bool, dry_run: bool) -> Result<bo
     )
 }
 
-pub fn tag(dir: &Path, name: &str, msg: &str, sign: bool, dry_run: bool) -> Result<bool, FatalError> {
+pub fn tag(
+    dir: &Path,
+    name: &str,
+    msg: &str,
+    sign: bool,
+    dry_run: bool,
+) -> Result<bool, FatalError> {
     call_on_path(
         vec![
             "git",

@@ -92,7 +92,7 @@ impl VersionExt for Version {
             let e = match self.pre[0] {
                 Identifier::AlphaNumeric(ref s) => s.to_owned(),
                 Identifier::Numeric(_) => {
-                    return Err(FatalError::UnsupportedPrereleaseVersionScheme)
+                    return Err(FatalError::UnsupportedPrereleaseVersionScheme);
                 }
             };
             let v = if let Some(v) = self.pre.get(1) {
@@ -190,7 +190,10 @@ impl VersionExt for Version {
     }
 }
 
-pub fn set_requirement(req: &semver::VersionReq, version: &semver::Version) -> Result<Option<String>, FatalError> {
+pub fn set_requirement(
+    req: &semver::VersionReq,
+    version: &semver::Version,
+) -> Result<Option<String>, FatalError> {
     let req_text = req.to_string();
     let raw_req = semver_parser::range::parse(&req_text)
         .expect("semver to generate valid version requirements");
@@ -198,7 +201,8 @@ pub fn set_requirement(req: &semver::VersionReq, version: &semver::Version) -> R
         // Empty matches everything, no-change.
         Ok(None)
     } else {
-        let predicates: Result<Vec<_>, _> = raw_req.predicates
+        let predicates: Result<Vec<_>, _> = raw_req
+            .predicates
             .into_iter()
             .map(|p| set_predicate(p, version))
             .collect();
@@ -209,7 +213,11 @@ pub fn set_requirement(req: &semver::VersionReq, version: &semver::Version) -> R
         #[cfg(debug_assert)]
         {
             let req = semver::VersionReq::parse(new_req_text).unwrap();
-            assert!(req.matches(version), "Invalid req created: {}", new_req_text)
+            assert!(
+                req.matches(version),
+                "Invalid req created: {}",
+                new_req_text
+            )
         }
         if new_req_text == req_text {
             Ok(None)
@@ -219,39 +227,39 @@ pub fn set_requirement(req: &semver::VersionReq, version: &semver::Version) -> R
     }
 }
 
-fn set_predicate(mut pred: semver_parser::range::Predicate, version: &semver::Version) -> Result<semver_parser::range::Predicate, FatalError> {
+fn set_predicate(
+    mut pred: semver_parser::range::Predicate,
+    version: &semver::Version,
+) -> Result<semver_parser::range::Predicate, FatalError> {
     match pred.op {
         semver_parser::range::Op::Wildcard(semver_parser::range::WildcardVersion::Minor) => {
             pred.major = version.major;
             Ok(pred)
-        },
+        }
         semver_parser::range::Op::Wildcard(semver_parser::range::WildcardVersion::Patch) => {
             pred.major = version.major;
             if pred.minor.is_some() {
                 pred.minor = Some(version.minor);
             }
             Ok(pred)
-        },
-        semver_parser::range::Op::Ex => {
-            assign_partial_req(version, pred)
-        },
-        semver_parser::range::Op::Gt |
-        semver_parser::range::Op::GtEq |
-        semver_parser::range::Op::Lt |
-        semver_parser::range::Op::LtEq => {
+        }
+        semver_parser::range::Op::Ex => assign_partial_req(version, pred),
+        semver_parser::range::Op::Gt
+        | semver_parser::range::Op::GtEq
+        | semver_parser::range::Op::Lt
+        | semver_parser::range::Op::LtEq => {
             let user_pred = display::DisplayPredicate::new(&pred).to_string();
             Err(FatalError::UnsupportedVersionReq(user_pred))
-        },
-        semver_parser::range::Op::Tilde => {
-            assign_partial_req(version, pred)
-        },
-        semver_parser::range::Op::Compatible => {
-            assign_partial_req(version, pred)
-        },
+        }
+        semver_parser::range::Op::Tilde => assign_partial_req(version, pred),
+        semver_parser::range::Op::Compatible => assign_partial_req(version, pred),
     }
 }
 
-fn assign_partial_req(version: &semver::Version, mut pred: semver_parser::range::Predicate) -> Result<semver_parser::range::Predicate, FatalError> {
+fn assign_partial_req(
+    version: &semver::Version,
+    mut pred: semver_parser::range::Predicate,
+) -> Result<semver_parser::range::Predicate, FatalError> {
     pred.major = version.major;
     if pred.minor.is_some() {
         pred.minor = Some(version.minor);
@@ -259,12 +267,16 @@ fn assign_partial_req(version: &semver::Version, mut pred: semver_parser::range:
     if pred.patch.is_some() {
         pred.patch = Some(version.patch);
     }
-    pred.pre = version.pre.iter().map(|i| {
-        match i {
+    pred.pre = version
+        .pre
+        .iter()
+        .map(|i| match i {
             semver::Identifier::Numeric(n) => semver_parser::version::Identifier::Numeric(*n),
-            semver::Identifier::AlphaNumeric(s) => semver_parser::version::Identifier::AlphaNumeric(s.clone()),
-        }
-    }).collect();
+            semver::Identifier::AlphaNumeric(s) => {
+                semver_parser::version::Identifier::AlphaNumeric(s.clone())
+            }
+        })
+        .collect();
     Ok(pred)
 }
 
@@ -273,7 +285,7 @@ fn assign_partial_req(version: &semver::Version, mut pred: semver_parser::range:
 mod display {
     use std::fmt;
 
-    use semver_parser::range::Op::{Ex, Gt, GtEq, Lt, LtEq, Tilde, Compatible, Wildcard};
+    use semver_parser::range::Op::{Compatible, Ex, Gt, GtEq, Lt, LtEq, Tilde, Wildcard};
     use semver_parser::range::WildcardVersion::{Minor, Patch};
 
     pub(crate) struct DisplayVersionReq<'v>(&'v semver_parser::range::VersionReq);
