@@ -65,12 +65,7 @@ fn find_dependents<'w>(
     pkg_meta: &'w cargo_metadata::Package,
 ) -> impl Iterator<Item = (&'w cargo_metadata::Package, &'w cargo_metadata::Dependency)> {
     ws_meta.packages.iter().filter_map(move |p| {
-        if ws_meta
-            .workspace_members
-            .iter()
-            .find(|m| **m == p.id)
-            .is_some()
-        {
+        if ws_meta.workspace_members.iter().any(|m| *m == p.id) {
             p.dependencies
                 .iter()
                 .find(|d| d.name == pkg_meta.name)
@@ -81,6 +76,7 @@ fn find_dependents<'w>(
     })
 }
 
+#[allow(clippy::cyclomatic_complexity)]
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let ws_meta = cargo_metadata::MetadataCommand::new()
         .exec()
@@ -211,11 +207,10 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         let new_version_string = version.to_string();
         replacements.insert("{{version}}", new_version_string.clone());
         // Release Confirmation
-        if !dry_run {
-            if !no_confirm {
-                if !shell::confirm(&format!("Release version {} ?", new_version_string)) {
-                    return Ok(0);
-                }
+        if !dry_run && !no_confirm {
+            let confirmed = shell::confirm(&format!("Release version {} ?", new_version_string));
+            if !confirmed {
+                return Ok(0);
             }
         }
 

@@ -36,7 +36,7 @@ fn do_call(
     }
 
     for arg in iter {
-        if arg.len() > 0 {
+        if !arg.is_empty() {
             cmd.arg(arg);
         }
     }

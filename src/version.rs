@@ -88,7 +88,7 @@ trait VersionExt {
 
 impl VersionExt for Version {
     fn prerelease_id_version(&self) -> Result<Option<(String, Option<u64>)>, FatalError> {
-        if self.pre.len() > 0 {
+        if !self.pre.is_empty() {
             let e = match self.pre[0] {
                 Identifier::AlphaNumeric(ref s) => s.to_owned(),
                 Identifier::Numeric(_) => {
@@ -336,14 +336,12 @@ mod display {
                 _ => {
                     try!(write!(fmt, "{}{}", DisplayOp(&self.0.op), self.0.major));
 
-                    match self.0.minor {
-                        Some(v) => try!(write!(fmt, ".{}", v)),
-                        None => (),
+                    if let Some(v) = self.0.minor {
+                        try!(write!(fmt, ".{}", v));
                     }
 
-                    match self.0.patch {
-                        Some(v) => try!(write!(fmt, ".{}", v)),
-                        None => (),
+                    if let Some(v) = self.0.patch {
+                        try!(write!(fmt, ".{}", v));
                     }
 
                     if !self.0.pre.is_empty() {
