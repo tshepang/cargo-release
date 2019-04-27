@@ -22,7 +22,7 @@ fn save_to_file(path: &Path, content: &str) -> io::Result<()> {
 }
 
 pub type Replacements<'a> = HashMap<&'a str, String>;
-pub fn replace_in(input: &str, r: &Replacements) -> String {
+pub fn replace_in(input: &str, r: &Replacements<'_>) -> String {
     let mut s = input.to_string();
     for (k, v) in r {
         s = s.replace(k, v);
@@ -32,7 +32,7 @@ pub fn replace_in(input: &str, r: &Replacements) -> String {
 
 pub fn do_file_replacements(
     replace_config: &[Replace],
-    replacements: &Replacements,
+    replacements: &Replacements<'_>,
     cwd: &Path,
     dry_run: bool,
 ) -> Result<bool, FatalError> {

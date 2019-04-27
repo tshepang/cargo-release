@@ -1,25 +1,14 @@
-extern crate cargo_metadata;
-extern crate chrono;
 #[macro_use]
 extern crate clap;
-extern crate serde;
-extern crate termcolor;
 #[macro_use]
 extern crate maplit;
 #[macro_use]
 extern crate quick_error;
-extern crate dirs;
-extern crate regex;
-extern crate semver;
-extern crate semver_parser;
-extern crate structopt;
-extern crate toml;
-extern crate toml_edit;
+
+use structopt;
 
 #[cfg(test)]
 extern crate assert_fs;
-#[cfg(test)]
-extern crate predicates;
 
 use std::path::Path;
 use std::process::exit;

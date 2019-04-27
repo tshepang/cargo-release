@@ -1,6 +1,6 @@
-use crate::error::FatalError;
 use semver::{Identifier, Version};
-use semver_parser;
+
+use crate::error::FatalError;
 
 static VERSION_ALPHA: &'static str = "alpha";
 static VERSION_BETA: &'static str = "beta";
@@ -297,7 +297,7 @@ mod display {
     }
 
     impl<'v> fmt::Display for DisplayVersionReq<'v> {
-        fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
             if self.0.predicates.is_empty() {
                 r#try!(write!(fmt, "*"));
             } else {
@@ -323,7 +323,7 @@ mod display {
     }
 
     impl<'v> fmt::Display for DisplayPredicate<'v> {
-        fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
             match &self.0.op {
                 Wildcard(Minor) => r#try!(write!(fmt, "{}.*", self.0.major)),
                 Wildcard(Patch) => {
@@ -363,7 +363,7 @@ mod display {
     pub(crate) struct DisplayOp<'v>(&'v semver_parser::range::Op);
 
     impl<'v> fmt::Display for DisplayOp<'v> {
-        fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
             match self.0 {
                 Ex => r#try!(write!(fmt, "= ")),
                 Gt => r#try!(write!(fmt, "> ")),

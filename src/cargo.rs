@@ -4,9 +4,7 @@ use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 
-use cargo_metadata;
 use toml::Value;
-use toml_edit;
 
 use crate::cmd::call;
 use crate::error::FatalError;

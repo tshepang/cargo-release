@@ -3,9 +3,7 @@ use std::io;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
-use dirs;
 use serde::{Deserialize, Serialize};
-use toml;
 
 use crate::error::FatalError;
 
