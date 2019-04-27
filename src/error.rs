@@ -1,12 +1,12 @@
+use cargo_metadata::Error as CargoMetaError;
 use regex::Error as RegexError;
 use semver::SemVerError;
-use std::env::VarError as VarError;
+use std::env::VarError;
 use std::io::Error as IOError;
-use std::string::FromUtf8Error;
 use std::str::Utf8Error;
+use std::string::FromUtf8Error;
 use toml::de::Error as TomlError;
 use toml_edit::TomlError as TomlEditError;
-use cargo_metadata::Error as CargoMetaError;
 
 quick_error! {
     #[derive(Debug)]

@@ -1,11 +1,11 @@
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 
 use dirs;
-use toml;
 use serde::{Deserialize, Serialize};
+use toml;
 
 use error::FatalError;
 
@@ -46,7 +46,8 @@ impl Default for Config {
             dev_version_ext: "alpha.0".into(),
             no_dev_version: false,
             pre_release_commit_message: "(cargo-release) version {{version}}".into(),
-            pro_release_commit_message: "(cargo-release) start next development iteration {{version}}".into(),
+            pro_release_commit_message:
+                "(cargo-release) start next development iteration {{version}}".into(),
             pre_release_replacements: vec![],
             pre_release_hook: None,
             tag_message: "(cargo-release) {{crate_name}} version {{version}}".into(),
@@ -129,8 +130,7 @@ fn load_from_file(path: &Path) -> io::Result<String> {
 
 fn get_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
     if manifest_path.exists() {
-        let m = load_from_file(manifest_path)
-            .map_err(FatalError::from)?;
+        let m = load_from_file(manifest_path).map_err(FatalError::from)?;
         let c: CargoManifest = toml::from_str(&m).map_err(FatalError::from)?;
         Ok(c.package.and_then(|p| p.metadata).and_then(|m| m.release))
     } else {
@@ -140,8 +140,7 @@ fn get_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, Fata
 
 pub fn get_config_from_file(file_path: &Path) -> Result<Option<Config>, FatalError> {
     if file_path.exists() {
-        let c = load_from_file(file_path)
-            .map_err(FatalError::from)?;
+        let c = load_from_file(file_path).map_err(FatalError::from)?;
         let config = toml::from_str(&c).map_err(FatalError::from)?;
         Ok(Some(config))
     } else {
@@ -158,7 +157,8 @@ pub fn get_config_from_file(file_path: &Path) -> Result<Option<Config>, FatalErr
 ///
 pub fn resolve_config(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
     // Project release file.
-    let default_config = manifest_path.parent()
+    let default_config = manifest_path
+        .parent()
         .unwrap_or_else(|| Path::new("."))
         .join("release.toml");
     let current_dir_config = get_config_from_file(&default_config)?;
@@ -184,7 +184,7 @@ pub fn resolve_config(manifest_path: &Path) -> Result<Option<Config>, FatalError
 }
 
 #[cfg(test)]
-mod test{
+mod test {
     use super::*;
 
     mod resolve_config {
