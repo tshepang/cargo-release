@@ -8,9 +8,9 @@ use cargo_metadata;
 use toml::Value;
 use toml_edit;
 
-use cmd::call;
-use error::FatalError;
-use Features;
+use crate::cmd::call;
+use crate::error::FatalError;
+use crate::Features;
 
 fn cargo() -> String {
     env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned())

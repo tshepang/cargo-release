@@ -28,8 +28,8 @@ use chrono::prelude::Local;
 use semver::Identifier;
 use structopt::StructOpt;
 
-use error::FatalError;
-use replace::{do_file_replacements, replace_in, Replacements};
+use crate::error::FatalError;
+use crate::replace::{do_file_replacements, replace_in, Replacements};
 
 mod cargo;
 mod cmd;
