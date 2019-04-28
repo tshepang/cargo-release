@@ -4,12 +4,12 @@ use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 
-use config::Replace;
-use error::FatalError;
+use crate::config::Replace;
+use crate::error::FatalError;
 use regex::Regex;
 
 fn load_from_file(path: &Path) -> io::Result<String> {
-    let mut file = try!(File::open(path));
+    let mut file = r#try!(File::open(path));
     let mut s = String::new();
     file.read_to_string(&mut s)?;
     Ok(s)
@@ -22,7 +22,7 @@ fn save_to_file(path: &Path, content: &str) -> io::Result<()> {
 }
 
 pub type Replacements<'a> = HashMap<&'a str, String>;
-pub fn replace_in(input: &str, r: &Replacements) -> String {
+pub fn replace_in(input: &str, r: &Replacements<'_>) -> String {
     let mut s = input.to_string();
     for (k, v) in r {
         s = s.replace(k, v);
@@ -32,7 +32,7 @@ pub fn replace_in(input: &str, r: &Replacements) -> String {
 
 pub fn do_file_replacements(
     replace_config: &[Replace],
-    replacements: &Replacements,
+    replacements: &Replacements<'_>,
     cwd: &Path,
     dry_run: bool,
 ) -> Result<bool, FatalError> {

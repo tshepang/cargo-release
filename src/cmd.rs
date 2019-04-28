@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::process::Command;
 
-use error::FatalError;
+use crate::error::FatalError;
 
 fn do_call(
     command: Vec<&str>,

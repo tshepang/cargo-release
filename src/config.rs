@@ -3,11 +3,9 @@ use std::io;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
-use dirs;
 use serde::{Deserialize, Serialize};
-use toml;
 
-use error::FatalError;
+use crate::error::FatalError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]

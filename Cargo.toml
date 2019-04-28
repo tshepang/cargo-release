@@ -8,6 +8,7 @@ keywords = ["cargo"]
 categories = ["development-tools::cargo-plugins"]
 repository = "https://github.com/sunng87/cargo-release"
 readme = "README.md"
+edition = "2018"
 
 [dependencies]
 cargo_metadata = "0.7"

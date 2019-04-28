@@ -2,8 +2,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 
-use cmd::call_on_path;
-use error::FatalError;
+use crate::cmd::call_on_path;
+use crate::error::FatalError;
 
 pub fn status(dir: &Path) -> Result<bool, FatalError> {
     let output = Command::new("git")

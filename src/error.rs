@@ -1,10 +1,11 @@
-use cargo_metadata::Error as CargoMetaError;
-use regex::Error as RegexError;
-use semver::SemVerError;
 use std::env::VarError;
 use std::io::Error as IOError;
 use std::str::Utf8Error;
 use std::string::FromUtf8Error;
+
+use cargo_metadata::Error as CargoMetaError;
+use regex::Error as RegexError;
+use semver::SemVerError;
 use toml::de::Error as TomlError;
 use toml_edit::TomlError as TomlEditError;
 

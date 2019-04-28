@@ -1,6 +1,6 @@
-use error::FatalError;
 use semver::{Identifier, Version};
-use semver_parser;
+
+use crate::error::FatalError;
 
 static VERSION_ALPHA: &'static str = "alpha";
 static VERSION_BETA: &'static str = "beta";
@@ -297,15 +297,15 @@ mod display {
     }
 
     impl<'v> fmt::Display for DisplayVersionReq<'v> {
-        fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
             if self.0.predicates.is_empty() {
-                try!(write!(fmt, "*"));
+                r#try!(write!(fmt, "*"));
             } else {
                 for (i, ref pred) in self.0.predicates.iter().enumerate() {
                     if i == 0 {
-                        try!(write!(fmt, "{}", DisplayPredicate(pred)));
+                        r#try!(write!(fmt, "{}", DisplayPredicate(pred)));
                     } else {
-                        try!(write!(fmt, ", {}", DisplayPredicate(pred)));
+                        r#try!(write!(fmt, ", {}", DisplayPredicate(pred)));
                     }
                 }
             }
@@ -323,34 +323,34 @@ mod display {
     }
 
     impl<'v> fmt::Display for DisplayPredicate<'v> {
-        fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
             match &self.0.op {
-                Wildcard(Minor) => try!(write!(fmt, "{}.*", self.0.major)),
+                Wildcard(Minor) => r#try!(write!(fmt, "{}.*", self.0.major)),
                 Wildcard(Patch) => {
                     if let Some(minor) = self.0.minor {
-                        try!(write!(fmt, "{}.{}.*", self.0.major, minor))
+                        r#try!(write!(fmt, "{}.{}.*", self.0.major, minor))
                     } else {
-                        try!(write!(fmt, "{}.*.*", self.0.major))
+                        r#try!(write!(fmt, "{}.*.*", self.0.major))
                     }
                 }
                 _ => {
-                    try!(write!(fmt, "{}{}", DisplayOp(&self.0.op), self.0.major));
+                    r#try!(write!(fmt, "{}{}", DisplayOp(&self.0.op), self.0.major));
 
                     if let Some(v) = self.0.minor {
-                        try!(write!(fmt, ".{}", v));
+                        r#try!(write!(fmt, ".{}", v));
                     }
 
                     if let Some(v) = self.0.patch {
-                        try!(write!(fmt, ".{}", v));
+                        r#try!(write!(fmt, ".{}", v));
                     }
 
                     if !self.0.pre.is_empty() {
-                        try!(write!(fmt, "-"));
+                        r#try!(write!(fmt, "-"));
                         for (i, x) in self.0.pre.iter().enumerate() {
                             if i != 0 {
-                                try!(write!(fmt, "."))
+                                r#try!(write!(fmt, "."))
                             }
-                            try!(write!(fmt, "{}", x));
+                            r#try!(write!(fmt, "{}", x));
                         }
                     }
                 }
@@ -363,17 +363,17 @@ mod display {
     pub(crate) struct DisplayOp<'v>(&'v semver_parser::range::Op);
 
     impl<'v> fmt::Display for DisplayOp<'v> {
-        fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
             match self.0 {
-                Ex => try!(write!(fmt, "= ")),
-                Gt => try!(write!(fmt, "> ")),
-                GtEq => try!(write!(fmt, ">= ")),
-                Lt => try!(write!(fmt, "< ")),
-                LtEq => try!(write!(fmt, "<= ")),
-                Tilde => try!(write!(fmt, "~")),
-                Compatible => try!(write!(fmt, "^")),
+                Ex => r#try!(write!(fmt, "= ")),
+                Gt => r#try!(write!(fmt, "> ")),
+                GtEq => r#try!(write!(fmt, ">= ")),
+                Lt => r#try!(write!(fmt, "< ")),
+                LtEq => r#try!(write!(fmt, "<= ")),
+                Tilde => r#try!(write!(fmt, "~")),
+                Compatible => r#try!(write!(fmt, "^")),
                 // gets handled specially in Predicate::fmt
-                Wildcard(_) => try!(write!(fmt, "")),
+                Wildcard(_) => r#try!(write!(fmt, "")),
             }
             Ok(())
         }
