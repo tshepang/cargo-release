@@ -80,7 +80,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // FIXME:
     let release_config = if let Some(custom_config_path) = custom_config_path_option {
         // when calling with -c option
-        config::get_config_from_file(Path::new(custom_config_path))?
+        config::resolve_custom_config(Path::new(custom_config_path))?
     } else {
         config::resolve_config(&manifest_path)?
     }
@@ -91,47 +91,47 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // the release level
     let level = args.level;
     // flag for gpg signing git commit and tag
-    let sign = args.sign || release_config.sign_commit;
+    let sign = args.sign || release_config.sign_commit();
     // flag for uploading doc to remote branch
-    let upload_doc = args.upload_doc || release_config.upload_doc;
+    let upload_doc = args.upload_doc || release_config.upload_doc();
     // default remote for git push
     let git_remote = args
         .push_remote
         .as_ref()
         .map(|s| s.as_str())
-        .unwrap_or_else(|| release_config.push_remote.as_str());
+        .unwrap_or_else(|| release_config.push_remote());
     // default branch for doc push
     let doc_branch = args
         .doc_branch
         .as_ref()
         .map(|s| s.as_str())
-        .unwrap_or_else(|| release_config.doc_branch.as_str());
+        .unwrap_or_else(|| release_config.doc_branch());
     // flag to skip `cargo publish`
-    let skip_publish = args.skip_publish || release_config.disable_publish;
+    let skip_publish = args.skip_publish || release_config.disable_publish();
     // flag to skip `git push`
-    let skip_push = args.skip_push || release_config.disable_push;
+    let skip_push = args.skip_push || release_config.disable_push();
     // version extension to add after successful release
     let dev_version_ext = args
         .dev_version_ext
         .as_ref()
         .map(|s| s.as_str())
-        .unwrap_or_else(|| release_config.dev_version_ext.as_str());
+        .unwrap_or_else(|| release_config.dev_version_ext());
     // do not bump version or add version extension after release
-    let no_dev_version = args.no_dev_version || release_config.no_dev_version;
+    let no_dev_version = args.no_dev_version || release_config.no_dev_version();
     // the commit message for removing extension or bump version before a release
-    let pre_release_commit_msg = release_config.pre_release_commit_message.as_str();
+    let pre_release_commit_msg = release_config.pre_release_commit_message();
     // the commit message for adding extension or bump version after a release
-    let pro_release_commit_msg = release_config.pro_release_commit_message.as_str();
+    let pro_release_commit_msg = release_config.pro_release_commit_message();
     // the replacements to execute before release
-    let pre_release_replacements = &release_config.pre_release_replacements;
+    let pre_release_replacements = release_config.pre_release_replacements();
     // the hook script to call after release
-    let pre_release_hook = release_config.pre_release_hook.as_ref().map(|h| h.args());
+    let pre_release_hook = release_config.pre_release_hook().map(|h| h.args());
     // the commit message for `git tag`
-    let tag_msg = release_config.tag_message.as_str();
+    let tag_msg = release_config.tag_message();
     // flag to skip `git tag`
-    let skip_tag = args.skip_tag || release_config.disable_tag;
+    let skip_tag = args.skip_tag || release_config.disable_tag();
     // the commit message for doc generation
-    let doc_commit_msg = release_config.doc_commit_message.as_str();
+    let doc_commit_msg = release_config.doc_commit_message();
     // flag to skip the confirmation step
     let no_confirm = args.no_confirm;
     // the publish flag in cargo file
@@ -143,21 +143,19 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         .unwrap_or(!skip_publish);
     let metadata = args.metadata.as_ref();
     // feature list to release
-    let feature_list = {
-        if !args.features.is_empty() {
-            Some(args.features.clone())
-        } else if !release_config.enable_features.is_empty() {
-            Some(release_config.enable_features.clone())
-        } else {
-            None
-        }
+    let feature_list = if !args.features.is_empty() {
+        Some(args.features.clone())
+    } else if !release_config.enable_features().is_empty() {
+        Some(release_config.enable_features().to_owned())
+    } else {
+        None
     };
     // flag to release all features
-    let all_features = args.all_features || release_config.enable_all_features;
+    let all_features = args.all_features || release_config.enable_all_features();
     // flag for dependent's dependency on this crate
     let dependent_version = args
         .dependent_version
-        .unwrap_or(release_config.dependent_version);
+        .unwrap_or(release_config.dependent_version());
 
     let features = if all_features {
         Features::All
@@ -337,7 +335,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         .tag_prefix
         .as_ref()
         .map(|s| s.as_str())
-        .or_else(|| release_config.tag_prefix.as_ref().map(|s| s.as_str()))
+        .or_else(|| release_config.tag_prefix())
         .unwrap_or_else(|| {
             // crate_name as default tag prefix for multi-crate project
             if !is_root {
