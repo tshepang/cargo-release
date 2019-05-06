@@ -23,6 +23,7 @@ termcolor = "0.3.6"
 maplit = "0.1.4"
 chrono = "0.4"
 dirs = "1.0"
+boolinator = "2.4"
 structopt = {version = "0.2.7", default-features = false}
 clap = { version = "2", default-features = false }
 

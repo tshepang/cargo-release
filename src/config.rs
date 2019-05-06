@@ -111,6 +111,66 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn update(&mut self, source: &ConfigSource) {
+        if let Some(sign_commit) = source.sign_commit() {
+            self.sign_commit = Some(sign_commit);
+        }
+        if let Some(upload_doc) = source.upload_doc() {
+            self.upload_doc = Some(upload_doc);
+        }
+        if let Some(push_remote) = source.push_remote() {
+            self.push_remote = Some(push_remote.to_owned());
+        }
+        if let Some(doc_branch) = source.doc_branch() {
+            self.doc_branch = Some(doc_branch.to_owned());
+        }
+        if let Some(disable_publish) = source.disable_publish() {
+            self.disable_publish = Some(disable_publish);
+        }
+        if let Some(disable_push) = source.disable_push() {
+            self.disable_push = Some(disable_push);
+        }
+        if let Some(dev_version_ext) = source.dev_version_ext() {
+            self.dev_version_ext = Some(dev_version_ext.to_owned());
+        }
+        if let Some(no_dev_version) = source.no_dev_version() {
+            self.no_dev_version = Some(no_dev_version);
+        }
+        if let Some(pre_release_commit_message) = source.pre_release_commit_message() {
+            self.pre_release_commit_message = Some(pre_release_commit_message.to_owned());
+        }
+        if let Some(pro_release_commit_message) = source.pro_release_commit_message() {
+            self.pro_release_commit_message = Some(pro_release_commit_message.to_owned());
+        }
+        if let Some(pre_release_replacements) = source.pre_release_replacements() {
+            self.pre_release_replacements = Some(pre_release_replacements.to_owned());
+        }
+        if let Some(pre_release_hook) = source.pre_release_hook() {
+            self.pre_release_hook = Some(pre_release_hook.to_owned());
+        }
+        if let Some(tag_message) = source.tag_message() {
+            self.tag_message = Some(tag_message.to_owned());
+        }
+        if let Some(tag_prefix) = source.tag_prefix() {
+            self.tag_prefix = Some(tag_prefix.to_owned());
+        }
+        if let Some(doc_commit_message) = source.doc_commit_message() {
+            self.doc_commit_message = Some(doc_commit_message.to_owned());
+        }
+        if let Some(disable_tag) = source.disable_tag() {
+            self.disable_tag = Some(disable_tag);
+        }
+        if let Some(enable_features) = source.enable_features() {
+            self.enable_features = Some(enable_features.to_owned());
+        }
+        if let Some(enable_all_features) = source.enable_all_features() {
+            self.enable_all_features = Some(enable_all_features);
+        }
+        if let Some(dependent_version) = source.dependent_version() {
+            self.dependent_version = Some(dependent_version);
+        }
+    }
+
     pub fn sign_commit(&self) -> bool {
         self.sign_commit.unwrap_or(false)
     }
