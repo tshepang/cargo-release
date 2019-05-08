@@ -446,12 +446,29 @@ pub fn resolve_custom_config(file_path: &Path) -> Result<Option<Config>, FatalEr
 
 /// Try to resolve configuration source.
 ///
-/// This tries the following sources in order, short-circuiting on the first one found:
-/// 1. $(pwd)/release.toml
+/// This tries the following sources in order, merging the results:
+/// 1. $HOME/.release.toml
 /// 2. $(pwd)/Cargo.toml `package.metadata.release` (with deprecation warning)
-/// 3. $HOME/.release.toml
+/// 3. $(pwd)/release.toml
 ///
-pub fn resolve_config(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
+pub fn resolve_config(manifest_path: &Path) -> Result<Config, FatalError> {
+    let mut config = Config::default();
+
+    // User-local configuration from home directory.
+    let home_dir = dirs::home_dir();
+    if let Some(mut home) = home_dir {
+        home.push(".release.toml");
+        if let Some(cfg) = get_config_from_file(&home)? {
+            config.update(&cfg);
+        }
+    };
+
+    // Crate manifest.
+    let current_dir_config = get_config_from_manifest(manifest_path)?;
+    if let Some(cfg) = current_dir_config {
+        config.update(&cfg);
+    };
+
     // Project release file.
     let default_config = manifest_path
         .parent()
@@ -459,28 +476,10 @@ pub fn resolve_config(manifest_path: &Path) -> Result<Option<Config>, FatalError
         .join("release.toml");
     let current_dir_config = get_config_from_file(&default_config)?;
     if let Some(cfg) = current_dir_config {
-        let mut config = Config::default();
         config.update(&cfg);
-        return Ok(Some(config));
     };
 
-    // Crate manifest.
-    let current_dir_config = get_config_from_manifest(manifest_path)?;
-    if let Some(cfg) = current_dir_config {
-        let mut config = Config::default();
-        config.update(&cfg);
-        return Ok(Some(config));
-    };
-
-    // User-local configuration from home directory.
-    let home_dir = dirs::home_dir();
-    if let Some(mut home) = home_dir {
-        home.push(".release.toml");
-        return resolve_custom_config(home.as_path());
-    };
-
-    // No project-wide configuration.
-    Ok(None)
+    Ok(config)
 }
 
 #[cfg(test)]
@@ -492,7 +491,7 @@ mod test {
 
         #[test]
         fn doesnt_panic() {
-            let release_config = resolve_config(Path::new("Cargo.toml")).unwrap().unwrap();
+            let release_config = resolve_config(Path::new("Cargo.toml")).unwrap();
             assert!(release_config.sign_commit());
         }
     }
