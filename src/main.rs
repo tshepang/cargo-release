@@ -81,8 +81,10 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let custom_config_path_option = args.config.as_ref();
     let release_config = {
         let mut release_config = config::Config::default();
-        let cfg = config::resolve_config(&ws_meta.workspace_root, &manifest_path)?;
-        release_config.update(&cfg);
+        if !args.isolated {
+            let cfg = config::resolve_config(&ws_meta.workspace_root, &manifest_path)?;
+            release_config.update(&cfg);
+        }
         if let Some(custom_config_path) = custom_config_path_option {
             // when calling with -c option
             let cfg =
@@ -415,6 +417,10 @@ struct ReleaseOpt {
     #[structopt(short = "c", long = "config")]
     /// Custom config file
     config: Option<String>,
+
+    #[structopt(long = "isolated")]
+    /// Ignore implicit configuration files.
+    isolated: bool,
 
     #[structopt(short = "m")]
     /// Semver metadata
