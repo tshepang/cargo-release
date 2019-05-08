@@ -84,7 +84,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             // when calling with -c option
             config::resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default()
         } else {
-            config::resolve_config(&manifest_path)?
+            config::resolve_config(&ws_meta.workspace_root, &manifest_path)?
         };
         release_config.update(args);
         release_config
