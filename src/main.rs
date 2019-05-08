@@ -10,6 +10,7 @@ use structopt;
 #[cfg(test)]
 extern crate assert_fs;
 
+use std::ffi::OsStr;
 use std::path::Path;
 use std::process::exit;
 
@@ -269,9 +270,9 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         if let Some(pre_rel_hook) = pre_release_hook {
             shell::log_info(&format!("Calling pre-release hook: {:?}", pre_rel_hook));
             let envs = btreemap! {
-                "PREV_VERSION" => prev_version_string.as_ref(),
-                "NEW_VERSION" => new_version_string.as_ref(),
-                "DRY_RUN" => if dry_run { "true" } else { "false" }
+                OsStr::new("PREV_VERSION") => prev_version_string.as_ref(),
+                OsStr::new("NEW_VERSION") => new_version_string.as_ref(),
+                OsStr::new("DRY_RUN") => OsStr::new(if dry_run { "true" } else { "false" }),
             };
             // we use dry_run environmental variable to run the script
             // so here we set dry_run=false and always execute the command.

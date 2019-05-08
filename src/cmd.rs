@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::ffi::OsStr;
 use std::path::Path;
 use std::process::Command;
 
@@ -7,7 +8,7 @@ use crate::error::FatalError;
 fn do_call(
     command: Vec<&str>,
     path: Option<&Path>,
-    envs: Option<BTreeMap<&str, &str>>,
+    envs: Option<BTreeMap<&OsStr, &OsStr>>,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
     if dry_run {
@@ -30,9 +31,7 @@ fn do_call(
     }
 
     if let Some(e) = envs {
-        for (key, val) in e.iter() {
-            cmd.env(key, val);
-        }
+        cmd.envs(e.iter());
     }
 
     for arg in iter {
@@ -57,7 +56,7 @@ pub fn call_on_path(command: Vec<&str>, path: &Path, dry_run: bool) -> Result<bo
 
 pub fn call_with_env(
     command: Vec<&str>,
-    envs: BTreeMap<&str, &str>,
+    envs: BTreeMap<&OsStr, &OsStr>,
     path: &Path,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
