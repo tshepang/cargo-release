@@ -273,6 +273,8 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
                 OsStr::new("PREV_VERSION") => prev_version_string.as_ref(),
                 OsStr::new("NEW_VERSION") => new_version_string.as_ref(),
                 OsStr::new("DRY_RUN") => OsStr::new(if dry_run { "true" } else { "false" }),
+                OsStr::new("WORKSPACE_ROOT") => ws_meta.workspace_root.as_os_str(),
+                OsStr::new("CRATE_ROOT") => manifest_path.parent().unwrap_or_else(|| Path::new(".")).as_os_str(),
             };
             // we use dry_run environmental variable to run the script
             // so here we set dry_run=false and always execute the command.
