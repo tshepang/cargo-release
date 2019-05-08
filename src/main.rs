@@ -10,6 +10,7 @@ use structopt;
 #[cfg(test)]
 extern crate assert_fs;
 
+use std::ffi::OsStr;
 use std::path::Path;
 use std::process::exit;
 
@@ -79,13 +80,17 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let cargo_file = cargo::parse_cargo_config(&manifest_path)?;
     let custom_config_path_option = args.config.as_ref();
     let release_config = {
-        let mut release_config = if let Some(custom_config_path) = custom_config_path_option {
-            // when calling with -c option
-            config::resolve_custom_config(Path::new(custom_config_path))?
-        } else {
-            config::resolve_config(&manifest_path)?
+        let mut release_config = config::Config::default();
+        if !args.isolated {
+            let cfg = config::resolve_config(&ws_meta.workspace_root, &manifest_path)?;
+            release_config.update(&cfg);
         }
-        .unwrap_or_default();
+        if let Some(custom_config_path) = custom_config_path_option {
+            // when calling with -c option
+            let cfg =
+                config::resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
+            release_config.update(&cfg);
+        };
         release_config.update(args);
         release_config
     };
@@ -270,9 +275,12 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         if let Some(pre_rel_hook) = pre_release_hook {
             shell::log_info(&format!("Calling pre-release hook: {:?}", pre_rel_hook));
             let envs = btreemap! {
-                "PREV_VERSION" => prev_version_string.as_ref(),
-                "NEW_VERSION" => new_version_string.as_ref(),
-                "DRY_RUN" => if dry_run { "true" } else { "false" }
+                OsStr::new("PREV_VERSION") => prev_version_string.as_ref(),
+                OsStr::new("NEW_VERSION") => new_version_string.as_ref(),
+                OsStr::new("DRY_RUN") => OsStr::new(if dry_run { "true" } else { "false" }),
+                OsStr::new("CRATE_NAME") => OsStr::new(crate_name),
+                OsStr::new("WORKSPACE_ROOT") => ws_meta.workspace_root.as_os_str(),
+                OsStr::new("CRATE_ROOT") => manifest_path.parent().unwrap_or_else(|| Path::new(".")).as_os_str(),
             };
             // we use dry_run environmental variable to run the script
             // so here we set dry_run=false and always execute the command.
@@ -409,6 +417,10 @@ struct ReleaseOpt {
     #[structopt(short = "c", long = "config")]
     /// Custom config file
     config: Option<String>,
+
+    #[structopt(long = "isolated")]
+    /// Ignore implicit configuration files.
+    isolated: bool,
 
     #[structopt(short = "m")]
     /// Semver metadata
