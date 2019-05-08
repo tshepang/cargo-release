@@ -80,11 +80,14 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let cargo_file = cargo::parse_cargo_config(&manifest_path)?;
     let custom_config_path_option = args.config.as_ref();
     let release_config = {
-        let mut release_config = if let Some(custom_config_path) = custom_config_path_option {
+        let mut release_config = config::Config::default();
+        let cfg = config::resolve_config(&ws_meta.workspace_root, &manifest_path)?;
+        release_config.update(&cfg);
+        if let Some(custom_config_path) = custom_config_path_option {
             // when calling with -c option
-            config::resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default()
-        } else {
-            config::resolve_config(&ws_meta.workspace_root, &manifest_path)?
+            let cfg =
+                config::resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
+            release_config.update(&cfg);
         };
         release_config.update(args);
         release_config
@@ -410,7 +413,7 @@ struct ReleaseOpt {
     level: version::BumpLevel,
 
     #[structopt(short = "c", long = "config")]
-    /// Custom config file (isolated)
+    /// Custom config file
     config: Option<String>,
 
     #[structopt(short = "m")]
