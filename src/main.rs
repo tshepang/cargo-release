@@ -69,7 +69,9 @@ fn find_dependents<'w>(
 
 #[allow(clippy::cyclomatic_complexity)]
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
-    let ws_meta = cargo_metadata::MetadataCommand::new()
+    let ws_meta = args
+        .manifest
+        .metadata()
         .exec()
         .map_err(FatalError::from)?;
     let pkg_meta = find_root_package(&ws_meta)?;
@@ -399,6 +401,9 @@ pub enum Features {
 
 #[derive(Debug, StructOpt)]
 struct ReleaseOpt {
+    #[structopt(flatten)]
+    manifest: clap_cargo::Manifest,
+
     /// Release level: bumping specified version field or remove prerelease extensions by default
     #[structopt(
         raw(
