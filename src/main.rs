@@ -78,7 +78,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
     let cargo_file = cargo::parse_cargo_config(&manifest_path)?;
-    let custom_config_path_option = args.config.as_ref();
+    let custom_config_path_option = args.custom_config.as_ref();
     let release_config = {
         let mut release_config = config::Config::default();
         if !args.isolated {
@@ -91,7 +91,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
                 config::resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
             release_config.update(&cfg);
         };
-        release_config.update(args);
+        release_config.update(&args.config);
         release_config
     };
 
@@ -327,19 +327,14 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // STEP 5: Tag
     let root = git::top_level(cwd)?;
     let is_root = root == cwd;
-    let tag_prefix = args
-        .tag_prefix
-        .as_ref()
-        .map(|s| s.as_str())
-        .or_else(|| release_config.tag_prefix())
-        .unwrap_or_else(|| {
-            // crate_name as default tag prefix for multi-crate project
-            if !is_root {
-                "{{crate_name}}-"
-            } else {
-                ""
-            }
-        });
+    let tag_prefix = release_config.tag_prefix().unwrap_or_else(|| {
+        // crate_name as default tag prefix for multi-crate project
+        if !is_root {
+            "{{crate_name}}-"
+        } else {
+            ""
+        }
+    });
     let tag_prefix = replace_in(&tag_prefix, &replacements);
 
     replacements.insert("{{prefix}}", tag_prefix.clone());
@@ -414,25 +409,35 @@ struct ReleaseOpt {
     )]
     level: version::BumpLevel,
 
+    #[structopt(short = "m")]
+    /// Semver metadata
+    metadata: Option<String>,
+
     #[structopt(short = "c", long = "config")]
     /// Custom config file
-    config: Option<String>,
+    custom_config: Option<String>,
 
     #[structopt(long = "isolated")]
     /// Ignore implicit configuration files.
     isolated: bool,
 
-    #[structopt(short = "m")]
-    /// Semver metadata
-    metadata: Option<String>,
-
-    #[structopt(long = "sign")]
-    /// Sign git commit and tag
-    sign: bool,
+    #[structopt(flatten)]
+    config: ConfigArgs,
 
     #[structopt(long = "dry-run")]
     /// Do not actually change anything, just log what are going to do
     dry_run: bool,
+
+    #[structopt(long = "no-confirm")]
+    /// Skip release confirmation and version preview
+    no_confirm: bool,
+}
+
+#[derive(Debug, StructOpt)]
+struct ConfigArgs {
+    #[structopt(long = "sign")]
+    /// Sign git commit and tag
+    sign: bool,
 
     #[structopt(long = "upload-doc")]
     /// Upload rust document to gh-pages branch
@@ -480,10 +485,6 @@ struct ReleaseOpt {
     /// Do not create dev version after release
     no_dev_version: bool,
 
-    #[structopt(long = "no-confirm")]
-    /// Skip release confirmation and version preview
-    no_confirm: bool,
-
     #[structopt(long = "features")]
     /// Provide a set of features that need to be enabled
     features: Vec<String>,
@@ -493,7 +494,7 @@ struct ReleaseOpt {
     all_features: bool,
 }
 
-impl config::ConfigSource for ReleaseOpt {
+impl config::ConfigSource for ConfigArgs {
     fn sign_commit(&self) -> Option<bool> {
         self.sign.as_some(true)
     }
