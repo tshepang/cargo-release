@@ -31,26 +31,6 @@ mod replace;
 mod shell;
 mod version;
 
-fn find_root_package(
-    meta: &cargo_metadata::Metadata,
-) -> Result<&cargo_metadata::Package, error::FatalError> {
-    let resolve = meta
-        .resolve
-        .as_ref()
-        .expect("unclear when this is optional");
-    let root_id = resolve
-        .root
-        .as_ref()
-        // Cargo.toml has a workspace but no package
-        .ok_or_else(|| error::FatalError::NoPackage)?;
-    let pkg = meta
-        .packages
-        .iter()
-        .find(|p| p.id == *root_id)
-        .expect("the root package must exist");
-    Ok(pkg)
-}
-
 fn find_dependents<'w>(
     ws_meta: &'w cargo_metadata::Metadata,
     pkg_meta: &'w cargo_metadata::Package,
@@ -78,9 +58,14 @@ struct Package<'m> {
 fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let ws_meta = args.manifest.metadata().exec().map_err(FatalError::from)?;
 
-    let package = {
-        let pkg_meta = find_root_package(&ws_meta)?;
+    let (selected_pkgs, _excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
+    if selected_pkgs.is_empty() {
+        shell::log_info("No packages selected.");
+        return Ok(0);
+    }
 
+    let mut pkgs = vec![];
+    for pkg_meta in selected_pkgs.iter() {
         let manifest_path = pkg_meta.manifest_path.as_path();
         let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
@@ -109,14 +94,15 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             .and_then(|f| f.as_bool())
             .unwrap_or(!release_config.disable_publish());
 
-        Package {
+        let pkg = Package {
             meta: pkg_meta,
             manifest_path: manifest_path,
             package_path: cwd,
             publish,
             config: release_config,
-        }
-    };
+        };
+        pkgs.push(pkg);
+    }
 
     git::git_version()?;
 
@@ -127,7 +113,14 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         }
     }
 
-    release_package(args, &ws_meta, &package)
+    for package in pkgs.iter() {
+        let code = release_package(args, &ws_meta, &package)?;
+        if code != 0 {
+            return Ok(code);
+        }
+    }
+
+    Ok(0)
 }
 
 fn release_package(
@@ -394,6 +387,9 @@ pub enum Features {
 struct ReleaseOpt {
     #[structopt(flatten)]
     manifest: clap_cargo::Manifest,
+
+    #[structopt(flatten)]
+    workspace: clap_cargo::Workspace,
 
     /// Release level: bumping specified version field or remove prerelease extensions by default
     #[structopt(
