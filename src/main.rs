@@ -69,25 +69,20 @@ fn find_dependents<'w>(
 
 #[allow(clippy::cyclomatic_complexity)]
 fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
-    let ws_meta = args
-        .manifest
-        .metadata()
-        .exec()
-        .map_err(FatalError::from)?;
+    let ws_meta = args.manifest.metadata().exec().map_err(FatalError::from)?;
     let pkg_meta = find_root_package(&ws_meta)?;
 
     let manifest_path = pkg_meta.manifest_path.as_path();
     let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
     let cargo_file = cargo::parse_cargo_config(&manifest_path)?;
-    let custom_config_path_option = args.custom_config.as_ref();
     let release_config = {
         let mut release_config = config::Config::default();
         if !args.isolated {
             let cfg = config::resolve_config(&ws_meta.workspace_root, &manifest_path)?;
             release_config.update(&cfg);
         }
-        if let Some(custom_config_path) = custom_config_path_option {
+        if let Some(custom_config_path) = args.custom_config.as_ref() {
             // when calling with -c option
             let cfg =
                 config::resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
@@ -97,80 +92,29 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         release_config
     };
 
-    // if this execution is dry-run
-    let dry_run = args.dry_run;
-    // the release level
-    let level = args.level;
-    // flag for gpg signing git commit and tag
-    let sign = release_config.sign_commit();
-    // flag for uploading doc to remote branch
-    let upload_doc = release_config.upload_doc();
-    // default remote for git push
-    let git_remote = release_config.push_remote();
-    // default branch for doc push
-    let doc_branch = release_config.doc_branch();
-    // flag to skip `cargo publish`
-    let skip_publish = release_config.disable_publish();
-    // flag to skip `git push`
-    let skip_push = release_config.disable_push();
-    // version extension to add after successful release
-    let dev_version_ext = release_config.dev_version_ext();
-    // do not bump version or add version extension after release
-    let no_dev_version = release_config.no_dev_version();
-    // the commit message for removing extension or bump version before a release
-    let pre_release_commit_msg = release_config.pre_release_commit_message();
-    // the commit message for adding extension or bump version after a release
-    let pro_release_commit_msg = release_config.pro_release_commit_message();
-    // the replacements to execute before release
-    let pre_release_replacements = release_config.pre_release_replacements();
-    // the hook script to call after release
-    let pre_release_hook = release_config.pre_release_hook().map(|h| h.args());
-    // the commit message for `git tag`
-    let tag_msg = release_config.tag_message();
-    // flag to skip `git tag`
-    let skip_tag = release_config.disable_tag();
-    // the commit message for doc generation
-    let doc_commit_msg = release_config.doc_commit_message();
-    // flag to skip the confirmation step
-    let no_confirm = args.no_confirm;
     // the publish flag in cargo file
     let publish = cargo_file
         .get("package")
         .and_then(|f| f.as_table())
         .and_then(|f| f.get("publish"))
         .and_then(|f| f.as_bool())
-        .unwrap_or(!skip_publish);
-    let metadata = args.metadata.as_ref();
-    // feature list to release
-    let feature_list = if !release_config.enable_features().is_empty() {
-        Some(release_config.enable_features().to_owned())
-    } else {
-        None
-    };
-    // flag to release all features
-    let all_features = release_config.enable_all_features();
-    // flag for dependent's dependency on this crate
-    let dependent_version = release_config.dependent_version();
-
-    let features = if all_features {
-        Features::All
-    } else {
-        match feature_list {
-            Some(vec) => Features::Selective(vec),
-            None => Features::None,
-        }
-    };
+        .unwrap_or(!release_config.disable_push());
 
     // STEP -1: Check if git is available
     git::git_version()?;
 
     // STEP 0: Check if working directory is clean
-    if !git::status(cwd)? {
+    if !git::status(&ws_meta.workspace_root)? {
         shell::log_warn("Uncommitted changes detected, please commit before release.");
-        if !dry_run {
+        if !args.dry_run {
             return Ok(101);
         }
     }
+
+    // if this execution is dry-run
+    let dry_run = args.dry_run;
+    // flag for gpg signing git commit and tag
+    let sign = release_config.sign_commit();
 
     // STEP 1: Query a bunch of information for later use.
     let mut version = pkg_meta.version.clone();
@@ -185,11 +129,14 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     replacements.insert("{{date}}", Local::now().format("%Y-%m-%d").to_string());
 
     // STEP 2: update current version, save and commit
-    if level.bump_version(&mut version, metadata)? {
+    if args
+        .level
+        .bump_version(&mut version, args.metadata.as_ref())?
+    {
         let new_version_string = version.to_string();
         replacements.insert("{{version}}", new_version_string.clone());
         // Release Confirmation
-        if !dry_run && !no_confirm {
+        if !dry_run && !args.no_confirm {
             let confirmed = shell::confirm(&format!("Release version {} ?", new_version_string));
             if !confirmed {
                 return Ok(0);
@@ -202,7 +149,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         }
         let mut dependents_failed = false;
         for (pkg, dep) in find_dependents(&ws_meta, &pkg_meta) {
-            match dependent_version {
+            match release_config.dependent_version() {
                 config::DependentVersion::Ignore => (),
                 config::DependentVersion::Warn => {
                     if !dep.req.matches(&version) {
@@ -268,13 +215,19 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             cargo::update_lock(&manifest_path)?;
         }
 
-        if !pre_release_replacements.is_empty() {
+        if !release_config.pre_release_replacements().is_empty() {
             // try replacing text in configured files
-            do_file_replacements(pre_release_replacements, &replacements, cwd, dry_run)?;
+            do_file_replacements(
+                release_config.pre_release_replacements(),
+                &replacements,
+                cwd,
+                dry_run,
+            )?;
         }
 
         // pre-release hook
-        if let Some(pre_rel_hook) = pre_release_hook {
+        if let Some(pre_rel_hook) = release_config.pre_release_hook() {
+            let pre_rel_hook = pre_rel_hook.args();
             shell::log_info(&format!("Calling pre-release hook: {:?}", pre_rel_hook));
             let envs = btreemap! {
                 OsStr::new("PREV_VERSION") => prev_version_string.as_ref(),
@@ -292,7 +245,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             }
         }
 
-        let commit_msg = replace_in(&pre_release_commit_msg, &replacements);
+        let commit_msg = replace_in(release_config.pre_release_commit_message(), &replacements);
         if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
             // commit failed, abort release
             return Ok(102);
@@ -302,13 +255,30 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     // STEP 3: cargo publish
     if publish {
         shell::log_info("Running cargo publish");
+        // feature list to release
+        let feature_list = if !release_config.enable_features().is_empty() {
+            Some(release_config.enable_features().to_owned())
+        } else {
+            None
+        };
+        // flag to release all features
+        let all_features = release_config.enable_all_features();
+
+        let features = if all_features {
+            Features::All
+        } else {
+            match feature_list {
+                Some(vec) => Features::Selective(vec),
+                None => Features::None,
+            }
+        };
         if !cargo::publish(dry_run, &manifest_path, features)? {
             return Ok(103);
         }
     }
 
     // STEP 4: upload doc
-    if upload_doc {
+    if release_config.upload_doc() {
         shell::log_info("Building and exporting docs.");
         cargo::doc(dry_run, &manifest_path)?;
 
@@ -317,10 +287,15 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         shell::log_info("Commit and push docs.");
         git::init(&doc_path, dry_run)?;
         git::add_all(&doc_path, dry_run)?;
-        git::commit_all(&doc_path, doc_commit_msg, sign, dry_run)?;
+        git::commit_all(
+            &doc_path,
+            release_config.doc_commit_message(),
+            sign,
+            dry_run,
+        )?;
         let default_remote = git::origin_url(cwd)?;
 
-        let refspec = format!("master:{}", doc_branch);
+        let refspec = format!("master:{}", release_config.doc_branch());
         git::force_push(&doc_path, default_remote.trim(), &refspec, dry_run)?;
     }
 
@@ -341,8 +316,8 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
     let tag_name = format!("{}{}", tag_prefix, version);
 
-    if !skip_tag {
-        let tag_message = replace_in(tag_msg, &replacements);
+    if !release_config.disable_tag() {
+        let tag_message = replace_in(release_config.tag_message(), &replacements);
 
         shell::log_info(&format!("Creating git tag {}", tag_name));
         if !git::tag(cwd, &tag_name, &tag_message, sign, dry_run)? {
@@ -352,11 +327,11 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     }
 
     // STEP 6: bump version
-    if !level.is_pre_release() && !no_dev_version {
+    if !args.level.is_pre_release() && !release_config.no_dev_version() {
         version.increment_patch();
-        version
-            .pre
-            .push(Identifier::AlphaNumeric(dev_version_ext.to_owned()));
+        version.pre.push(Identifier::AlphaNumeric(
+            release_config.dev_version_ext().to_owned(),
+        ));
         shell::log_info(&format!("Starting next development iteration {}", version));
         let updated_version_string = version.to_string();
         replacements.insert("{{next_version}}", updated_version_string.clone());
@@ -364,7 +339,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             cargo::set_package_version(&manifest_path, &updated_version_string)?;
             cargo::update_lock(&manifest_path)?;
         }
-        let commit_msg = replace_in(&pro_release_commit_msg, &replacements);
+        let commit_msg = replace_in(release_config.pro_release_commit_message(), &replacements);
 
         if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
             return Ok(105);
@@ -372,12 +347,13 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     }
 
     // STEP 7: git push
-    if !skip_push {
+    if !release_config.disable_push() {
         shell::log_info("Pushing to git remote");
-        if !git::push(cwd, &git_remote, dry_run)? {
+        let git_remote = release_config.push_remote();
+        if !git::push(cwd, git_remote, dry_run)? {
             return Ok(106);
         }
-        if !skip_tag && !git::push_tag(cwd, &git_remote, &tag_name, dry_run)? {
+        if !release_config.disable_tag() && !git::push_tag(cwd, git_remote, &tag_name, dry_run)? {
             return Ok(106);
         }
     }
