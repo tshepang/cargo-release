@@ -55,17 +55,12 @@ struct Package<'m> {
     config: config::Config,
 }
 
-fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
-    let ws_meta = args.manifest.metadata().exec().map_err(FatalError::from)?;
-
-    let (selected_pkgs, _excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
-    if selected_pkgs.is_empty() {
-        shell::log_info("No packages selected.");
-        return Ok(0);
-    }
-
-    let mut pkgs = vec![];
-    for pkg_meta in selected_pkgs.iter() {
+impl<'m> Package<'m> {
+    fn load(
+        args: &ReleaseOpt,
+        ws_meta: &'m cargo_metadata::Metadata,
+        pkg_meta: &'m cargo_metadata::Package,
+    ) -> Result<Self, error::FatalError> {
         let manifest_path = pkg_meta.manifest_path.as_path();
         let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
@@ -101,8 +96,24 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             publish,
             config: release_config,
         };
-        pkgs.push(pkg);
+        Ok(pkg)
     }
+}
+
+fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
+    let ws_meta = args.manifest.metadata().exec().map_err(FatalError::from)?;
+
+    let (selected_pkgs, _excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
+    if selected_pkgs.is_empty() {
+        shell::log_info("No packages selected.");
+        return Ok(0);
+    }
+
+    let pkgs: Result<Vec<_>, _> = selected_pkgs
+        .iter()
+        .map(|p| Package::load(args, &ws_meta, p))
+        .collect();
+    let pkgs = pkgs?;
 
     git::git_version()?;
 
