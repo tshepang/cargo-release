@@ -179,9 +179,9 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let crate_name = pkg_meta.name.as_str();
 
     let mut replacements = Replacements::new();
-    replacements.insert("{{prev_version}}", prev_version_string.to_string());
+    replacements.insert("{{prev_version}}", prev_version_string.clone());
     replacements.insert("{{version}}", version.to_string());
-    replacements.insert("{{crate_name}}", crate_name.to_string());
+    replacements.insert("{{crate_name}}", crate_name.to_owned());
     replacements.insert("{{date}}", Local::now().format("%Y-%m-%d").to_string());
 
     // STEP 2: update current version, save and commit
@@ -320,9 +320,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         git::commit_all(&doc_path, doc_commit_msg, sign, dry_run)?;
         let default_remote = git::origin_url(cwd)?;
 
-        let mut refspec = String::from("master:");
-        refspec.push_str(&doc_branch);
-
+        let refspec = format!("master:{}", doc_branch);
         git::force_push(&doc_path, default_remote.trim(), &refspec, dry_run)?;
     }
 
@@ -341,8 +339,7 @@ fn execute(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
     replacements.insert("{{prefix}}", tag_prefix.clone());
 
-    let current_version = version.to_string();
-    let tag_name = format!("{}{}", tag_prefix, current_version);
+    let tag_name = format!("{}{}", tag_prefix, version);
 
     if !skip_tag {
         let tag_message = replace_in(tag_msg, &replacements);
