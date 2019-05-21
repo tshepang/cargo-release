@@ -51,7 +51,6 @@ struct Package<'m> {
     meta: &'m cargo_metadata::Package,
     manifest_path: &'m Path,
     package_path: &'m Path,
-    publish: bool,
     config: config::Config,
 }
 
@@ -66,34 +65,40 @@ impl<'m> Package<'m> {
 
         let release_config = {
             let mut release_config = config::Config::default();
+
             if !args.isolated {
                 let cfg = config::resolve_config(&ws_meta.workspace_root, &manifest_path)?;
                 release_config.update(&cfg);
             }
+
             if let Some(custom_config_path) = args.custom_config.as_ref() {
                 // when calling with -c option
                 let cfg = config::resolve_custom_config(Path::new(custom_config_path))?
                     .unwrap_or_default();
                 release_config.update(&cfg);
-            };
+            }
+
             release_config.update(&args.config);
+
+            // the publish flag in cargo file
+            let cargo_file = cargo::parse_cargo_config(&manifest_path)?;
+            if !cargo_file
+                .get("package")
+                .and_then(|f| f.as_table())
+                .and_then(|f| f.get("publish"))
+                .and_then(|f| f.as_bool())
+                .unwrap_or(true)
+            {
+                release_config.disable_publish = Some(true);
+            }
+
             release_config
         };
-
-        // the publish flag in cargo file
-        let cargo_file = cargo::parse_cargo_config(&manifest_path)?;
-        let publish = cargo_file
-            .get("package")
-            .and_then(|f| f.as_table())
-            .and_then(|f| f.get("publish"))
-            .and_then(|f| f.as_bool())
-            .unwrap_or(!release_config.disable_publish());
 
         let pkg = Package {
             meta: pkg_meta,
             manifest_path: manifest_path,
             package_path: cwd,
-            publish,
             config: release_config,
         };
         Ok(pkg)
@@ -280,7 +285,7 @@ fn release_package(
     }
 
     // STEP 3: cargo publish
-    if pkg.publish {
+    if !pkg.config.disable_publish() {
         shell::log_info("Running cargo publish");
         // feature list to release
         let feature_list = if !pkg.config.enable_features().is_empty() {
