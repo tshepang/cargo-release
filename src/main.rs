@@ -10,6 +10,8 @@ use structopt;
 #[cfg(test)]
 extern crate assert_fs;
 
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::process::exit;
@@ -114,9 +116,9 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         return Ok(0);
     }
 
-    let pkgs: Result<Vec<_>, _> = selected_pkgs
+    let pkgs: Result<HashMap<_, _>, _> = selected_pkgs
         .iter()
-        .map(|p| Package::load(args, &ws_meta, p))
+        .map(|p| Package::load(args, &ws_meta, p).map(|p| (&p.meta.id, p)))
         .collect();
     let pkgs = pkgs?;
 
@@ -129,8 +131,58 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         }
     }
 
-    for package in pkgs.iter() {
-        let code = release_package(args, &ws_meta, &package)?;
+    let dep_tree: HashMap<_, _> = ws_meta
+        .resolve
+        .as_ref()
+        .expect("cargo-metadata resolved deps")
+        .nodes
+        .iter()
+        .map(|n| (&n.id, &n.dependencies))
+        .collect();
+
+    let mut processed = HashSet::new();
+
+    for node in ws_meta
+        .resolve
+        .as_ref()
+        .expect("cargo-metadata resolved deps")
+        .nodes
+        .iter()
+    {
+        let code =
+            release_workspace_inner(args, &ws_meta, &node.id, &pkgs, &dep_tree, &mut processed)?;
+        if code != 0 {
+            return Ok(code);
+        }
+    }
+
+    Ok(0)
+}
+
+fn release_workspace_inner<'m>(
+    args: &ReleaseOpt,
+    ws_meta: &'m cargo_metadata::Metadata,
+    pkg_id: &'m cargo_metadata::PackageId,
+    pkgs: &std::collections::HashMap<&'m cargo_metadata::PackageId, Package<'m>>,
+    dep_tree: &std::collections::HashMap<
+        &'m cargo_metadata::PackageId,
+        &'m std::vec::Vec<cargo_metadata::PackageId>,
+    >,
+    processed: &mut std::collections::HashSet<&'m cargo_metadata::PackageId>,
+) -> Result<i32, error::FatalError> {
+    if !processed.insert(pkg_id) {
+        return Ok(0);
+    }
+
+    for dep_id in dep_tree[pkg_id].iter() {
+        let code = release_workspace_inner(args, ws_meta, dep_id, pkgs, dep_tree, processed)?;
+        if code != 0 {
+            return Ok(code);
+        }
+    }
+
+    if let Some(pkg) = pkgs.get(pkg_id) {
+        let code = release_package(args, ws_meta, pkg)?;
         if code != 0 {
             return Ok(code);
         }
