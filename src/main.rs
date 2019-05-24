@@ -221,13 +221,19 @@ fn release_package(
         replacements.insert("{{version}}", new_version_string.clone());
         // Release Confirmation
         if !dry_run && !args.no_confirm {
-            let confirmed = shell::confirm(&format!("Release version {} ?", new_version_string));
+            let confirmed = shell::confirm(&format!(
+                "Release version {} {}?",
+                crate_name, new_version_string
+            ));
             if !confirmed {
                 return Ok(0);
             }
         }
 
-        shell::log_info(&format!("Update to version {}", new_version_string));
+        shell::log_info(&format!(
+            "Update {} to version {}",
+            crate_name, new_version_string
+        ));
         if !dry_run {
             cargo::set_package_version(&pkg.manifest_path, &new_version_string)?;
         }
@@ -324,7 +330,10 @@ fn release_package(
             // we use dry_run environmental variable to run the script
             // so here we set dry_run=false and always execute the command.
             if !cmd::call_with_env(pre_rel_hook, envs, cwd, false)? {
-                shell::log_warn("Release aborted by non-zero return of prerelease hook.");
+                shell::log_warn(&format!(
+                    "Release of {} aborted by non-zero return of prerelease hook.",
+                    crate_name
+                ));
                 return Ok(107);
             }
         }
@@ -338,7 +347,7 @@ fn release_package(
 
     // STEP 3: cargo publish
     if !pkg.config.disable_publish() {
-        shell::log_info("Running cargo publish");
+        shell::log_info(&format!("Running cargo publish on {}", crate_name));
         // feature list to release
         let feature_list = if !pkg.config.enable_features().is_empty() {
             Some(pkg.config.enable_features().to_owned())
@@ -363,12 +372,12 @@ fn release_package(
 
     // STEP 4: upload doc
     if pkg.config.upload_doc() {
-        shell::log_info("Building and exporting docs.");
+        shell::log_info(&format!("Building and exporting docs for {}", crate_name));
         cargo::doc(dry_run, &pkg.manifest_path)?;
 
         let doc_path = ws_meta.target_directory.join("doc");
 
-        shell::log_info("Commit and push docs.");
+        shell::log_info(&format!("Commit and push docs for {}", crate_name));
         git::init(&doc_path, dry_run)?;
         git::add_all(&doc_path, dry_run)?;
         git::commit_all(&doc_path, pkg.config.doc_commit_message(), sign, dry_run)?;
@@ -411,7 +420,10 @@ fn release_package(
         version.pre.push(Identifier::AlphaNumeric(
             pkg.config.dev_version_ext().to_owned(),
         ));
-        shell::log_info(&format!("Starting next development iteration {}", version));
+        shell::log_info(&format!(
+            "Starting {}'s next development iteration {}",
+            crate_name, version
+        ));
         let updated_version_string = version.to_string();
         replacements.insert("{{next_version}}", updated_version_string.clone());
         if !dry_run {
@@ -437,7 +449,7 @@ fn release_package(
         }
     }
 
-    shell::log_info("Finished");
+    shell::log_info(&format!("Finished {}", crate_name));
     Ok(0)
 }
 
