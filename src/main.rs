@@ -10,6 +10,8 @@ use structopt;
 #[cfg(test)]
 extern crate assert_fs;
 
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::process::exit;
@@ -31,26 +33,6 @@ mod replace;
 mod shell;
 mod version;
 
-fn find_root_package(
-    meta: &cargo_metadata::Metadata,
-) -> Result<&cargo_metadata::Package, error::FatalError> {
-    let resolve = meta
-        .resolve
-        .as_ref()
-        .expect("unclear when this is optional");
-    let root_id = resolve
-        .root
-        .as_ref()
-        // Cargo.toml has a workspace but no package
-        .ok_or_else(|| error::FatalError::NoPackage)?;
-    let pkg = meta
-        .packages
-        .iter()
-        .find(|p| p.id == *root_id)
-        .expect("the root package must exist");
-    Ok(pkg)
-}
-
 fn find_dependents<'w>(
     ws_meta: &'w cargo_metadata::Metadata,
     pkg_meta: &'w cargo_metadata::Package,
@@ -71,52 +53,74 @@ struct Package<'m> {
     meta: &'m cargo_metadata::Package,
     manifest_path: &'m Path,
     package_path: &'m Path,
-    publish: bool,
     config: config::Config,
 }
 
-fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
-    let ws_meta = args.manifest.metadata().exec().map_err(FatalError::from)?;
-
-    let package = {
-        let pkg_meta = find_root_package(&ws_meta)?;
-
+impl<'m> Package<'m> {
+    fn load(
+        args: &ReleaseOpt,
+        ws_meta: &'m cargo_metadata::Metadata,
+        pkg_meta: &'m cargo_metadata::Package,
+    ) -> Result<Self, error::FatalError> {
         let manifest_path = pkg_meta.manifest_path.as_path();
         let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
         let release_config = {
             let mut release_config = config::Config::default();
+
             if !args.isolated {
                 let cfg = config::resolve_config(&ws_meta.workspace_root, &manifest_path)?;
                 release_config.update(&cfg);
             }
+
             if let Some(custom_config_path) = args.custom_config.as_ref() {
                 // when calling with -c option
                 let cfg = config::resolve_custom_config(Path::new(custom_config_path))?
                     .unwrap_or_default();
                 release_config.update(&cfg);
-            };
+            }
+
             release_config.update(&args.config);
+
+            // the publish flag in cargo file
+            let cargo_file = cargo::parse_cargo_config(&manifest_path)?;
+            if !cargo_file
+                .get("package")
+                .and_then(|f| f.as_table())
+                .and_then(|f| f.get("publish"))
+                .and_then(|f| f.as_bool())
+                .unwrap_or(true)
+            {
+                release_config.disable_publish = Some(true);
+            }
+
             release_config
         };
 
-        // the publish flag in cargo file
-        let cargo_file = cargo::parse_cargo_config(&manifest_path)?;
-        let publish = cargo_file
-            .get("package")
-            .and_then(|f| f.as_table())
-            .and_then(|f| f.get("publish"))
-            .and_then(|f| f.as_bool())
-            .unwrap_or(!release_config.disable_publish());
-
-        Package {
+        let pkg = Package {
             meta: pkg_meta,
             manifest_path: manifest_path,
             package_path: cwd,
-            publish,
             config: release_config,
-        }
-    };
+        };
+        Ok(pkg)
+    }
+}
+
+fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
+    let ws_meta = args.manifest.metadata().exec().map_err(FatalError::from)?;
+
+    let (selected_pkgs, _excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
+    if selected_pkgs.is_empty() {
+        shell::log_info("No packages selected.");
+        return Ok(0);
+    }
+
+    let pkgs: Result<HashMap<_, _>, _> = selected_pkgs
+        .iter()
+        .map(|p| Package::load(args, &ws_meta, p).map(|p| (&p.meta.id, p)))
+        .collect();
+    let pkgs = pkgs?;
 
     git::git_version()?;
 
@@ -127,7 +131,64 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         }
     }
 
-    release_package(args, &ws_meta, &package)
+    let dep_tree: HashMap<_, _> = ws_meta
+        .resolve
+        .as_ref()
+        .expect("cargo-metadata resolved deps")
+        .nodes
+        .iter()
+        .map(|n| (&n.id, &n.dependencies))
+        .collect();
+
+    let mut processed = HashSet::new();
+
+    for node in ws_meta
+        .resolve
+        .as_ref()
+        .expect("cargo-metadata resolved deps")
+        .nodes
+        .iter()
+    {
+        let code =
+            release_workspace_inner(args, &ws_meta, &node.id, &pkgs, &dep_tree, &mut processed)?;
+        if code != 0 {
+            return Ok(code);
+        }
+    }
+
+    Ok(0)
+}
+
+fn release_workspace_inner<'m>(
+    args: &ReleaseOpt,
+    ws_meta: &'m cargo_metadata::Metadata,
+    pkg_id: &'m cargo_metadata::PackageId,
+    pkgs: &std::collections::HashMap<&'m cargo_metadata::PackageId, Package<'m>>,
+    dep_tree: &std::collections::HashMap<
+        &'m cargo_metadata::PackageId,
+        &'m std::vec::Vec<cargo_metadata::PackageId>,
+    >,
+    processed: &mut std::collections::HashSet<&'m cargo_metadata::PackageId>,
+) -> Result<i32, error::FatalError> {
+    if !processed.insert(pkg_id) {
+        return Ok(0);
+    }
+
+    for dep_id in dep_tree[pkg_id].iter() {
+        let code = release_workspace_inner(args, ws_meta, dep_id, pkgs, dep_tree, processed)?;
+        if code != 0 {
+            return Ok(code);
+        }
+    }
+
+    if let Some(pkg) = pkgs.get(pkg_id) {
+        let code = release_package(args, ws_meta, pkg)?;
+        if code != 0 {
+            return Ok(code);
+        }
+    }
+
+    Ok(0)
 }
 
 fn release_package(
@@ -160,13 +221,19 @@ fn release_package(
         replacements.insert("{{version}}", new_version_string.clone());
         // Release Confirmation
         if !dry_run && !args.no_confirm {
-            let confirmed = shell::confirm(&format!("Release version {} ?", new_version_string));
+            let confirmed = shell::confirm(&format!(
+                "Release version {} {}?",
+                crate_name, new_version_string
+            ));
             if !confirmed {
                 return Ok(0);
             }
         }
 
-        shell::log_info(&format!("Update to version {}", new_version_string));
+        shell::log_info(&format!(
+            "Update {} to version {}",
+            crate_name, new_version_string
+        ));
         if !dry_run {
             cargo::set_package_version(&pkg.manifest_path, &new_version_string)?;
         }
@@ -263,7 +330,10 @@ fn release_package(
             // we use dry_run environmental variable to run the script
             // so here we set dry_run=false and always execute the command.
             if !cmd::call_with_env(pre_rel_hook, envs, cwd, false)? {
-                shell::log_warn("Release aborted by non-zero return of prerelease hook.");
+                shell::log_warn(&format!(
+                    "Release of {} aborted by non-zero return of prerelease hook.",
+                    crate_name
+                ));
                 return Ok(107);
             }
         }
@@ -276,8 +346,8 @@ fn release_package(
     }
 
     // STEP 3: cargo publish
-    if pkg.publish {
-        shell::log_info("Running cargo publish");
+    if !pkg.config.disable_publish() {
+        shell::log_info(&format!("Running cargo publish on {}", crate_name));
         // feature list to release
         let feature_list = if !pkg.config.enable_features().is_empty() {
             Some(pkg.config.enable_features().to_owned())
@@ -302,12 +372,12 @@ fn release_package(
 
     // STEP 4: upload doc
     if pkg.config.upload_doc() {
-        shell::log_info("Building and exporting docs.");
+        shell::log_info(&format!("Building and exporting docs for {}", crate_name));
         cargo::doc(dry_run, &pkg.manifest_path)?;
 
         let doc_path = ws_meta.target_directory.join("doc");
 
-        shell::log_info("Commit and push docs.");
+        shell::log_info(&format!("Commit and push docs for {}", crate_name));
         git::init(&doc_path, dry_run)?;
         git::add_all(&doc_path, dry_run)?;
         git::commit_all(&doc_path, pkg.config.doc_commit_message(), sign, dry_run)?;
@@ -350,7 +420,10 @@ fn release_package(
         version.pre.push(Identifier::AlphaNumeric(
             pkg.config.dev_version_ext().to_owned(),
         ));
-        shell::log_info(&format!("Starting next development iteration {}", version));
+        shell::log_info(&format!(
+            "Starting {}'s next development iteration {}",
+            crate_name, version
+        ));
         let updated_version_string = version.to_string();
         replacements.insert("{{next_version}}", updated_version_string.clone());
         if !dry_run {
@@ -376,7 +449,7 @@ fn release_package(
         }
     }
 
-    shell::log_info("Finished");
+    shell::log_info(&format!("Finished {}", crate_name));
     Ok(0)
 }
 
@@ -394,6 +467,9 @@ pub enum Features {
 struct ReleaseOpt {
     #[structopt(flatten)]
     manifest: clap_cargo::Manifest,
+
+    #[structopt(flatten)]
+    workspace: clap_cargo::Workspace,
 
     /// Release level: bumping specified version field or remove prerelease extensions by default
     #[structopt(
