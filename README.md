@@ -205,9 +205,9 @@ Available configuration keys are:
   * `replace`: the replacement string; you can use the any of the placeholders mentioned above.
 * `pre-release-hook`: provide a command to run before `cargo-release`
   commits version change
-* `features`: Provide a set of feature flags that should be 
+* `enable-features`: Provide a set of feature flags that should be
   passed to `cargo publish` (requires rust 1.33+)
-* `all_features`: Signal to `cargo publish`, that all features should be used (requires rust 1.33+)
+* `enable-all-features`: Signal to `cargo publish`, that all features should be used (requires rust 1.33+)
 
 ```toml
 [package.metadata.release]
