@@ -4,15 +4,11 @@
 [![Build Status](https://travis-ci.org/sunng87/cargo-release.svg?branch=master)](https://travis-ci.org/sunng87/cargo-release)
 [![Donate](https://img.shields.io/badge/donate-liberapay-yellow.svg)](https://liberapay.com/Sunng/donate)
 
-This a script standardize release process of cargo project for you.
+Performs release best-practices, including:
 
-Basically it runs following tasks:
-
-* Check if current working directory is git clean
-* Read version from Cargo.toml, remove pre-release extension, bump
-  version and commit if necessary
+* Ensure the git working directory is clean.
+* Bump the version in Cargo.toml
 * Run `cargo publish` ([if not disabled](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional))
-* Generate rustdoc and push to gh-pages optionally
 * Create a git tag for this version
 * Bump version for next development cycle
 * `git push`
@@ -27,199 +23,18 @@ Current release: 0.12.0-beta.6
 
 `cargo release [level]`
 
+* See the [reference](docs/reference.md) for more on `level`, other CLI
+  arguments, and configuration file format.
+* See also the [FAQ](docs/faq.md) for help in figuring out how to adapt
+  cargo-release to your workflow.
+
 ### Prerequisite
 
 * Your project should be managed by git.
 
-### Release level
-
-Release level is to tell cargo-release how to bump version.
-
-* By default, cargo release removes pre-release extension; if there is
-  no pre-release extension, the current version will be used (0.1.0-pre
-  -> 0.1.0, 0.1.0 -> 0.1.0)
-* If level is `patch` and current version is a pre-release, it behaves
-  like default; if current version has no extension, it bumps patch
-  version (0.1.0 -> 0.1.1)
-* If level is `minor`, it bumps minor version (0.1.0-pre -> 0.2.0)
-* If level is `major`, it bumps major version (0.1.0-pre -> 1.0.0)
-
-From 0.7, you can also use `alpha`, `beta` and `rc` for `level`. It
-adds pre-release to your version. You can have multiple `alpha`
-version as it goes to `alpha.1`, `alpha.2`…
-
-Releasing `alpha` version on top of a `beta` or `rc` version is not
-allowed and will be resulted in error. So does `beta` on `rc`. It is
-recommended to use `--dry-run` if you are not sure about the behavior
-of specific `level`.
-
-### Signing your git commit and tag
-
-Use `--sign` option to GPG sign your release commits and
-tags. [Further
-information](https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work)
-
-### Upload rust doc to github pages
-
-By using `--upload-doc` option, cargo-release will generate rustdoc
-during release process, and commit the doc directory to `gh-pages`
-branch. So you can access your rust doc at
-https://YOUR-GITHUB-USERNAME.github.io/YOUR-REPOSITORY-NAME/YOUR-CRATE-NAME
-
-If your hosting service uses different branch for pages, you can use
-`--doc-branch` to customize the branch we push docs to.
-
-#### WARNING
-
-This option will override your existed doc branch,
-use it at your own risk.
-
-### Tag prefix
-
-For single-crate repository, we will use version number as git tag
-name.
-
-For multi-crate repository, the crate name will be used as tag
-name. For example, when releasing serde_macros 0.7.0 in serde-rs/serde
-repo, a tag named as `serde_macros-0.7.0` will be created.
-
-You can always override this behavior by using `--tag-prefix <prefix>`
-option.
-
-### Custom remote to push
-
-In case your `origin` is not writable, you can specify custom remote
-by `--push-remote` to set the remote to push.
-
-Use `--skip-push` if you do not plan to push to anywhere for now.
-
-### Specifying dev pre-release extension
-
-After release, the version in Cargo.toml will be incremented and have
-a pre-release extension added, defaulting to `alpha.0`.
-
-You can specify a different extension by using the
-`--dev-version-ext <ext>` option. To disable version bump after
-release, use `--no-dev-version` option.
-
-### Update version in README or other files
-
-Cargo-release 0.8 allows you to search and replace version string in
-any project or source file. See `pre-release-replacements` in
-Cargo.toml configuration below.
-
-### Pre-release hook
-
-Since 0.9, you can configure `pre-release-hook` command in
-`release.toml`, for example:
-
-```toml
-pre-release-hook = ["echo", "ok"]
-```
-
-If the return code of hook command is greater than 0, the release
-process will be aborted.
-
-### Maintaining Changelog
-
-At the moment, `cargo release` won't try to generate a changelog from
-git history or anything. Because I think changelog is an important
-communication between developer and users, which requires careful maintenance.
-
-However, you can still use `pre-release-replacements` to smooth your
-process of releasing a changelog, along with your crate. You need to
-keep your changelog arranged during feature development, in an `Unreleased`
-section (recommended by [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)):
-
-```markdown
-## [Unreleased] - ReleaseDate
-### Added
-- feature 3
-
-### Changed
-- bug 1
-
-## [1.0.0] - 2017-06-20
-### Added
-- feature 1
-- feature 2
-```
-
-In `Cargo.toml`, configure `cargo release` to do replacements while
-bumping version:
-
-```toml
-pre-release-replacements = [ {file="CHANGELOG.md", search="Unreleased", replace="{{version}}"}, {file="CHANGELOG.md", search="ReleaseDate", replace="{{date}}"} ]
-```
-
-`{{version}}` and `{{date}}` are pre-defined variables with value of
-current release version and date.
-
-You can find a real world example in a [handlebars-rust release commit](https://github.com/sunng87/handlebars-rust/commit/ca60fce3e1fce68f427d097d0706a7194600b982#diff-80398c5faae3c069e4e6aa2ed11b28c0)
-
-### Configuration in release.toml
-
-You can persist some options in `release.toml` under your project home
-directory, or `.release.toml` at your home directory.
-
-The following placeholders in configuration values will be be replaced with the desired value:
-
-* `{{prev_version}}`: The version before `cargo-release` was executed (before any version bump).
-* `{{version}}`: The current (bumped) crate version.
-* `{{crate_name}}`: The name of the current crate in `Cargo.toml`.
-* `{{date}}`: The current date in `%Y-%m-%d` format.
-
-Available configuration keys are:
-
-* `sign-commit`: bool, use GPG to sign git commits and tag generated by
-  cargo-release
-* `upload-doc`: bool, generate doc and push to remote branch
-* `doc-branch`: string, default branch to push docs
-* `push-remote`: string, default git remote to push
-* `disable-push`: bool, don't do git push
-* `disable-tag`: bool, don't do git tag
-* `disable-publish`: bool, don't do cargo publish right now, see [manifest `publish` field](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional) to permanently disable publish.
-* `dev-version-ext`: string, pre-release extension to use on the next
-  development version.
-* `pre-release-commit-message`: string, a commit message template for
-  release. For example: `"release {{version}}"`, where `{{version}}`
-  will be replaced by actual version.
-* `pro-release-commit-message`: string, a commit message template for
-  bumping version after release. For example: `Released {{version}}, starting
-  {{next_version}}`. The placeholder `{{next_version}}`
-  (the version in git after release) is supported in addition to the global
-  placeholders mentioned above.
-* `tag-message`: string, a message template for tag. The placeholder
-  `{{prefix}}` (the tag prefix) is supported in addition to the global placeholders mentioned above.
-* `tag-prefix`: string, prefix of git tag, note that this will
-  override default prefix based on crate name.
-* `doc-commit-message`: string, a commit message template for doc
-  import.
-* `no-dev-version`: bool, disable version bump after release.
-* `pre-release-replacements`: array of tables, specify files that
-  cargo-release will search and replace with new version, check
-  [Cargo.toml](https://github.com/sunng87/cargo-release/blob/master/Cargo.toml)
-  for example. The table contains three keys:
-  * `file`: the file to search and replace
-  * `search`: regex that matches string you want to replace
-  * `replace`: the replacement string; you can use the any of the placeholders mentioned above.
-* `pre-release-hook`: provide a command to run before `cargo-release`
-  commits version change
-* `features`: Provide a set of feature flags that should be 
-  passed to `cargo publish` (requires rust 1.33+)
-* `all_features`: Signal to `cargo publish`, that all features should be used (requires rust 1.33+)
-
-```toml
-[package.metadata.release]
-sign-commit = true
-upload-doc = true
-pre-release-commit-message = "Release {{version}} 🎉🎉"
-pre-release-replacements = [ {file="README.md", search="Current release: [a-z0-9\\.-]+", replace="Current release: {{version}}"} , {file ="Cargo.toml", search="branch=\"[a-z0-9\\.-]+\"", replace="branch=\"{{version}}\""} ]
-```
-
 ### Dry run
 
-Always call `cargo release --dry-run` with your custom options before
+We recommend calling `cargo release --dry-run` with your custom options before
 actually executing it. The dry-run mode will print all commands to
 execute during the release process. And you will get an overview of
 what's going on.
