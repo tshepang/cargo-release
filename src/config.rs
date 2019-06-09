@@ -64,6 +64,10 @@ pub trait ConfigSource {
         None
     }
 
+    fn tag_name(&self) -> Option<&str> {
+        None
+    }
+
     fn doc_commit_message(&self) -> Option<&str> {
         None
     }
@@ -103,6 +107,7 @@ pub struct Config {
     pub pre_release_hook: Option<Command>,
     pub tag_message: Option<String>,
     pub tag_prefix: Option<String>,
+    pub tag_name: Option<String>,
     pub doc_commit_message: Option<String>,
     pub disable_tag: Option<bool>,
     pub enable_features: Option<Vec<String>>,
@@ -153,6 +158,9 @@ impl Config {
         }
         if let Some(tag_prefix) = source.tag_prefix() {
             self.tag_prefix = Some(tag_prefix.to_owned());
+        }
+        if let Some(tag_name) = source.tag_name() {
+            self.tag_name = Some(tag_name.to_owned());
         }
         if let Some(doc_commit_message) = source.doc_commit_message() {
             self.doc_commit_message = Some(doc_commit_message.to_owned());
@@ -248,6 +256,13 @@ impl Config {
         self.tag_prefix.as_ref().map(|s| s.as_str())
     }
 
+    pub fn tag_name(&self) -> &str {
+        self.tag_name
+            .as_ref()
+            .map(|s| s.as_str())
+            .unwrap_or("{{prefix}}{{version}}")
+    }
+
     pub fn doc_commit_message(&self) -> &str {
         self.doc_commit_message
             .as_ref()
@@ -330,6 +345,10 @@ impl ConfigSource for Config {
 
     fn tag_prefix(&self) -> Option<&str> {
         self.tag_prefix.as_ref().map(|s| s.as_str())
+    }
+
+    fn tag_name(&self) -> Option<&str> {
+        self.tag_name.as_ref().map(|s| s.as_str())
     }
 
     fn doc_commit_message(&self) -> Option<&str> {
