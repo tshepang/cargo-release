@@ -74,6 +74,7 @@ The following placeholders in configuration values will be be replaced with the 
 
 * `{{prev_version}}`: The version before `cargo-release` was executed (before any version bump).
 * `{{version}}`: The current (bumped) crate version.
+* `{{next_version}}` (only valid for `pro-release-commit-message): The crate version for starting development.
 * `{{crate_name}}`: The name of the current crate in `Cargo.toml`.
 * `{{date}}`: The current date in `%Y-%m-%d` format.
 * `{{prefix}}` (only valid for `tag-name` / `tag-message`): The value prepended to the tag name.
