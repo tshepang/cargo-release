@@ -399,10 +399,10 @@ fn release_package(
         }
     });
     let tag_prefix = replace_in(&tag_prefix, &replacements);
-
     replacements.insert("{{prefix}}", tag_prefix.clone());
 
-    let tag_name = format!("{}{}", tag_prefix, version);
+    let tag_name = replace_in(pkg.config.tag_name(), &replacements);
+    replacements.insert("{{tag_name}}", tag_name.clone());
 
     if !pkg.config.disable_tag() {
         let tag_message = replace_in(pkg.config.tag_message(), &replacements);
@@ -549,6 +549,10 @@ struct ConfigArgs {
     /// Prefix of git tag, note that this will override default prefix based on sub-directory
     tag_prefix: Option<String>,
 
+    #[structopt(long = "tag-name")]
+    /// The name of the git tag.
+    tag_name: Option<String>,
+
     #[structopt(long = "dev-version-ext")]
     /// Pre-release identifier(s) to append to the next development version after release
     dev_version_ext: Option<String>,
@@ -601,6 +605,10 @@ impl config::ConfigSource for ConfigArgs {
 
     fn tag_prefix(&self) -> Option<&str> {
         self.tag_prefix.as_ref().map(|s| s.as_str())
+    }
+
+    fn tag_name(&self) -> Option<&str> {
+        self.tag_name.as_ref().map(|s| s.as_str())
     }
 
     fn disable_tag(&self) -> Option<bool> {
