@@ -260,7 +260,7 @@ impl Config {
         self.tag_name
             .as_ref()
             .map(|s| s.as_str())
-            .unwrap_or("{{prefix}}{{version}}")
+            .unwrap_or("{{prefix}}v{{version}}")
     }
 
     pub fn doc_commit_message(&self) -> &str {
