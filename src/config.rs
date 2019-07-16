@@ -116,7 +116,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn update(&mut self, source: &ConfigSource) {
+    pub fn update(&mut self, source: &dyn ConfigSource) {
         if let Some(sign_commit) = source.sign_commit() {
             self.sign_commit = Some(sign_commit);
         }
