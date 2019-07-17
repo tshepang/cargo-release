@@ -1,6 +1,6 @@
 # Change Log
 
-## [Unreleased] - ReleaseDate
+## [0.12.1] - 2019-07-18
 
 ### Changed
 
