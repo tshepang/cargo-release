@@ -15,7 +15,7 @@ Performs release best-practices, including:
 
 ## Install
 
-Current release: 0.12.0-beta.6
+Current release: 0.12.0
 
 `cargo install cargo-release`
 
