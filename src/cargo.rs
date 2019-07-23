@@ -102,7 +102,11 @@ pub fn set_dependency_version(
     {
         let manifest = load_from_file(manifest_path)?;
         let mut manifest: toml_edit::Document = manifest.parse().map_err(FatalError::from)?;
-        manifest["dependencies"][name]["version"] = toml_edit::value(version);
+        for key in &["dependencies", "dev-dependencies", "build-dependencies"] {
+            if manifest.as_table().contains_key(key) {
+                manifest[key][name]["version"] = toml_edit::value(version);
+            }
+        }
 
         let mut file_out = File::create(&temp_manifest_path).map_err(FatalError::from)?;
         file_out
@@ -184,7 +188,7 @@ mod test {
         use super::*;
 
         #[test]
-        fn succeeds() {
+        fn dependencies() {
             let temp = assert_fs::TempDir::new().unwrap();
             temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
             let manifest_path = temp.child("Cargo.toml");
@@ -215,6 +219,144 @@ mod test {
     edition = "2018"
 
     [dependencies]
+    foo = { version = "2.0", path = "../" }
+    "#,
+                )
+                .from_utf8()
+                .from_file_path(),
+            );
+
+            temp.close().unwrap();
+        }
+
+        #[test]
+        fn dev_dependencies() {
+            let temp = assert_fs::TempDir::new().unwrap();
+            temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+            let manifest_path = temp.child("Cargo.toml");
+            manifest_path
+                .write_str(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [dev-dependencies]
+    foo = { version = "1.0", path = "../" }
+    "#,
+                )
+                .unwrap();
+
+            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+
+            manifest_path.assert(
+                predicate::str::similar(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [dev-dependencies]
+    foo = { version = "2.0", path = "../" }
+    "#,
+                )
+                .from_utf8()
+                .from_file_path(),
+            );
+
+            temp.close().unwrap();
+        }
+
+        #[test]
+        fn build_dependencies() {
+            let temp = assert_fs::TempDir::new().unwrap();
+            temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+            let manifest_path = temp.child("Cargo.toml");
+            manifest_path
+                .write_str(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [build-dependencies]
+    foo = { version = "1.0", path = "../" }
+    "#,
+                )
+                .unwrap();
+
+            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+
+            manifest_path.assert(
+                predicate::str::similar(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [build-dependencies]
+    foo = { version = "2.0", path = "../" }
+    "#,
+                )
+                .from_utf8()
+                .from_file_path(),
+            );
+
+            temp.close().unwrap();
+        }
+
+        #[test]
+        fn all_dependencies() {
+            let temp = assert_fs::TempDir::new().unwrap();
+            temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+            let manifest_path = temp.child("Cargo.toml");
+            manifest_path
+                .write_str(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [dependencies]
+    foo = { version = "1.0", path = "../" }
+
+    [build-dependencies]
+    foo = { version = "1.0", path = "../" }
+
+    [dev-dependencies]
+    foo = { version = "1.0", path = "../" }
+    "#,
+                )
+                .unwrap();
+
+            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+
+            manifest_path.assert(
+                predicate::str::similar(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [dependencies]
+    foo = { version = "2.0", path = "../" }
+
+    [build-dependencies]
+    foo = { version = "2.0", path = "../" }
+
+    [dev-dependencies]
     foo = { version = "2.0", path = "../" }
     "#,
                 )
