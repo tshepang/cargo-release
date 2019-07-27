@@ -104,7 +104,14 @@ pub fn set_dependency_version(
         let mut manifest: toml_edit::Document = manifest.parse().map_err(FatalError::from)?;
         for key in &["dependencies", "dev-dependencies", "build-dependencies"] {
             if manifest.as_table().contains_key(key) {
-                manifest[key][name]["version"] = toml_edit::value(version);
+                if manifest[key]
+                    .as_table()
+                    .expect("manifest is already verified")
+                    .contains_key(name)
+                {
+                    println!("Adding to {}", key);
+                    manifest[key][name]["version"] = toml_edit::value(version);
+                }
             }
         }
 
@@ -201,6 +208,8 @@ mod test {
     authors = []
     edition = "2018"
 
+    [build-dependencies]
+
     [dependencies]
     foo = { version = "1.0", path = "../" }
     "#,
@@ -217,6 +226,8 @@ mod test {
     version = "0.1.0"
     authors = []
     edition = "2018"
+
+    [build-dependencies]
 
     [dependencies]
     foo = { version = "2.0", path = "../" }
@@ -243,6 +254,8 @@ mod test {
     authors = []
     edition = "2018"
 
+    [dependencies]
+
     [dev-dependencies]
     foo = { version = "1.0", path = "../" }
     "#,
@@ -259,6 +272,8 @@ mod test {
     version = "0.1.0"
     authors = []
     edition = "2018"
+
+    [dependencies]
 
     [dev-dependencies]
     foo = { version = "2.0", path = "../" }
@@ -285,6 +300,8 @@ mod test {
     authors = []
     edition = "2018"
 
+    [dev-dependencies]
+
     [build-dependencies]
     foo = { version = "1.0", path = "../" }
     "#,
@@ -301,6 +318,8 @@ mod test {
     version = "0.1.0"
     authors = []
     edition = "2018"
+
+    [dev-dependencies]
 
     [build-dependencies]
     foo = { version = "2.0", path = "../" }
