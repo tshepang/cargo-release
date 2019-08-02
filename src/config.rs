@@ -231,7 +231,7 @@ impl Config {
         self.pro_release_commit_message
             .as_ref()
             .map(|s| s.as_str())
-            .unwrap_or("(cargo-release) start next development iteration {{version}}")
+            .unwrap_or("(cargo-release) start next development iteration {{next_version}}")
     }
 
     pub fn pre_release_replacements(&self) -> &[Replace] {
