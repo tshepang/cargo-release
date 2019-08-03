@@ -1,5 +1,17 @@
 # Change Log
 
+## [0.12.4] - 2019-08-03
+
+### Changed
+
+* Fixed commit message after release #136
+
+## [0.12.3] - 2019-07-28
+
+### Changed
+
+* Only update dependents when needed #135
+
 ## [0.12.2] - 2019-07-24
 
 ### Changed
