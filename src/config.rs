@@ -44,7 +44,12 @@ pub trait ConfigSource {
         None
     }
 
+    // depreacted
     fn pro_release_commit_message(&self) -> Option<&str> {
+        None
+    }
+
+    fn post_release_commit_message(&self) -> Option<&str> {
         None
     }
 
@@ -102,7 +107,9 @@ pub struct Config {
     pub dev_version_ext: Option<String>,
     pub no_dev_version: Option<bool>,
     pub pre_release_commit_message: Option<String>,
+    // depreacted
     pub pro_release_commit_message: Option<String>,
+    pub post_release_commit_message: Option<String>,
     pub pre_release_replacements: Option<Vec<Replace>>,
     pub pre_release_hook: Option<Command>,
     pub tag_message: Option<String>,
@@ -144,8 +151,13 @@ impl Config {
         if let Some(pre_release_commit_message) = source.pre_release_commit_message() {
             self.pre_release_commit_message = Some(pre_release_commit_message.to_owned());
         }
+        // depreacted
         if let Some(pro_release_commit_message) = source.pro_release_commit_message() {
-            self.pro_release_commit_message = Some(pro_release_commit_message.to_owned());
+            println!("[warning] pro_release_commit_message is deprecated, use post-release-commit-message instead");
+            self.post_release_commit_message = Some(pro_release_commit_message.to_owned());
+        }
+        if let Some(post_release_commit_message) = source.post_release_commit_message() {
+            self.post_release_commit_message = Some(post_release_commit_message.to_owned());
         }
         if let Some(pre_release_replacements) = source.pre_release_replacements() {
             self.pre_release_replacements = Some(pre_release_replacements.to_owned());
@@ -227,8 +239,8 @@ impl Config {
             .unwrap_or("(cargo-release) version {{version}}")
     }
 
-    pub fn pro_release_commit_message(&self) -> &str {
-        self.pro_release_commit_message
+    pub fn post_release_commit_message(&self) -> &str {
+        self.post_release_commit_message
             .as_ref()
             .map(|s| s.as_str())
             .unwrap_or("(cargo-release) start next development iteration {{next_version}}")
@@ -327,8 +339,15 @@ impl ConfigSource for Config {
         self.pre_release_commit_message.as_ref().map(|s| s.as_str())
     }
 
+    // deprecated
     fn pro_release_commit_message(&self) -> Option<&str> {
         self.pro_release_commit_message.as_ref().map(|s| s.as_str())
+    }
+
+    fn post_release_commit_message(&self) -> Option<&str> {
+        self.post_release_commit_message
+            .as_ref()
+            .map(|s| s.as_str())
     }
 
     fn pre_release_replacements(&self) -> Option<&[Replace]> {

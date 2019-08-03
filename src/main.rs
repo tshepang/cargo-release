@@ -430,7 +430,7 @@ fn release_package(
             cargo::set_package_version(&pkg.manifest_path, &updated_version_string)?;
             cargo::update_lock(&pkg.manifest_path)?;
         }
-        let commit_msg = replace_in(pkg.config.pro_release_commit_message(), &replacements);
+        let commit_msg = replace_in(pkg.config.post_release_commit_message(), &replacements);
 
         if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
             return Ok(105);
