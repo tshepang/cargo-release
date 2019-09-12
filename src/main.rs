@@ -124,7 +124,7 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
     git::git_version()?;
 
-    if !git::status(&ws_meta.workspace_root)? {
+    if git::is_dirty(&ws_meta.workspace_root)? {
         shell::log_warn("Uncommitted changes detected, please commit before release.");
         if !args.dry_run {
             return Ok(101);
