@@ -5,7 +5,7 @@ use std::process::Command;
 use crate::cmd::call_on_path;
 use crate::error::FatalError;
 
-pub fn status(dir: &Path) -> Result<bool, FatalError> {
+pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
     let output = Command::new("git")
         .arg("diff")
         .arg("HEAD")
@@ -13,7 +13,19 @@ pub fn status(dir: &Path) -> Result<bool, FatalError> {
         .current_dir(dir)
         .output()
         .map_err(FatalError::from)?;
-    Ok(output.status.success())
+    let tracked_unclean = !output.status.success();
+
+    let output = Command::new("git")
+        .arg("ls-files")
+        .arg("--exclude-standard")
+        .arg("--others")
+        .current_dir(dir)
+        .output()
+        .map_err(FatalError::from)?;
+    let untracked_files = String::from_utf8_lossy(&output.stdout);
+    let untracked = !untracked_files.as_ref().trim().is_empty();
+
+    Ok(tracked_unclean || untracked)
 }
 
 pub fn commit_all(dir: &Path, msg: &str, sign: bool, dry_run: bool) -> Result<bool, FatalError> {
