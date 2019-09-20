@@ -153,7 +153,9 @@ impl Config {
         }
         // depreacted
         if let Some(pro_release_commit_message) = source.pro_release_commit_message() {
-            println!("[warning] pro_release_commit_message is deprecated, use post-release-commit-message instead");
+            log::warn!(
+                "pro_release_commit_message is deprecated, use post-release-commit-message instead"
+            );
             self.post_release_commit_message = Some(pro_release_commit_message.to_owned());
         }
         if let Some(post_release_commit_message) = source.post_release_commit_message() {

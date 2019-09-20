@@ -109,7 +109,6 @@ pub fn set_dependency_version(
                     .expect("manifest is already verified")
                     .contains_key(name)
             {
-                println!("Adding to {}", key);
                 manifest[key][name]["version"] = toml_edit::value(version);
             }
         }

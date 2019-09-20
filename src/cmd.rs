@@ -13,12 +13,9 @@ fn do_call(
 ) -> Result<bool, FatalError> {
     if dry_run {
         if path.is_some() {
-            println!("cd {}", path.unwrap().display());
+            log::trace!("cd {}", path.unwrap().display());
         }
-        println!("{}", command.join(" "));
-        if path.is_some() {
-            println!("cd -");
-        }
+        log::trace!("{}", command.join(" "));
         return Ok(true);
     }
     let mut iter = command.iter();

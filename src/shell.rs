@@ -2,7 +2,7 @@ use std::io::{stdin, stdout, Write};
 
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-pub fn console_println(text: &str, color: Option<Color>, bold: bool) {
+fn console_println(text: &str, color: Option<Color>, bold: bool) {
     let mut stdout = StandardStream::stdout(ColorChoice::Auto);
     stdout.reset().unwrap();
     // unwrap the result, panic if error
@@ -22,12 +22,4 @@ pub fn confirm(prompt: &str) -> bool {
     stdin().read_line(&mut input).expect("y/n required");
 
     input.trim().to_lowercase() == "y"
-}
-
-pub fn log_info(text: &str) {
-    console_println(text, Some(Color::Green), false);
-}
-
-pub fn log_warn(text: &str) {
-    console_println(text, Some(Color::Red), true);
 }
