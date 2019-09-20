@@ -10,6 +10,7 @@ pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
         .arg("diff")
         .arg("HEAD")
         .arg("--exit-code")
+        .arg("--name-only")
         .current_dir(dir)
         .output()
         .map_err(FatalError::from)?;
@@ -26,6 +27,23 @@ pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
     let untracked = !untracked_files.as_ref().trim().is_empty();
 
     Ok(tracked_unclean || untracked)
+}
+
+pub fn changed_from(dir: &Path, tag: &str) -> Result<Option<bool>, FatalError> {
+    let output = Command::new("git")
+        .arg("diff")
+        .arg(&format!("{}..HEAD", tag))
+        .arg("--name-only")
+        .arg("--exit-code")
+        .arg(".")
+        .current_dir(dir)
+        .output()
+        .map_err(FatalError::from)?;
+    match output.status.code() {
+        Some(0) => Ok(Some(false)),
+        Some(1) => Ok(Some(true)),
+        _ => Ok(None), // For cases like non-existent tag
+    }
 }
 
 pub fn commit_all(dir: &Path, msg: &str, sign: bool, dry_run: bool) -> Result<bool, FatalError> {

@@ -212,11 +212,40 @@ fn release_package(
     replacements.insert("{{crate_name}}", crate_name.to_owned());
     replacements.insert("{{date}}", Local::now().format("%Y-%m-%d").to_string());
 
+    let root = git::top_level(cwd)?;
+    let is_root = root == cwd;
+    let tag_prefix = pkg.config.tag_prefix().unwrap_or_else(|| {
+        // crate_name as default tag prefix for multi-crate project
+        if !is_root {
+            "{{crate_name}}-"
+        } else {
+            ""
+        }
+    });
+    let tag_prefix = replace_in(&tag_prefix, &replacements);
+    replacements.insert("{{prefix}}", tag_prefix.clone());
+
     // STEP 2: update current version, save and commit
     if args
         .level
         .bump_version(&mut version, args.metadata.as_ref())?
     {
+        // Must run before `{{version}}` gets updated with the next version
+        let prev_tag_name = replace_in(pkg.config.tag_name(), &replacements);
+        if let Some(changed) = git::changed_from(cwd, &prev_tag_name)? {
+            if !changed {
+                shell::log_warn(&format!(
+                    "Releasing {} despite no changes made since tag {}",
+                    crate_name, prev_tag_name
+                ));
+            }
+        } else {
+            shell::log_info(&format!(
+                "Cannot detect changes for {} because tag {} is missing",
+                crate_name, prev_tag_name
+            ));
+        }
+
         let new_version_string = version.to_string();
         replacements.insert("{{version}}", new_version_string.clone());
         // Release Confirmation
@@ -388,19 +417,6 @@ fn release_package(
     }
 
     // STEP 5: Tag
-    let root = git::top_level(cwd)?;
-    let is_root = root == cwd;
-    let tag_prefix = pkg.config.tag_prefix().unwrap_or_else(|| {
-        // crate_name as default tag prefix for multi-crate project
-        if !is_root {
-            "{{crate_name}}-"
-        } else {
-            ""
-        }
-    });
-    let tag_prefix = replace_in(&tag_prefix, &replacements);
-    replacements.insert("{{prefix}}", tag_prefix.clone());
-
     let tag_name = replace_in(pkg.config.tag_name(), &replacements);
     replacements.insert("{{tag_name}}", tag_name.clone());
 
