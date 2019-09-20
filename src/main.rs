@@ -510,7 +510,7 @@ struct ReleaseOpt {
     #[structopt(flatten)]
     config: ConfigArgs,
 
-    #[structopt(long)]
+    #[structopt(short = "n", long)]
     /// Do not actually change anything, just log what are going to do
     dry_run: bool,
 
