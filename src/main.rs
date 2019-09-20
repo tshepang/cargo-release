@@ -99,7 +99,7 @@ impl<'m> Package<'m> {
 
         let pkg = Package {
             meta: pkg_meta,
-            manifest_path: manifest_path,
+            manifest_path,
             package_path: cwd,
             config: release_config,
         };
