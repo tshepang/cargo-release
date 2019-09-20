@@ -489,10 +489,8 @@ struct ReleaseOpt {
 
     /// Release level: bumping specified version field or remove prerelease extensions by default
     #[structopt(
-        raw(
-            possible_values = "&version::BumpLevel::variants()",
-            case_insensitive = "true"
-        ),
+        possible_values(&version::BumpLevel::variants()),
+        case_insensitive(true),
         default_value = "release"
     )]
     level: version::BumpLevel,
@@ -549,10 +547,8 @@ struct ConfigArgs {
 
     #[structopt(
         long = "dependent-version",
-        raw(
-            possible_values = "&config::DependentVersion::variants()",
-            case_insensitive = "true"
-        )
+            possible_values(&config::DependentVersion::variants()),
+            case_insensitive(true),
     )]
     /// Specify how workspace dependencies on this crate should be handed.
     dependent_version: Option<config::DependentVersion>,
