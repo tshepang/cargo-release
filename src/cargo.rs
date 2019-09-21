@@ -231,8 +231,8 @@ mod test {
     [package.metadata.release]
     "#,
                 )
-                    .from_utf8()
-                    .from_file_path(),
+                .from_utf8()
+                .from_file_path(),
             );
 
             temp.close().unwrap();
