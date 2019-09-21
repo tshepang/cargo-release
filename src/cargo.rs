@@ -81,7 +81,7 @@ pub fn set_package_version(manifest_path: &Path, version: &str) -> Result<(), Fa
 
         let mut file_out = File::create(&temp_manifest_path).map_err(FatalError::from)?;
         file_out
-            .write(manifest.to_string().as_bytes())
+            .write(manifest.to_string_in_original_order().as_bytes())
             .map_err(FatalError::from)?;
     }
     fs::rename(temp_manifest_path, manifest_path)?;
@@ -115,7 +115,7 @@ pub fn set_dependency_version(
 
         let mut file_out = File::create(&temp_manifest_path).map_err(FatalError::from)?;
         file_out
-            .write(manifest.to_string().as_bytes())
+            .write(manifest.to_string_in_original_order().as_bytes())
             .map_err(FatalError::from)?;
     }
     fs::rename(temp_manifest_path, manifest_path)?;
@@ -191,6 +191,52 @@ mod test {
 
     mod set_dependency_version {
         use super::*;
+
+        #[test]
+        fn preserve_table_order() {
+            let temp = assert_fs::TempDir::new().unwrap();
+            temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+            let manifest_path = temp.child("Cargo.toml");
+            manifest_path
+                .write_str(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [dependencies]
+    foo = { version = "1.0", path = "../" }
+
+    [package.metadata.release]
+    "#,
+                )
+                .unwrap();
+
+            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+
+            manifest_path.assert(
+                predicate::str::similar(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [dependencies]
+    foo = { version = "2.0", path = "../" }
+
+    [package.metadata.release]
+    "#,
+                )
+                .from_utf8()
+                .from_file_path(),
+            );
+
+            temp.close().unwrap();
+        }
 
         #[test]
         fn dependencies() {
