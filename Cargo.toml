@@ -27,6 +27,8 @@ boolinator = "2.4"
 structopt = {version = "0.3.0", default-features = false}
 clap = { version = "2", default-features = false }
 clap-cargo = { version = "0.2", features = ["cargo_metadata"] }
+log = "0.4"
+env_logger = "0.6"
 
 [dev-dependencies]
 assert_fs = "0.11"

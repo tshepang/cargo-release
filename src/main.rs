@@ -112,7 +112,7 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
     let (selected_pkgs, _excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
     if selected_pkgs.is_empty() {
-        shell::log_info("No packages selected.");
+        log::info!("No packages selected.");
         return Ok(0);
     }
 
@@ -125,7 +125,7 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     git::git_version()?;
 
     if git::is_dirty(&ws_meta.workspace_root)? {
-        shell::log_warn("Uncommitted changes detected, please commit before release.");
+        log::warn!("Uncommitted changes detected, please commit before release.");
         if !args.dry_run {
             return Ok(101);
         }
@@ -234,16 +234,18 @@ fn release_package(
         let prev_tag_name = replace_in(pkg.config.tag_name(), &replacements);
         if let Some(changed) = git::changed_from(cwd, &prev_tag_name)? {
             if !changed {
-                shell::log_warn(&format!(
+                log::warn!(
                     "Releasing {} despite no changes made since tag {}",
-                    crate_name, prev_tag_name
-                ));
+                    crate_name,
+                    prev_tag_name
+                );
             }
         } else {
-            shell::log_info(&format!(
+            log::info!(
                 "Cannot detect changes for {} because tag {} is missing",
-                crate_name, prev_tag_name
-            ));
+                crate_name,
+                prev_tag_name
+            );
         }
 
         let new_version_string = version.to_string();
@@ -259,10 +261,7 @@ fn release_package(
             }
         }
 
-        shell::log_info(&format!(
-            "Update {} to version {}",
-            crate_name, new_version_string
-        ));
+        log::info!("Update {} to version {}", crate_name, new_version_string);
         if !dry_run {
             cargo::set_package_version(&pkg.manifest_path, &new_version_string)?;
         }
@@ -272,18 +271,24 @@ fn release_package(
                 config::DependentVersion::Ignore => (),
                 config::DependentVersion::Warn => {
                     if !dep.req.matches(&version) {
-                        shell::log_warn(&format!(
+                        log::warn!(
                             "{}'s dependency on {} `{}` is incompatible with {}",
-                            dep_pkg.name, pkg.meta.name, dep.req, new_version_string
-                        ));
+                            dep_pkg.name,
+                            pkg.meta.name,
+                            dep.req,
+                            new_version_string
+                        );
                     }
                 }
                 config::DependentVersion::Error => {
                     if !dep.req.matches(&version) {
-                        shell::log_warn(&format!(
+                        log::warn!(
                             "{}'s dependency on {} `{}` is incompatible with {}",
-                            dep_pkg.name, pkg.meta.name, dep.req, new_version_string
-                        ));
+                            dep_pkg.name,
+                            pkg.meta.name,
+                            dep.req,
+                            new_version_string
+                        );
                         dependents_failed = true;
                     }
                 }
@@ -292,9 +297,12 @@ fn release_package(
                         let new_req = version::set_requirement(&dep.req, &version)?;
                         if let Some(new_req) = new_req {
                             if dry_run {
-                                println!(
+                                log::info!(
                                     "Fixing {}'s dependency on {} to `{}` (from `{}`)",
-                                    dep_pkg.name, pkg.meta.name, new_req, dep.req
+                                    dep_pkg.name,
+                                    pkg.meta.name,
+                                    new_req,
+                                    dep.req
                                 );
                             } else {
                                 cargo::set_dependency_version(
@@ -310,9 +318,12 @@ fn release_package(
                     let new_req = version::set_requirement(&dep.req, &version)?;
                     if let Some(new_req) = new_req {
                         if dry_run {
-                            println!(
+                            log::info!(
                                 "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
-                                dep_pkg.name, pkg.meta.name, new_req, dep.req
+                                dep_pkg.name,
+                                pkg.meta.name,
+                                new_req,
+                                dep.req
                             );
                         } else {
                             cargo::set_dependency_version(
@@ -329,7 +340,7 @@ fn release_package(
             return Ok(110);
         }
         if dry_run {
-            println!("Updating lock file");
+            log::debug!("Updating lock file");
         } else {
             cargo::update_lock(&pkg.manifest_path)?;
         }
@@ -347,7 +358,7 @@ fn release_package(
         // pre-release hook
         if let Some(pre_rel_hook) = pkg.config.pre_release_hook() {
             let pre_rel_hook = pre_rel_hook.args();
-            shell::log_info(&format!("Calling pre-release hook: {:?}", pre_rel_hook));
+            log::debug!("Calling pre-release hook: {:?}", pre_rel_hook);
             let envs = btreemap! {
                 OsStr::new("PREV_VERSION") => prev_version_string.as_ref(),
                 OsStr::new("NEW_VERSION") => new_version_string.as_ref(),
@@ -359,10 +370,10 @@ fn release_package(
             // we use dry_run environmental variable to run the script
             // so here we set dry_run=false and always execute the command.
             if !cmd::call_with_env(pre_rel_hook, envs, cwd, false)? {
-                shell::log_warn(&format!(
+                log::warn!(
                     "Release of {} aborted by non-zero return of prerelease hook.",
                     crate_name
-                ));
+                );
                 return Ok(107);
             }
         }
@@ -376,7 +387,7 @@ fn release_package(
 
     // STEP 3: cargo publish
     if !pkg.config.disable_publish() {
-        shell::log_info(&format!("Running cargo publish on {}", crate_name));
+        log::info!("Running cargo publish on {}", crate_name);
         // feature list to release
         let feature_list = if !pkg.config.enable_features().is_empty() {
             Some(pkg.config.enable_features().to_owned())
@@ -401,12 +412,12 @@ fn release_package(
 
     // STEP 4: upload doc
     if pkg.config.upload_doc() {
-        shell::log_info(&format!("Building and exporting docs for {}", crate_name));
+        log::info!("Building and exporting docs for {}", crate_name);
         cargo::doc(dry_run, &pkg.manifest_path)?;
 
         let doc_path = ws_meta.target_directory.join("doc");
 
-        shell::log_info(&format!("Commit and push docs for {}", crate_name));
+        log::info!("Commit and push docs for {}", crate_name);
         git::init(&doc_path, dry_run)?;
         git::add_all(&doc_path, dry_run)?;
         git::commit_all(&doc_path, pkg.config.doc_commit_message(), sign, dry_run)?;
@@ -423,7 +434,7 @@ fn release_package(
     if !pkg.config.disable_tag() {
         let tag_message = replace_in(pkg.config.tag_message(), &replacements);
 
-        shell::log_info(&format!("Creating git tag {}", tag_name));
+        log::debug!("Creating git tag {}", tag_name);
         if !git::tag(cwd, &tag_name, &tag_message, sign, dry_run)? {
             // tag failed, abort release
             return Ok(104);
@@ -436,10 +447,11 @@ fn release_package(
         version.pre.push(Identifier::AlphaNumeric(
             pkg.config.dev_version_ext().to_owned(),
         ));
-        shell::log_info(&format!(
+        log::info!(
             "Starting {}'s next development iteration {}",
-            crate_name, version
-        ));
+            crate_name,
+            version
+        );
         let updated_version_string = version.to_string();
         replacements.insert("{{next_version}}", updated_version_string.clone());
         if !dry_run {
@@ -455,7 +467,7 @@ fn release_package(
 
     // STEP 7: git push
     if !pkg.config.disable_push() {
-        shell::log_info("Pushing to git remote");
+        log::info!("Pushing to git remote");
         let git_remote = pkg.config.push_remote();
         if !git::push(cwd, git_remote, dry_run)? {
             return Ok(106);
@@ -465,7 +477,7 @@ fn release_package(
         }
     }
 
-    shell::log_info(&format!("Finished {}", crate_name));
+    log::info!("Finished {}", crate_name);
     Ok(0)
 }
 
@@ -517,6 +529,32 @@ struct ReleaseOpt {
     #[structopt(long)]
     /// Skip release confirmation and version preview
     no_confirm: bool,
+
+    #[structopt(flatten)]
+    logging: Verbosity,
+}
+
+#[derive(StructOpt, Debug, Clone)]
+pub struct Verbosity {
+    /// Pass many times for more log output
+    ///
+    /// By default, it'll only report errors. Passing `-v` one time also prints
+    /// warnings, `-vv` enables info logging, `-vvv` debug, and `-vvvv` trace.
+    #[structopt(long = "verbosity", short = "v", parse(from_occurrences))]
+    verbosity: u8,
+}
+
+impl Verbosity {
+    /// Get the log level.
+    pub fn log_level(&self) -> log::Level {
+        match self.verbosity {
+            0 => log::Level::Error,
+            1 => log::Level::Warn,
+            2 => log::Level::Info,
+            3 => log::Level::Debug,
+            _ => log::Level::Trace,
+        }
+    }
 }
 
 #[derive(Debug, StructOpt)]
@@ -651,12 +689,28 @@ enum Command {
     Release(ReleaseOpt),
 }
 
+pub fn get_logging(level: log::Level) -> env_logger::Builder {
+    let mut builder = env_logger::Builder::new();
+
+    builder.filter(None, level.to_level_filter());
+
+    builder
+        .default_format_timestamp(false)
+        .default_format_module_path(false);
+
+    builder
+}
+
 fn main() {
     let Command::Release(ref release_matches) = Command::from_args();
+
+    let mut builder = get_logging(release_matches.logging.log_level());
+    builder.init();
+
     match release_workspace(release_matches) {
         Ok(code) => exit(code),
         Err(e) => {
-            shell::log_warn(&format!("Fatal: {}", e));
+            log::warn!("Fatal: {}", e);
             exit(128);
         }
     }
