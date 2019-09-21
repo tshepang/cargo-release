@@ -103,15 +103,14 @@ pub fn set_dependency_version(
         let manifest = load_from_file(manifest_path)?;
         let mut manifest: toml_edit::Document = manifest.parse().map_err(FatalError::from)?;
         for key in &["dependencies", "dev-dependencies", "build-dependencies"] {
-            if manifest.as_table().contains_key(key) {
-                if manifest[key]
+            if manifest.as_table().contains_key(key)
+                && manifest[key]
                     .as_table()
                     .expect("manifest is already verified")
                     .contains_key(name)
-                {
-                    println!("Adding to {}", key);
-                    manifest[key][name]["version"] = toml_edit::value(version);
-                }
+            {
+                println!("Adding to {}", key);
+                manifest[key][name]["version"] = toml_edit::value(version);
             }
         }
 

@@ -99,7 +99,7 @@ impl<'m> Package<'m> {
 
         let pkg = Package {
             meta: pkg_meta,
-            manifest_path: manifest_path,
+            manifest_path,
             package_path: cwd,
             config: release_config,
         };
@@ -489,10 +489,8 @@ struct ReleaseOpt {
 
     /// Release level: bumping specified version field or remove prerelease extensions by default
     #[structopt(
-        raw(
-            possible_values = "&version::BumpLevel::variants()",
-            case_insensitive = "true"
-        ),
+        possible_values(&version::BumpLevel::variants()),
+        case_insensitive(true),
         default_value = "release"
     )]
     level: version::BumpLevel,
@@ -505,83 +503,81 @@ struct ReleaseOpt {
     /// Custom config file
     custom_config: Option<String>,
 
-    #[structopt(long = "isolated")]
+    #[structopt(long)]
     /// Ignore implicit configuration files.
     isolated: bool,
 
     #[structopt(flatten)]
     config: ConfigArgs,
 
-    #[structopt(long = "dry-run")]
+    #[structopt(short = "n", long)]
     /// Do not actually change anything, just log what are going to do
     dry_run: bool,
 
-    #[structopt(long = "no-confirm")]
+    #[structopt(long)]
     /// Skip release confirmation and version preview
     no_confirm: bool,
 }
 
 #[derive(Debug, StructOpt)]
 struct ConfigArgs {
-    #[structopt(long = "sign")]
+    #[structopt(long)]
     /// Sign git commit and tag
     sign: bool,
 
-    #[structopt(long = "upload-doc")]
+    #[structopt(long)]
     /// Upload rust document to gh-pages branch
     upload_doc: bool,
 
-    #[structopt(long = "push-remote")]
+    #[structopt(long)]
     /// Git remote to push
     push_remote: Option<String>,
 
-    #[structopt(long = "skip-publish")]
+    #[structopt(long)]
     /// Do not run cargo publish on release
     skip_publish: bool,
 
-    #[structopt(long = "skip-push")]
+    #[structopt(long)]
     /// Do not run git push in the last step
     skip_push: bool,
 
-    #[structopt(long = "skip-tag")]
+    #[structopt(long)]
     /// Do not create git tag
     skip_tag: bool,
 
     #[structopt(
-        long = "dependent-version",
-        raw(
-            possible_values = "&config::DependentVersion::variants()",
-            case_insensitive = "true"
-        )
+        long,
+        possible_values(&config::DependentVersion::variants()),
+        case_insensitive(true),
     )]
     /// Specify how workspace dependencies on this crate should be handed.
     dependent_version: Option<config::DependentVersion>,
 
-    #[structopt(long = "doc-branch")]
+    #[structopt(long)]
     /// Git branch to push documentation on
     doc_branch: Option<String>,
 
-    #[structopt(long = "tag-prefix")]
+    #[structopt(long)]
     /// Prefix of git tag, note that this will override default prefix based on sub-directory
     tag_prefix: Option<String>,
 
-    #[structopt(long = "tag-name")]
+    #[structopt(long)]
     /// The name of the git tag.
     tag_name: Option<String>,
 
-    #[structopt(long = "dev-version-ext")]
+    #[structopt(long)]
     /// Pre-release identifier(s) to append to the next development version after release
     dev_version_ext: Option<String>,
 
-    #[structopt(long = "no-dev-version")]
+    #[structopt(long)]
     /// Do not create dev version after release
     no_dev_version: bool,
 
-    #[structopt(long = "features")]
+    #[structopt(long)]
     /// Provide a set of features that need to be enabled
     features: Vec<String>,
 
-    #[structopt(long = "all-features")]
+    #[structopt(long)]
     /// Enable all features via `all-features`. Overrides `features`
     all_features: bool,
 }
