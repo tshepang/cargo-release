@@ -110,25 +110,18 @@ impl<'m> Package<'m> {
 fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let ws_meta = args.manifest.metadata().exec().map_err(FatalError::from)?;
 
-    let (selected_pkgs, _excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
-    if selected_pkgs.is_empty() {
-        log::info!("No packages selected.");
-        return Ok(0);
-    }
-
-    let pkgs: Result<HashMap<_, _>, _> = selected_pkgs
-        .iter()
-        .map(|p| Package::load(args, &ws_meta, p).map(|p| (&p.meta.id, p)))
-        .collect();
-    let pkgs = pkgs?;
-
     git::git_version()?;
-
     if git::is_dirty(&ws_meta.workspace_root)? {
         log::warn!("Uncommitted changes detected, please commit before release.");
         if !args.dry_run {
             return Ok(101);
         }
+    }
+
+    let (selected_pkgs, _excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
+    if selected_pkgs.is_empty() {
+        log::info!("No packages selected.");
+        return Ok(0);
     }
 
     let dep_tree: HashMap<_, _> = ws_meta
@@ -140,8 +133,13 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         .map(|n| (&n.id, &n.dependencies))
         .collect();
 
-    let mut processed = HashSet::new();
+    let pkgs: Result<HashMap<_, _>, _> = selected_pkgs
+        .iter()
+        .map(|p| Package::load(args, &ws_meta, p).map(|p| (&p.meta.id, p)))
+        .collect();
+    let pkgs = pkgs?;
 
+    let mut processed = HashSet::new();
     for node in ws_meta
         .resolve
         .as_ref()
