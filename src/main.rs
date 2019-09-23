@@ -212,14 +212,7 @@ fn release_package(
 
     let root = git::top_level(cwd)?;
     let is_root = root == cwd;
-    let tag_prefix = pkg.config.tag_prefix().unwrap_or_else(|| {
-        // crate_name as default tag prefix for multi-crate project
-        if !is_root {
-            "{{crate_name}}-"
-        } else {
-            ""
-        }
-    });
+    let tag_prefix = pkg.config.tag_prefix(is_root);
     let tag_prefix = replace_in(&tag_prefix, &replacements);
     replacements.insert("{{prefix}}", tag_prefix.clone());
 

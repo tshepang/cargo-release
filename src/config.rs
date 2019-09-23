@@ -266,8 +266,12 @@ impl Config {
             .unwrap_or("(cargo-release) {{crate_name}} version {{version}}")
     }
 
-    pub fn tag_prefix(&self) -> Option<&str> {
-        self.tag_prefix.as_ref().map(|s| s.as_str())
+    pub fn tag_prefix(&self, is_root: bool) -> &str {
+        // crate_name as default tag prefix for multi-crate project
+        self.tag_prefix
+            .as_ref()
+            .map(|s| s.as_str())
+            .unwrap_or_else(|| if !is_root { "{{crate_name}}-" } else { "" })
     }
 
     pub fn tag_name(&self) -> &str {
