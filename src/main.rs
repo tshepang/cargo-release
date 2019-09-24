@@ -22,7 +22,7 @@ use semver::Identifier;
 use structopt::StructOpt;
 
 use crate::error::FatalError;
-use crate::replace::{do_file_replacements, replace_in, Replacements};
+use crate::replace::{do_file_replacements, Template};
 
 mod cargo;
 mod cmd;
@@ -54,18 +54,36 @@ struct Package<'m> {
     manifest_path: &'m Path,
     package_path: &'m Path,
     config: config::Config,
+
+    is_root: bool,
+
+    prev_version: Version,
+    prev_tag: String,
+    version: Option<Version>,
+    post_version: Option<Version>,
+
+    //dependent_version: config::DependentVersion,
+    //dependents: Vec<&'m Path>,
+    //failed_dependents: Vec<&'m Path>,
+    features: Features,
+}
+
+struct Version {
+    version: semver::Version,
+    version_string: String,
 }
 
 impl<'m> Package<'m> {
     fn load(
         args: &ReleaseOpt,
+        git_root: &Path,
         ws_meta: &'m cargo_metadata::Metadata,
         pkg_meta: &'m cargo_metadata::Package,
     ) -> Result<Self, error::FatalError> {
         let manifest_path = pkg_meta.manifest_path.as_path();
         let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
-        let release_config = {
+        let config = {
             let mut release_config = config::Config::default();
 
             if !args.isolated {
@@ -97,11 +115,88 @@ impl<'m> Package<'m> {
             release_config
         };
 
+        let is_root = git_root == cwd;
+
+        let prev_version = Version {
+            version: pkg_meta.version.clone(),
+            version_string: pkg_meta.version.to_string(),
+        };
+
+        let prev_tag = {
+            let mut template = Template {
+                prev_version: Some(&prev_version.version_string),
+                version: Some(&prev_version.version_string),
+                crate_name: Some(pkg_meta.name.as_str()),
+                ..Default::default()
+            };
+
+            let tag_prefix = config.tag_prefix(is_root);
+            let tag_prefix = template.render(tag_prefix);
+            template.prefix = Some(&tag_prefix);
+            template.render(config.tag_name())
+        };
+
+        let version = {
+            let mut potential_version = prev_version.version.clone();
+            if args
+                .level
+                .bump_version(&mut potential_version, args.metadata.as_ref())?
+            {
+                let version = potential_version;
+                let version_string = version.to_string();
+                Some(Version {
+                    version,
+                    version_string,
+                })
+            } else {
+                None
+            }
+        };
+
+        let post_version = {
+            if !args.level.is_pre_release() && !config.no_dev_version() {
+                let base = version.as_ref().unwrap_or_else(|| &prev_version);
+                let mut post = base.version.clone();
+                post.increment_patch();
+                post.pre.push(Identifier::AlphaNumeric(
+                    config.dev_version_ext().to_owned(),
+                ));
+                let post_string = post.to_string();
+
+                Some(Version {
+                    version: post,
+                    version_string: post_string,
+                })
+            } else {
+                None
+            }
+        };
+
+        let features = if config.enable_all_features() {
+            Features::All
+        } else {
+            let features = config.enable_features();
+            if features.is_empty() {
+                Features::None
+            } else {
+                Features::Selective(features.to_owned())
+            }
+        };
+
         let pkg = Package {
             meta: pkg_meta,
             manifest_path,
             package_path: cwd,
-            config: release_config,
+            config,
+
+            is_root,
+
+            prev_version,
+            prev_tag,
+            version,
+            post_version,
+
+            features: features,
         };
         Ok(pkg)
     }
@@ -133,9 +228,10 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         .map(|n| (&n.id, &n.dependencies))
         .collect();
 
+    let root = git::top_level(&ws_meta.workspace_root)?;
     let pkgs: Result<HashMap<_, _>, _> = selected_pkgs
         .iter()
-        .map(|p| Package::load(args, &ws_meta, p).map(|p| (&p.meta.id, p)))
+        .map(|p| Package::load(args, &root, &ws_meta, p).map(|p| (&p.meta.id, p)))
         .collect();
     let pkgs = pkgs?;
 
@@ -194,35 +290,16 @@ fn release_package(
     ws_meta: &cargo_metadata::Metadata,
     pkg: &Package<'_>,
 ) -> Result<i32, error::FatalError> {
+    // STEP 1: Query a bunch of information for later use.
     let dry_run = args.dry_run;
     let sign = pkg.config.sign_commit();
     let cwd = pkg.package_path;
-
-    // STEP 1: Query a bunch of information for later use.
-    let mut version = pkg.meta.version.clone();
-    let prev_version_string = version.to_string();
-
     let crate_name = pkg.meta.name.as_str();
-
-    let mut replacements = Replacements::new();
-    replacements.insert("{{prev_version}}", prev_version_string.clone());
-    replacements.insert("{{version}}", version.to_string());
-    replacements.insert("{{crate_name}}", crate_name.to_owned());
-    replacements.insert("{{date}}", Local::now().format("%Y-%m-%d").to_string());
-
-    let root = git::top_level(cwd)?;
-    let is_root = root == cwd;
-    let tag_prefix = pkg.config.tag_prefix(is_root);
-    let tag_prefix = replace_in(&tag_prefix, &replacements);
-    replacements.insert("{{prefix}}", tag_prefix.clone());
+    let now = Local::now().format("%Y-%m-%d").to_string();
 
     // STEP 2: update current version, save and commit
-    if args
-        .level
-        .bump_version(&mut version, args.metadata.as_ref())?
-    {
-        // Must run before `{{version}}` gets updated with the next version
-        let prev_tag_name = replace_in(pkg.config.tag_name(), &replacements);
+    if let Some(version) = pkg.version.as_ref() {
+        let prev_tag_name = &pkg.prev_tag;
         if let Some(changed) = git::changed_from(cwd, &prev_tag_name)? {
             if !changed {
                 log::warn!(
@@ -239,8 +316,7 @@ fn release_package(
             );
         }
 
-        let new_version_string = version.to_string();
-        replacements.insert("{{version}}", new_version_string.clone());
+        let new_version_string = version.version_string.as_str();
         // Release Confirmation
         if !dry_run && !args.no_confirm {
             let confirmed = shell::confirm(&format!(
@@ -261,7 +337,7 @@ fn release_package(
             match pkg.config.dependent_version() {
                 config::DependentVersion::Ignore => (),
                 config::DependentVersion::Warn => {
-                    if !dep.req.matches(&version) {
+                    if !dep.req.matches(&version.version) {
                         log::warn!(
                             "{}'s dependency on {} `{}` is incompatible with {}",
                             dep_pkg.name,
@@ -272,7 +348,7 @@ fn release_package(
                     }
                 }
                 config::DependentVersion::Error => {
-                    if !dep.req.matches(&version) {
+                    if !dep.req.matches(&version.version) {
                         log::warn!(
                             "{}'s dependency on {} `{}` is incompatible with {}",
                             dep_pkg.name,
@@ -284,8 +360,8 @@ fn release_package(
                     }
                 }
                 config::DependentVersion::Fix => {
-                    if !dep.req.matches(&version) {
-                        let new_req = version::set_requirement(&dep.req, &version)?;
+                    if !dep.req.matches(&version.version) {
+                        let new_req = version::set_requirement(&dep.req, &version.version)?;
                         if let Some(new_req) = new_req {
                             if dry_run {
                                 log::info!(
@@ -306,7 +382,7 @@ fn release_package(
                     }
                 }
                 config::DependentVersion::Upgrade => {
-                    let new_req = version::set_requirement(&dep.req, &version)?;
+                    let new_req = version::set_requirement(&dep.req, &version.version)?;
                     if let Some(new_req) = new_req {
                         if dry_run {
                             log::info!(
@@ -338,9 +414,16 @@ fn release_package(
 
         if !pkg.config.pre_release_replacements().is_empty() {
             // try replacing text in configured files
+            let template = Template {
+                prev_version: Some(&pkg.prev_version.version_string),
+                version: Some(&new_version_string),
+                crate_name: Some(crate_name),
+                date: Some(now.as_str()),
+                ..Default::default()
+            };
             do_file_replacements(
                 pkg.config.pre_release_replacements(),
-                &replacements,
+                &template,
                 cwd,
                 dry_run,
             )?;
@@ -351,7 +434,7 @@ fn release_package(
             let pre_rel_hook = pre_rel_hook.args();
             log::debug!("Calling pre-release hook: {:?}", pre_rel_hook);
             let envs = btreemap! {
-                OsStr::new("PREV_VERSION") => prev_version_string.as_ref(),
+                OsStr::new("PREV_VERSION") => pkg.prev_version.version_string.as_ref(),
                 OsStr::new("NEW_VERSION") => new_version_string.as_ref(),
                 OsStr::new("DRY_RUN") => OsStr::new(if dry_run { "true" } else { "false" }),
                 OsStr::new("CRATE_NAME") => OsStr::new(crate_name),
@@ -369,7 +452,14 @@ fn release_package(
             }
         }
 
-        let commit_msg = replace_in(pkg.config.pre_release_commit_message(), &replacements);
+        let template = Template {
+            prev_version: Some(&pkg.prev_version.version_string),
+            version: Some(&new_version_string),
+            crate_name: Some(crate_name),
+            date: Some(now.as_str()),
+            ..Default::default()
+        };
+        let commit_msg = template.render(pkg.config.pre_release_commit_message());
         if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
             // commit failed, abort release
             return Ok(102);
@@ -380,22 +470,7 @@ fn release_package(
     if !pkg.config.disable_publish() {
         log::info!("Running cargo publish on {}", crate_name);
         // feature list to release
-        let feature_list = if !pkg.config.enable_features().is_empty() {
-            Some(pkg.config.enable_features().to_owned())
-        } else {
-            None
-        };
-        // flag to release all features
-        let all_features = pkg.config.enable_all_features();
-
-        let features = if all_features {
-            Features::All
-        } else {
-            match feature_list {
-                Some(vec) => Features::Selective(vec),
-                None => Features::None,
-            }
-        };
+        let features = &pkg.features;
         if !cargo::publish(dry_run, &pkg.manifest_path, features)? {
             return Ok(103);
         }
@@ -419,37 +494,57 @@ fn release_package(
     }
 
     // STEP 5: Tag
-    let tag_name = replace_in(pkg.config.tag_name(), &replacements);
-    replacements.insert("{{tag_name}}", tag_name.clone());
+    let tag_name = if pkg.config.disable_tag() {
+        None
+    } else {
+        let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+        let mut template = Template {
+            prev_version: Some(&pkg.prev_version.version_string),
+            version: Some(&base.version_string),
+            crate_name: Some(crate_name),
+            ..Default::default()
+        };
+        let tag_prefix = pkg.config.tag_prefix(pkg.is_root);
+        let tag_prefix = template.render(tag_prefix);
+        template.prefix = Some(&tag_prefix);
 
-    if !pkg.config.disable_tag() {
-        let tag_message = replace_in(pkg.config.tag_message(), &replacements);
+        let tag_name = template.render(pkg.config.tag_name());
+        template.tag_name = Some(tag_name.as_str());
+
+        template.date = Some(now.as_str());
+        let tag_message = template.render(pkg.config.tag_message());
 
         log::debug!("Creating git tag {}", tag_name);
         if !git::tag(cwd, &tag_name, &tag_message, sign, dry_run)? {
             // tag failed, abort release
             return Ok(104);
         }
-    }
+
+        Some(tag_name)
+    };
 
     // STEP 6: bump version
-    if !args.level.is_pre_release() && !pkg.config.no_dev_version() {
-        version.increment_patch();
-        version.pre.push(Identifier::AlphaNumeric(
-            pkg.config.dev_version_ext().to_owned(),
-        ));
+    if let Some(version) = pkg.post_version.as_ref() {
+        let updated_version_string = version.version_string.as_ref();
         log::info!(
             "Starting {}'s next development iteration {}",
             crate_name,
-            version
+            updated_version_string,
         );
-        let updated_version_string = version.to_string();
-        replacements.insert("{{next_version}}", updated_version_string.clone());
         if !dry_run {
             cargo::set_package_version(&pkg.manifest_path, &updated_version_string)?;
             cargo::update_lock(&pkg.manifest_path)?;
         }
-        let commit_msg = replace_in(pkg.config.post_release_commit_message(), &replacements);
+        let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+        let template = Template {
+            prev_version: Some(&pkg.prev_version.version_string),
+            version: Some(&base.version_string),
+            crate_name: Some(crate_name),
+            date: Some(now.as_str()),
+            next_version: Some(updated_version_string),
+            ..Default::default()
+        };
+        let commit_msg = template.render(pkg.config.post_release_commit_message());
 
         if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
             return Ok(105);
@@ -463,12 +558,15 @@ fn release_package(
         if !git::push(cwd, git_remote, dry_run)? {
             return Ok(106);
         }
-        if !pkg.config.disable_tag() && !git::push_tag(cwd, git_remote, &tag_name, dry_run)? {
-            return Ok(106);
+        if let Some(tag_name) = tag_name {
+            if !git::push_tag(cwd, git_remote, &tag_name, dry_run)? {
+                return Ok(106);
+            }
         }
     }
 
     log::info!("Finished {}", crate_name);
+
     Ok(0)
 }
 
