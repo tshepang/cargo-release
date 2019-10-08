@@ -9,7 +9,7 @@ use crate::error::FatalError;
 use regex::Regex;
 
 fn load_from_file(path: &Path) -> io::Result<String> {
-    let mut file = r#try!(File::open(path));
+    let mut file = File::open(path)?;
     let mut s = String::new();
     file.read_to_string(&mut s)?;
     Ok(s)

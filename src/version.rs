@@ -299,13 +299,13 @@ mod display {
     impl<'v> fmt::Display for DisplayVersionReq<'v> {
         fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
             if self.0.predicates.is_empty() {
-                r#try!(write!(fmt, "*"));
+                write!(fmt, "*")?;
             } else {
                 for (i, ref pred) in self.0.predicates.iter().enumerate() {
                     if i == 0 {
-                        r#try!(write!(fmt, "{}", DisplayPredicate(pred)));
+                        write!(fmt, "{}", DisplayPredicate(pred))?;
                     } else {
-                        r#try!(write!(fmt, ", {}", DisplayPredicate(pred)));
+                        write!(fmt, ", {}", DisplayPredicate(pred))?;
                     }
                 }
             }
@@ -325,32 +325,32 @@ mod display {
     impl<'v> fmt::Display for DisplayPredicate<'v> {
         fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
             match &self.0.op {
-                Wildcard(Minor) => r#try!(write!(fmt, "{}.*", self.0.major)),
+                Wildcard(Minor) => write!(fmt, "{}.*", self.0.major)?,
                 Wildcard(Patch) => {
                     if let Some(minor) = self.0.minor {
-                        r#try!(write!(fmt, "{}.{}.*", self.0.major, minor))
+                        write!(fmt, "{}.{}.*", self.0.major, minor)?
                     } else {
-                        r#try!(write!(fmt, "{}.*.*", self.0.major))
+                        write!(fmt, "{}.*.*", self.0.major)?
                     }
                 }
                 _ => {
-                    r#try!(write!(fmt, "{}{}", DisplayOp(&self.0.op), self.0.major));
+                    write!(fmt, "{}{}", DisplayOp(&self.0.op), self.0.major)?;
 
                     if let Some(v) = self.0.minor {
-                        r#try!(write!(fmt, ".{}", v));
+                        write!(fmt, ".{}", v)?;
                     }
 
                     if let Some(v) = self.0.patch {
-                        r#try!(write!(fmt, ".{}", v));
+                        write!(fmt, ".{}", v)?;
                     }
 
                     if !self.0.pre.is_empty() {
-                        r#try!(write!(fmt, "-"));
+                        write!(fmt, "-")?;
                         for (i, x) in self.0.pre.iter().enumerate() {
                             if i != 0 {
-                                r#try!(write!(fmt, "."))
+                                write!(fmt, ".")?
                             }
-                            r#try!(write!(fmt, "{}", x));
+                            write!(fmt, "{}", x)?;
                         }
                     }
                 }
@@ -365,15 +365,15 @@ mod display {
     impl<'v> fmt::Display for DisplayOp<'v> {
         fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
             match self.0 {
-                Ex => r#try!(write!(fmt, "= ")),
-                Gt => r#try!(write!(fmt, "> ")),
-                GtEq => r#try!(write!(fmt, ">= ")),
-                Lt => r#try!(write!(fmt, "< ")),
-                LtEq => r#try!(write!(fmt, "<= ")),
-                Tilde => r#try!(write!(fmt, "~")),
-                Compatible => r#try!(write!(fmt, "^")),
+                Ex => write!(fmt, "= ")?,
+                Gt => write!(fmt, "> ")?,
+                GtEq => write!(fmt, ">= ")?,
+                Lt => write!(fmt, "< ")?,
+                LtEq => write!(fmt, "<= ")?,
+                Tilde => write!(fmt, "~")?,
+                Compatible => write!(fmt, "^")?,
                 // gets handled specially in Predicate::fmt
-                Wildcard(_) => r#try!(write!(fmt, "")),
+                Wildcard(_) => write!(fmt, "")?,
             }
             Ok(())
         }
