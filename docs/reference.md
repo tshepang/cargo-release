@@ -66,7 +66,7 @@ This field is an array of tables with the following
 * `search`: regex that matches string you want to replace
 * `replace`: the replacement string; you can use the any of the placeholders mentioned below.
 
-See [Cargo.toml](https://github.com/sunng87/cargo-release/blob/master/Cargo.toml) for example.
+See [release.toml](https://github.com/sunng87/cargo-release/blob/master/release.toml) for example.
 
 ### Placeholders
 
