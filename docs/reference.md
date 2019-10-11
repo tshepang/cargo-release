@@ -48,7 +48,7 @@ Configuration is read from the following (in precedence order)
 | `dev-version-ext` | `--dev-version-ext` | string | Pre-release extension to use on the next development version. |
 | `pre-release-commit-message` | \- | string | A commit message template for release. For example: `"release {{version}}"`, where `{{version}}` will be replaced by actual version. |
 | `post-release-commit-message` | \- | string | A commit message template for bumping version after release. For example: `Released {{version}}, starting {{next_version}}`. The placeholder `{{next_version}}` (the version in git after release) is supported in addition to the global placeholders mentioned below. |
-| `tag-message`  | \-              | string | A message template for tag. The placeholder `{{tag_name}}` and ``{{prefix}}` (the tag prefix) is supported in addition to the global placeholders mentioned below. |
+| `tag-message`  | \-              | string | A message template for tag. The placeholder `{{tag_name}}` and `{{prefix}}` (the tag prefix) is supported in addition to the global placeholders mentioned below. |
 | `tag-prefix`   | `--tag-prefix`  | string | Prefix of git tag, note that this will override default prefix based on crate name. |
 | `tag-name`     | `--tag-name`    | string | The name of the git tag.  The placeholder `{{prefix}}` (the tag prefix) is supported in addition to the global placeholders mentioned below. |
 | `doc-commit-message` | \-        | string | A commit message template for doc import. |
