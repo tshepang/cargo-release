@@ -44,7 +44,7 @@ Configuration is read from the following (in precedence order)
 | `push-remote`  | `--push-remote` | string | Default git remote to push |
 | `disable-push` | `--skip-push`   | bool   | Don't do git push |
 | `disable-tag`  | `--skip-tag`    | bool   | Don't do git tag |
-| `disable-publish` | `--skip-publish |  bool | Don't do cargo publish right now, see [manifest `publish` field](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional) to permanently disable publish. |
+| `disable-publish` | `--skip-publish` |  bool | Don't do cargo publish right now, see [manifest `publish` field](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional) to permanently disable publish. |
 | `dev-version-ext` | `--dev-version-ext` | string | Pre-release extension to use on the next development version. |
 | `pre-release-commit-message` | \- | string | A commit message template for release. For example: `"release {{version}}"`, where `{{version}}` will be replaced by actual version. |
 | `post-release-commit-message` | \- | string | A commit message template for bumping version after release. For example: `Released {{version}}, starting {{next_version}}`. The placeholder `{{next_version}}` (the version in git after release) is supported in addition to the global placeholders mentioned below. |
