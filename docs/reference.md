@@ -47,7 +47,7 @@ Configuration is read from the following (in precedence order)
 | `disable-publish` | `--skip-publish |  bool | Don't do cargo publish right now, see [manifest `publish` field](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional) to permanently disable publish. |
 | `dev-version-ext` | `--dev-version-ext` | string | Pre-release extension to use on the next development version. |
 | `pre-release-commit-message` | \- | string | A commit message template for release. For example: `"release {{version}}"`, where `{{version}}` will be replaced by actual version. |
-| `pro-release-commit-message` | \- | string | A commit message template for bumping version after release. For example: `Released {{version}}, starting {{next_version}}`. The placeholder `{{next_version}}` (the version in git after release) is supported in addition to the global placeholders mentioned below. |
+| `post-release-commit-message` | \- | string | A commit message template for bumping version after release. For example: `Released {{version}}, starting {{next_version}}`. The placeholder `{{next_version}}` (the version in git after release) is supported in addition to the global placeholders mentioned below. |
 | `tag-message`  | \-              | string | A message template for tag. The placeholder `{{tag_name}}` and ``{{prefix}}` (the tag prefix) is supported in addition to the global placeholders mentioned below. |
 | `tag-prefix`   | `--tag-prefix`  | string | Prefix of git tag, note that this will override default prefix based on crate name. |
 | `tag-name`     | `--tag-name`    | string | The name of the git tag.  The placeholder `{{prefix}}` (the tag prefix) is supported in addition to the global placeholders mentioned below. |
@@ -74,7 +74,7 @@ The following placeholders in configuration values will be be replaced with the 
 
 * `{{prev_version}}`: The version before `cargo-release` was executed (before any version bump).
 * `{{version}}`: The current (bumped) crate version.
-* `{{next_version}}` (only valid for `pro-release-commit-message): The crate version for starting development.
+* `{{next_version}}` (only valid for `post-release-commit-message`): The crate version for starting development.
 * `{{crate_name}}`: The name of the current crate in `Cargo.toml`.
 * `{{date}}`: The current date in `%Y-%m-%d` format.
 * `{{prefix}}` (only valid for `tag-name` / `tag-message`): The value prepended to the tag name.
