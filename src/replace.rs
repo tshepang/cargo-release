@@ -59,6 +59,7 @@ pub fn do_file_replacements(
 
         let replacer = template.render(to_replace);
 
+        log::debug!("Substituting values for {}", file.display());
         let data = std::fs::read_to_string(&file)?;
 
         let r = Regex::new(pattern).map_err(FatalError::from)?;
