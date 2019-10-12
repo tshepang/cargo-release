@@ -1,38 +1,54 @@
-use std::collections::HashMap;
-use std::fs::File;
-use std::io;
-use std::io::prelude::*;
 use std::path::Path;
+
+use regex::Regex;
 
 use crate::config::Replace;
 use crate::error::FatalError;
-use regex::Regex;
 
-fn load_from_file(path: &Path) -> io::Result<String> {
-    let mut file = File::open(path)?;
-    let mut s = String::new();
-    file.read_to_string(&mut s)?;
-    Ok(s)
+#[derive(Clone, Default, Debug)]
+pub struct Template<'a> {
+    pub prev_version: Option<&'a str>,
+    pub version: Option<&'a str>,
+    pub crate_name: Option<&'a str>,
+    pub date: Option<&'a str>,
+
+    pub prefix: Option<&'a str>,
+    pub tag_name: Option<&'a str>,
+    pub next_version: Option<&'a str>,
 }
 
-fn save_to_file(path: &Path, content: &str) -> io::Result<()> {
-    let mut file = File::create(path)?;
-    file.write_all(&content.as_bytes())?;
-    Ok(())
-}
+impl<'a> Template<'a> {
+    pub fn render(&self, input: &str) -> String {
+        let mut s = input.to_string();
+        if let Some(prev_version) = self.prev_version {
+            s = s.replace("{{prev_version}}", prev_version);
+        }
+        if let Some(version) = self.version {
+            s = s.replace("{{version}}", version);
+        }
+        if let Some(crate_name) = self.crate_name {
+            s = s.replace("{{crate_name}}", crate_name);
+        }
+        if let Some(date) = self.date {
+            s = s.replace("{{date}}", date);
+        }
 
-pub type Replacements<'a> = HashMap<&'a str, String>;
-pub fn replace_in(input: &str, r: &Replacements<'_>) -> String {
-    let mut s = input.to_string();
-    for (k, v) in r {
-        s = s.replace(k, v);
+        if let Some(prefix) = self.prefix {
+            s = s.replace("{{prefix}}", prefix);
+        }
+        if let Some(tag_name) = self.tag_name {
+            s = s.replace("{{tag_name}}", tag_name);
+        }
+        if let Some(next_version) = self.next_version {
+            s = s.replace("{{next_version}}", next_version);
+        }
+        s
     }
-    s
 }
 
 pub fn do_file_replacements(
     replace_config: &[Replace],
-    replacements: &Replacements<'_>,
+    template: &Template<'_>,
     cwd: &Path,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
@@ -41,15 +57,15 @@ pub fn do_file_replacements(
         let pattern = replace.search.as_str();
         let to_replace = replace.replace.as_str();
 
-        let replacer = replace_in(to_replace, replacements);
+        let replacer = template.render(to_replace);
 
-        let data = load_from_file(&file)?;
+        let data = std::fs::read_to_string(&file)?;
 
         let r = Regex::new(pattern).map_err(FatalError::from)?;
         let result = r.replace_all(&data, replacer.as_str());
 
         if !dry_run {
-            save_to_file(&file, &result)?;
+            std::fs::write(&file, result.as_ref())?;
         }
     }
     Ok(true)

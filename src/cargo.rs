@@ -17,7 +17,7 @@ fn cargo() -> String {
 pub fn publish(
     dry_run: bool,
     manifest_path: &Path,
-    features: Features,
+    features: &Features,
 ) -> Result<bool, FatalError> {
     let cargo = cargo();
     match features {
