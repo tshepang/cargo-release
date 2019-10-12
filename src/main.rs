@@ -479,6 +479,7 @@ fn release_package(
     // STEP 4: upload doc
     if pkg.config.upload_doc() {
         log::info!("Building and exporting docs for {}", crate_name);
+        log::warn!("Doc uploading support is deprecated, see docs.rs instead");
         cargo::doc(dry_run, &pkg.manifest_path)?;
 
         let doc_path = ws_meta.target_directory.join("doc");
@@ -652,7 +653,7 @@ struct ConfigArgs {
     /// Sign git commit and tag
     sign: bool,
 
-    #[structopt(long)]
+    #[structopt(long, hidden(true))]
     /// Upload rust document to gh-pages branch
     upload_doc: bool,
 
@@ -680,7 +681,7 @@ struct ConfigArgs {
     /// Specify how workspace dependencies on this crate should be handed.
     dependent_version: Option<config::DependentVersion>,
 
-    #[structopt(long)]
+    #[structopt(long, hidden(true))]
     /// Git branch to push documentation on
     doc_branch: Option<String>,
 
