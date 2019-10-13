@@ -625,23 +625,29 @@ struct ReleaseOpt {
 
 #[derive(StructOpt, Debug, Clone)]
 pub struct Verbosity {
+    /// Pass many times for less log output
+    #[structopt(long, short = "q", parse(from_occurrences))]
+    quiet: i8,
+
     /// Pass many times for more log output
     ///
-    /// By default, it'll only report errors. Passing `-v` one time also prints
+    /// By default, it'll report info. Passing `-v` one time also prints
     /// warnings, `-vv` enables info logging, `-vvv` debug, and `-vvvv` trace.
-    #[structopt(long = "verbosity", short = "v", parse(from_occurrences))]
-    verbosity: u8,
+    #[structopt(long, short = "v", parse(from_occurrences))]
+    verbose: i8,
 }
 
 impl Verbosity {
     /// Get the log level.
     pub fn log_level(&self) -> log::Level {
-        match self.verbosity {
-            0 => log::Level::Error,
+        let verbosity = 2 - self.quiet + self.verbose;
+
+        match verbosity {
+            std::i8::MIN..=0 => log::Level::Error,
             1 => log::Level::Warn,
             2 => log::Level::Info,
             3 => log::Level::Debug,
-            _ => log::Level::Trace,
+            4..=std::i8::MAX => log::Level::Trace,
         }
     }
 }
