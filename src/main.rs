@@ -55,11 +55,10 @@ struct Package<'m> {
     package_path: &'m Path,
     config: config::Config,
 
-    is_root: bool,
-
     prev_version: Version,
     prev_tag: String,
     version: Option<Version>,
+    tag: Option<String>,
     post_version: Option<Version>,
 
     //dependent_version: config::DependentVersion,
@@ -153,23 +152,38 @@ impl<'m> Package<'m> {
             }
         };
 
-        let post_version = {
-            if !args.level.is_pre_release() && !config.no_dev_version() {
-                let base = version.as_ref().unwrap_or_else(|| &prev_version);
-                let mut post = base.version.clone();
-                post.increment_patch();
-                post.pre.push(Identifier::AlphaNumeric(
-                    config.dev_version_ext().to_owned(),
-                ));
-                let post_string = post.to_string();
+        let base = version.as_ref().unwrap_or_else(|| &prev_version);
 
-                Some(Version {
-                    version: post,
-                    version_string: post_string,
-                })
-            } else {
-                None
-            }
+        let tag = if config.disable_tag() {
+            None
+        } else {
+            let mut template = Template {
+                prev_version: Some(&prev_version.version_string),
+                version: Some(&base.version_string),
+                crate_name: Some(pkg_meta.name.as_str()),
+                ..Default::default()
+            };
+
+            let tag_prefix = config.tag_prefix(is_root);
+            let tag_prefix = template.render(tag_prefix);
+            template.prefix = Some(&tag_prefix);
+            Some(template.render(config.tag_name()))
+        };
+
+        let post_version = if !args.level.is_pre_release() && !config.no_dev_version() {
+            let mut post = base.version.clone();
+            post.increment_patch();
+            post.pre.push(Identifier::AlphaNumeric(
+                config.dev_version_ext().to_owned(),
+            ));
+            let post_string = post.to_string();
+
+            Some(Version {
+                version: post,
+                version_string: post_string,
+            })
+        } else {
+            None
         };
 
         let features = if config.enable_all_features() {
@@ -189,11 +203,10 @@ impl<'m> Package<'m> {
             package_path: cwd,
             config,
 
-            is_root,
-
             prev_version,
             prev_tag,
             version,
+            tag,
             post_version,
 
             features: features,
@@ -419,6 +432,7 @@ fn release_package(
                 version: Some(&new_version_string),
                 crate_name: Some(crate_name),
                 date: Some(now.as_str()),
+                tag_name: pkg.tag.as_ref().map(|s| s.as_str()),
                 ..Default::default()
             };
             do_file_replacements(
@@ -495,24 +509,16 @@ fn release_package(
     }
 
     // STEP 5: Tag
-    let tag_name = if pkg.config.disable_tag() {
-        None
-    } else {
+    if let Some(tag_name) = pkg.tag.as_ref() {
         let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
-        let mut template = Template {
+        let template = Template {
             prev_version: Some(&pkg.prev_version.version_string),
             version: Some(&base.version_string),
             crate_name: Some(crate_name),
+            tag_name: Some(&tag_name),
+            date: Some(now.as_str()),
             ..Default::default()
         };
-        let tag_prefix = pkg.config.tag_prefix(pkg.is_root);
-        let tag_prefix = template.render(tag_prefix);
-        template.prefix = Some(&tag_prefix);
-
-        let tag_name = template.render(pkg.config.tag_name());
-        template.tag_name = Some(tag_name.as_str());
-
-        template.date = Some(now.as_str());
         let tag_message = template.render(pkg.config.tag_message());
 
         log::debug!("Creating git tag {}", tag_name);
@@ -520,9 +526,7 @@ fn release_package(
             // tag failed, abort release
             return Ok(104);
         }
-
-        Some(tag_name)
-    };
+    }
 
     // STEP 6: bump version
     if let Some(version) = pkg.post_version.as_ref() {
@@ -559,7 +563,7 @@ fn release_package(
         if !git::push(cwd, git_remote, dry_run)? {
             return Ok(106);
         }
-        if let Some(tag_name) = tag_name {
+        if let Some(tag_name) = pkg.tag.as_ref() {
             if !git::push_tag(cwd, git_remote, &tag_name, dry_run)? {
                 return Ok(106);
             }
