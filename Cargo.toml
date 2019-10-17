@@ -24,6 +24,7 @@ maplit = "1.0"
 chrono = "0.4"
 dirs = "2.0"
 boolinator = "2.4"
+difference = "2.0"
 structopt = {version = "0.3.0", default-features = false}
 clap = { version = "2", default-features = false }
 clap-cargo = { version = "0.2", features = ["cargo_metadata"] }

@@ -65,7 +65,10 @@ pub fn do_file_replacements(
         let r = Regex::new(pattern).map_err(FatalError::from)?;
         let result = r.replace_all(&data, replacer.as_str());
 
-        if !dry_run {
+        if dry_run {
+            let ch = difference::Changeset::new(&data, &result, "\n");
+            log::trace!("Change:\n{}", ch);
+        } else {
             std::fs::write(&file, result.as_ref())?;
         }
     }
