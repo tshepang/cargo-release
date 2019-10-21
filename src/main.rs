@@ -225,6 +225,8 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         }
     }
 
+    let pkg_ids = sort_workspace(&ws_meta);
+
     let (selected_pkgs, _excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
     if selected_pkgs.is_empty() {
         log::info!("No packages selected.");
@@ -238,17 +240,7 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         .collect();
     let pkgs = pkgs?;
 
-    let pkg_ids = sort_workspace(&ws_meta);
-    for pkg_id in pkg_ids {
-        if let Some(pkg) = pkgs.get(pkg_id) {
-            let code = release_package(args, &ws_meta, pkg)?;
-            if code != 0 {
-                return Ok(code);
-            }
-        }
-    }
-
-    Ok(0)
+    release_packages(args, &ws_meta, pkg_ids.iter().filter_map(|id| pkgs.get(id)))
 }
 
 fn sort_workspace<'m>(ws_meta: &'m cargo_metadata::Metadata) -> Vec<&'m cargo_metadata::PackageId> {
@@ -299,6 +291,21 @@ fn sort_workspace_inner<'m>(
     }
 
     sorted.push(pkg_id);
+}
+
+fn release_packages<'m>(
+    args: &ReleaseOpt,
+    ws_meta: &cargo_metadata::Metadata,
+    pkgs: impl Iterator<Item = &'m PackageRelease<'m>>,
+) -> Result<i32, error::FatalError> {
+    for pkg in pkgs {
+        let code = release_package(args, &ws_meta, pkg)?;
+        if code != 0 {
+            return Ok(code);
+        }
+    }
+
+    Ok(0)
 }
 
 fn release_package(
@@ -572,8 +579,6 @@ fn release_package(
             }
         }
     }
-
-    log::info!("Finished {}", crate_name);
 
     Ok(0)
 }
