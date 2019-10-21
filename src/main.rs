@@ -48,7 +48,7 @@ fn find_dependents<'w>(
     })
 }
 
-struct Package<'m> {
+struct PackageRelease<'m> {
     meta: &'m cargo_metadata::Package,
     manifest_path: &'m Path,
     package_path: &'m Path,
@@ -71,7 +71,7 @@ struct Version {
     version_string: String,
 }
 
-impl<'m> Package<'m> {
+impl<'m> PackageRelease<'m> {
     fn load(
         args: &ReleaseOpt,
         git_root: &Path,
@@ -196,7 +196,7 @@ impl<'m> Package<'m> {
             }
         };
 
-        let pkg = Package {
+        let pkg = PackageRelease {
             meta: pkg_meta,
             manifest_path,
             package_path: cwd,
@@ -234,7 +234,7 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let root = git::top_level(&ws_meta.workspace_root)?;
     let pkgs: Result<HashMap<_, _>, _> = selected_pkgs
         .iter()
-        .map(|p| Package::load(args, &root, &ws_meta, p).map(|p| (&p.meta.id, p)))
+        .map(|p| PackageRelease::load(args, &root, &ws_meta, p).map(|p| (&p.meta.id, p)))
         .collect();
     let pkgs = pkgs?;
 
@@ -304,7 +304,7 @@ fn sort_workspace_inner<'m>(
 fn release_package(
     args: &ReleaseOpt,
     ws_meta: &cargo_metadata::Metadata,
-    pkg: &Package<'_>,
+    pkg: &PackageRelease<'_>,
 ) -> Result<i32, error::FatalError> {
     // STEP 1: Query a bunch of information for later use.
     let dry_run = args.dry_run;
