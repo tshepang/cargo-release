@@ -33,6 +33,9 @@ mod replace;
 mod shell;
 mod version;
 
+static NOW: once_cell::sync::Lazy<String> =
+    once_cell::sync::Lazy::new(|| Local::now().format("%Y-%m-%d").to_string());
+
 fn find_dependents<'w>(
     ws_meta: &'w cargo_metadata::Metadata,
     pkg_meta: &'w cargo_metadata::Package,
@@ -339,7 +342,6 @@ fn release_package(
     let sign = pkg.config.sign_commit();
     let cwd = pkg.package_path;
     let crate_name = pkg.meta.name.as_str();
-    let now = Local::now().format("%Y-%m-%d").to_string();
 
     // STEP 2: update current version, save and commit
     if let Some(version) = pkg.version.as_ref() {
@@ -462,7 +464,7 @@ fn release_package(
                 prev_version: Some(&pkg.prev_version.version_string),
                 version: Some(&new_version_string),
                 crate_name: Some(crate_name),
-                date: Some(now.as_str()),
+                date: Some(NOW.as_str()),
                 tag_name: pkg.tag.as_ref().map(|s| s.as_str()),
                 ..Default::default()
             };
@@ -501,7 +503,7 @@ fn release_package(
             prev_version: Some(&pkg.prev_version.version_string),
             version: Some(&new_version_string),
             crate_name: Some(crate_name),
-            date: Some(now.as_str()),
+            date: Some(NOW.as_str()),
             ..Default::default()
         };
         let commit_msg = template.render(pkg.config.pre_release_commit_message());
@@ -547,7 +549,7 @@ fn release_package(
             version: Some(&base.version_string),
             crate_name: Some(crate_name),
             tag_name: Some(&tag_name),
-            date: Some(now.as_str()),
+            date: Some(NOW.as_str()),
             ..Default::default()
         };
         let tag_message = template.render(pkg.config.tag_message());
@@ -576,7 +578,7 @@ fn release_package(
             prev_version: Some(&pkg.prev_version.version_string),
             version: Some(&base.version_string),
             crate_name: Some(crate_name),
-            date: Some(now.as_str()),
+            date: Some(NOW.as_str()),
             next_version: Some(updated_version_string),
             ..Default::default()
         };
