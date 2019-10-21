@@ -308,6 +308,104 @@ fn release_packages<'m>(
         }
     }
 
+    // STEP 3: cargo publish
+    for pkg in pkgs.clone() {
+        if !pkg.config.disable_publish() {
+            let crate_name = pkg.meta.name.as_str();
+
+            log::info!("Running cargo publish on {}", crate_name);
+            // feature list to release
+            let features = &pkg.features;
+            if !cargo::publish(dry_run, &pkg.manifest_path, features)? {
+                return Ok(103);
+            }
+        }
+    }
+
+    // STEP 4: upload doc
+    for pkg in pkgs.clone() {
+        if pkg.config.upload_doc() {
+            let sign = pkg.config.sign_commit();
+            let cwd = pkg.package_path;
+            let crate_name = pkg.meta.name.as_str();
+
+            log::info!("Building and exporting docs for {}", crate_name);
+            log::warn!("Doc uploading support is deprecated, see docs.rs instead");
+            cargo::doc(dry_run, &pkg.manifest_path)?;
+
+            let doc_path = ws_meta.target_directory.join("doc");
+
+            log::info!("Commit and push docs for {}", crate_name);
+            git::init(&doc_path, dry_run)?;
+            git::add_all(&doc_path, dry_run)?;
+            git::commit_all(&doc_path, pkg.config.doc_commit_message(), sign, dry_run)?;
+            let default_remote = git::origin_url(cwd)?;
+
+            let refspec = format!("master:{}", pkg.config.doc_branch());
+            git::force_push(&doc_path, default_remote.trim(), &refspec, dry_run)?;
+        }
+    }
+
+    // STEP 5: Tag
+    for pkg in pkgs.clone() {
+        if let Some(tag_name) = pkg.tag.as_ref() {
+            let sign = pkg.config.sign_commit();
+            let cwd = pkg.package_path;
+            let crate_name = pkg.meta.name.as_str();
+
+            let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+            let template = Template {
+                prev_version: Some(&pkg.prev_version.version_string),
+                version: Some(&base.version_string),
+                crate_name: Some(crate_name),
+                tag_name: Some(&tag_name),
+                date: Some(NOW.as_str()),
+                ..Default::default()
+            };
+            let tag_message = template.render(pkg.config.tag_message());
+
+            log::debug!("Creating git tag {}", tag_name);
+            if !git::tag(cwd, &tag_name, &tag_message, sign, dry_run)? {
+                // tag failed, abort release
+                return Ok(104);
+            }
+        }
+    }
+
+    // STEP 6: bump version
+    for pkg in pkgs.clone() {
+        if let Some(version) = pkg.post_version.as_ref() {
+            let sign = pkg.config.sign_commit();
+            let cwd = pkg.package_path;
+            let crate_name = pkg.meta.name.as_str();
+
+            let updated_version_string = version.version_string.as_ref();
+            log::info!(
+                "Starting {}'s next development iteration {}",
+                crate_name,
+                updated_version_string,
+            );
+            if !dry_run {
+                cargo::set_package_version(&pkg.manifest_path, &updated_version_string)?;
+                cargo::update_lock(&pkg.manifest_path)?;
+            }
+            let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+            let template = Template {
+                prev_version: Some(&pkg.prev_version.version_string),
+                version: Some(&base.version_string),
+                crate_name: Some(crate_name),
+                date: Some(NOW.as_str()),
+                next_version: Some(updated_version_string),
+                ..Default::default()
+            };
+            let commit_msg = template.render(pkg.config.post_release_commit_message());
+
+            if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
+                return Ok(105);
+            }
+        }
+    }
+
     // STEP 7: git push
     let mut pushed: HashSet<_> = HashSet::new();
     for pkg in pkgs {
@@ -510,82 +608,6 @@ fn release_package(
         if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
             // commit failed, abort release
             return Ok(102);
-        }
-    }
-
-    // STEP 3: cargo publish
-    if !pkg.config.disable_publish() {
-        log::info!("Running cargo publish on {}", crate_name);
-        // feature list to release
-        let features = &pkg.features;
-        if !cargo::publish(dry_run, &pkg.manifest_path, features)? {
-            return Ok(103);
-        }
-    }
-
-    // STEP 4: upload doc
-    if pkg.config.upload_doc() {
-        log::info!("Building and exporting docs for {}", crate_name);
-        log::warn!("Doc uploading support is deprecated, see docs.rs instead");
-        cargo::doc(dry_run, &pkg.manifest_path)?;
-
-        let doc_path = ws_meta.target_directory.join("doc");
-
-        log::info!("Commit and push docs for {}", crate_name);
-        git::init(&doc_path, dry_run)?;
-        git::add_all(&doc_path, dry_run)?;
-        git::commit_all(&doc_path, pkg.config.doc_commit_message(), sign, dry_run)?;
-        let default_remote = git::origin_url(cwd)?;
-
-        let refspec = format!("master:{}", pkg.config.doc_branch());
-        git::force_push(&doc_path, default_remote.trim(), &refspec, dry_run)?;
-    }
-
-    // STEP 5: Tag
-    if let Some(tag_name) = pkg.tag.as_ref() {
-        let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
-        let template = Template {
-            prev_version: Some(&pkg.prev_version.version_string),
-            version: Some(&base.version_string),
-            crate_name: Some(crate_name),
-            tag_name: Some(&tag_name),
-            date: Some(NOW.as_str()),
-            ..Default::default()
-        };
-        let tag_message = template.render(pkg.config.tag_message());
-
-        log::debug!("Creating git tag {}", tag_name);
-        if !git::tag(cwd, &tag_name, &tag_message, sign, dry_run)? {
-            // tag failed, abort release
-            return Ok(104);
-        }
-    }
-
-    // STEP 6: bump version
-    if let Some(version) = pkg.post_version.as_ref() {
-        let updated_version_string = version.version_string.as_ref();
-        log::info!(
-            "Starting {}'s next development iteration {}",
-            crate_name,
-            updated_version_string,
-        );
-        if !dry_run {
-            cargo::set_package_version(&pkg.manifest_path, &updated_version_string)?;
-            cargo::update_lock(&pkg.manifest_path)?;
-        }
-        let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
-        let template = Template {
-            prev_version: Some(&pkg.prev_version.version_string),
-            version: Some(&base.version_string),
-            crate_name: Some(crate_name),
-            date: Some(NOW.as_str()),
-            next_version: Some(updated_version_string),
-            ..Default::default()
-        };
-        let commit_msg = template.render(pkg.config.post_release_commit_message());
-
-        if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
-            return Ok(105);
         }
     }
 
