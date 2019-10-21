@@ -11,6 +11,7 @@ use structopt;
 extern crate assert_fs;
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::process::exit;
@@ -244,7 +245,7 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 }
 
 fn sort_workspace<'m>(ws_meta: &'m cargo_metadata::Metadata) -> Vec<&'m cargo_metadata::PackageId> {
-    let members: std::collections::HashSet<_> = ws_meta.workspace_members.iter().collect();
+    let members: HashSet<_> = ws_meta.workspace_members.iter().collect();
     let dep_tree: HashMap<_, _> = ws_meta
         .resolve
         .as_ref()
@@ -261,7 +262,7 @@ fn sort_workspace<'m>(ws_meta: &'m cargo_metadata::Metadata) -> Vec<&'m cargo_me
         .collect();
 
     let mut sorted = Vec::new();
-    let mut processed = std::collections::HashSet::new();
+    let mut processed = HashSet::new();
     for pkg_id in ws_meta.workspace_members.iter() {
         sort_workspace_inner(&ws_meta, pkg_id, &dep_tree, &mut processed, &mut sorted);
     }
@@ -272,11 +273,8 @@ fn sort_workspace<'m>(ws_meta: &'m cargo_metadata::Metadata) -> Vec<&'m cargo_me
 fn sort_workspace_inner<'m>(
     ws_meta: &'m cargo_metadata::Metadata,
     pkg_id: &'m cargo_metadata::PackageId,
-    dep_tree: &std::collections::HashMap<
-        &'m cargo_metadata::PackageId,
-        &'m std::vec::Vec<cargo_metadata::PackageId>,
-    >,
-    processed: &mut std::collections::HashSet<&'m cargo_metadata::PackageId>,
+    dep_tree: &HashMap<&'m cargo_metadata::PackageId, &'m std::vec::Vec<cargo_metadata::PackageId>>,
+    processed: &mut HashSet<&'m cargo_metadata::PackageId>,
     sorted: &mut Vec<&'m cargo_metadata::PackageId>,
 ) {
     if !processed.insert(pkg_id) {
@@ -296,12 +294,35 @@ fn sort_workspace_inner<'m>(
 fn release_packages<'m>(
     args: &ReleaseOpt,
     ws_meta: &cargo_metadata::Metadata,
-    pkgs: impl Iterator<Item = &'m PackageRelease<'m>>,
+    pkgs: impl Iterator<Item = &'m PackageRelease<'m>> + Clone,
 ) -> Result<i32, error::FatalError> {
-    for pkg in pkgs {
+    let dry_run = args.dry_run;
+
+    for pkg in pkgs.clone() {
         let code = release_package(args, &ws_meta, pkg)?;
         if code != 0 {
             return Ok(code);
+        }
+    }
+
+    // STEP 7: git push
+    let mut pushed: HashSet<_> = HashSet::new();
+    for pkg in pkgs {
+        if !pkg.config.disable_push() {
+            let git_remote = pkg.config.push_remote();
+            if !pushed.contains(git_remote) {
+                log::info!("Pushing HEAD to {}", git_remote);
+                if !git::push(&ws_meta.workspace_root, git_remote, dry_run)? {
+                    return Ok(106);
+                }
+                pushed.insert(git_remote);
+            }
+            if let Some(tag_name) = pkg.tag.as_ref() {
+                log::info!("Pushing {} to {}", tag_name, git_remote);
+                if !git::push_tag(&ws_meta.workspace_root, git_remote, &tag_name, dry_run)? {
+                    return Ok(106);
+                }
+            }
         }
     }
 
@@ -563,20 +584,6 @@ fn release_package(
 
         if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
             return Ok(105);
-        }
-    }
-
-    // STEP 7: git push
-    if !pkg.config.disable_push() {
-        log::info!("Pushing to git remote");
-        let git_remote = pkg.config.push_remote();
-        if !git::push(cwd, git_remote, dry_run)? {
-            return Ok(106);
-        }
-        if let Some(tag_name) = pkg.tag.as_ref() {
-            if !git::push_tag(cwd, git_remote, &tag_name, dry_run)? {
-                return Ok(106);
-            }
         }
     }
 
