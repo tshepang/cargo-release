@@ -13,6 +13,7 @@ extern crate assert_fs;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ffi::OsStr;
+use std::io::Write;
 use std::path::Path;
 use std::process::exit;
 
@@ -304,6 +305,31 @@ fn release_packages<'m>(
     pkgs: &'m [&'m PackageRelease<'m>],
 ) -> Result<i32, error::FatalError> {
     let dry_run = args.dry_run;
+
+    // Release Confirmation
+    if !dry_run && !args.no_confirm {
+        let prompt = if pkgs.len() == 1 {
+            let pkg = pkgs[0];
+            let crate_name = pkg.meta.name.as_str();
+            let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+            format!("Release {} {}?", crate_name, base.version_string)
+        } else {
+            let mut buffer: Vec<u8> = vec![];
+            writeln!(&mut buffer, "Release").unwrap();
+            for pkg in pkgs {
+                let crate_name = pkg.meta.name.as_str();
+                let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+                writeln!(&mut buffer, "  {} {}", crate_name, base.version_string).unwrap();
+            }
+            write!(&mut buffer, "?").unwrap();
+            String::from_utf8(buffer).expect("Only valid UTF-8 has been written")
+        };
+
+        let confirmed = shell::confirm(&prompt);
+        if !confirmed {
+            return Ok(0);
+        }
+    }
 
     for pkg in pkgs {
         let code = release_package(args, &ws_meta, pkg)?;
