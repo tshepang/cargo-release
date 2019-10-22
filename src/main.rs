@@ -238,13 +238,17 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     }
 
     let root = git::top_level(&ws_meta.workspace_root)?;
-    let pkgs: Result<HashMap<_, _>, _> = selected_pkgs
+    let pkg_releases: Result<HashMap<_, _>, _> = selected_pkgs
         .iter()
         .map(|p| PackageRelease::load(args, &root, &ws_meta, p).map(|p| (&p.meta.id, p)))
         .collect();
-    let pkgs = pkgs?;
+    let pkg_releases = pkg_releases?;
+    let pkg_releases: Vec<_> = pkg_ids
+        .into_iter()
+        .filter_map(|id| pkg_releases.get(id))
+        .collect();
 
-    release_packages(args, &ws_meta, pkg_ids.iter().filter_map(|id| pkgs.get(id)))
+    release_packages(args, &ws_meta, pkg_releases.as_slice())
 }
 
 fn sort_workspace<'m>(ws_meta: &'m cargo_metadata::Metadata) -> Vec<&'m cargo_metadata::PackageId> {
@@ -297,11 +301,11 @@ fn sort_workspace_inner<'m>(
 fn release_packages<'m>(
     args: &ReleaseOpt,
     ws_meta: &cargo_metadata::Metadata,
-    pkgs: impl Iterator<Item = &'m PackageRelease<'m>> + Clone,
+    pkgs: &'m [&'m PackageRelease<'m>],
 ) -> Result<i32, error::FatalError> {
     let dry_run = args.dry_run;
 
-    for pkg in pkgs.clone() {
+    for pkg in pkgs {
         let code = release_package(args, &ws_meta, pkg)?;
         if code != 0 {
             return Ok(code);
@@ -309,7 +313,7 @@ fn release_packages<'m>(
     }
 
     // STEP 3: cargo publish
-    for pkg in pkgs.clone() {
+    for pkg in pkgs {
         if !pkg.config.disable_publish() {
             let crate_name = pkg.meta.name.as_str();
 
@@ -323,7 +327,7 @@ fn release_packages<'m>(
     }
 
     // STEP 4: upload doc
-    for pkg in pkgs.clone() {
+    for pkg in pkgs {
         if pkg.config.upload_doc() {
             let sign = pkg.config.sign_commit();
             let cwd = pkg.package_path;
@@ -347,7 +351,7 @@ fn release_packages<'m>(
     }
 
     // STEP 5: Tag
-    for pkg in pkgs.clone() {
+    for pkg in pkgs {
         if let Some(tag_name) = pkg.tag.as_ref() {
             let sign = pkg.config.sign_commit();
             let cwd = pkg.package_path;
@@ -373,7 +377,7 @@ fn release_packages<'m>(
     }
 
     // STEP 6: bump version
-    for pkg in pkgs.clone() {
+    for pkg in pkgs {
         if let Some(version) = pkg.post_version.as_ref() {
             let sign = pkg.config.sign_commit();
             let cwd = pkg.package_path;
