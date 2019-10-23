@@ -306,7 +306,7 @@ fn release_packages<'m>(
 ) -> Result<i32, error::FatalError> {
     let dry_run = args.dry_run;
 
-    // Release Confirmation
+    // STEP 1: Release Confirmation
     if !dry_run && !args.no_confirm {
         let prompt = if pkgs.len() == 1 {
             let pkg = pkgs[0];
@@ -332,9 +332,179 @@ fn release_packages<'m>(
     }
 
     for pkg in pkgs {
-        let code = release_package(args, &ws_meta, pkg)?;
-        if code != 0 {
-            return Ok(code);
+        let dry_run = args.dry_run;
+        let sign = pkg.config.sign_commit();
+        let cwd = pkg.package_path;
+        let crate_name = pkg.meta.name.as_str();
+
+        // STEP 2: update current version, save and commit
+        if let Some(version) = pkg.version.as_ref() {
+            let prev_tag_name = &pkg.prev_tag;
+            if let Some(changed) = git::changed_from(cwd, &prev_tag_name)? {
+                if !changed {
+                    log::warn!(
+                        "Releasing {} despite no changes made since tag {}",
+                        crate_name,
+                        prev_tag_name
+                    );
+                }
+            } else {
+                log::info!(
+                    "Cannot detect changes for {} because tag {} is missing",
+                    crate_name,
+                    prev_tag_name
+                );
+            }
+
+            let new_version_string = version.version_string.as_str();
+            // Release Confirmation
+            if !dry_run && !args.no_confirm {
+                let confirmed = shell::confirm(&format!(
+                    "Release version {} {}?",
+                    crate_name, new_version_string
+                ));
+                if !confirmed {
+                    return Ok(0);
+                }
+            }
+
+            log::info!("Update {} to version {}", crate_name, new_version_string);
+            if !dry_run {
+                cargo::set_package_version(&pkg.manifest_path, &new_version_string)?;
+            }
+            let mut dependents_failed = false;
+            for (dep_pkg, dep) in find_dependents(&ws_meta, &pkg.meta) {
+                match pkg.config.dependent_version() {
+                    config::DependentVersion::Ignore => (),
+                    config::DependentVersion::Warn => {
+                        if !dep.req.matches(&version.version) {
+                            log::warn!(
+                                "{}'s dependency on {} `{}` is incompatible with {}",
+                                dep_pkg.name,
+                                pkg.meta.name,
+                                dep.req,
+                                new_version_string
+                            );
+                        }
+                    }
+                    config::DependentVersion::Error => {
+                        if !dep.req.matches(&version.version) {
+                            log::warn!(
+                                "{}'s dependency on {} `{}` is incompatible with {}",
+                                dep_pkg.name,
+                                pkg.meta.name,
+                                dep.req,
+                                new_version_string
+                            );
+                            dependents_failed = true;
+                        }
+                    }
+                    config::DependentVersion::Fix => {
+                        if !dep.req.matches(&version.version) {
+                            let new_req = version::set_requirement(&dep.req, &version.version)?;
+                            if let Some(new_req) = new_req {
+                                if dry_run {
+                                    log::info!(
+                                        "Fixing {}'s dependency on {} to `{}` (from `{}`)",
+                                        dep_pkg.name,
+                                        pkg.meta.name,
+                                        new_req,
+                                        dep.req
+                                    );
+                                } else {
+                                    cargo::set_dependency_version(
+                                        &dep_pkg.manifest_path,
+                                        &pkg.meta.name,
+                                        &new_req,
+                                    )?;
+                                }
+                            }
+                        }
+                    }
+                    config::DependentVersion::Upgrade => {
+                        let new_req = version::set_requirement(&dep.req, &version.version)?;
+                        if let Some(new_req) = new_req {
+                            if dry_run {
+                                log::info!(
+                                    "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
+                                    dep_pkg.name,
+                                    pkg.meta.name,
+                                    new_req,
+                                    dep.req
+                                );
+                            } else {
+                                cargo::set_dependency_version(
+                                    &dep_pkg.manifest_path,
+                                    &pkg.meta.name,
+                                    &new_req,
+                                )?;
+                            }
+                        }
+                    }
+                }
+            }
+            if dependents_failed {
+                return Ok(110);
+            }
+            if dry_run {
+                log::debug!("Updating lock file");
+            } else {
+                cargo::update_lock(&pkg.manifest_path)?;
+            }
+
+            if !pkg.config.pre_release_replacements().is_empty() {
+                // try replacing text in configured files
+                let template = Template {
+                    prev_version: Some(&pkg.prev_version.version_string),
+                    version: Some(&new_version_string),
+                    crate_name: Some(crate_name),
+                    date: Some(NOW.as_str()),
+                    tag_name: pkg.tag.as_ref().map(|s| s.as_str()),
+                    ..Default::default()
+                };
+                do_file_replacements(
+                    pkg.config.pre_release_replacements(),
+                    &template,
+                    cwd,
+                    dry_run,
+                )?;
+            }
+
+            // pre-release hook
+            if let Some(pre_rel_hook) = pkg.config.pre_release_hook() {
+                let pre_rel_hook = pre_rel_hook.args();
+                log::debug!("Calling pre-release hook: {:?}", pre_rel_hook);
+                let envs = btreemap! {
+                    OsStr::new("PREV_VERSION") => pkg.prev_version.version_string.as_ref(),
+                    OsStr::new("NEW_VERSION") => new_version_string.as_ref(),
+                    OsStr::new("DRY_RUN") => OsStr::new(if dry_run { "true" } else { "false" }),
+                    OsStr::new("CRATE_NAME") => OsStr::new(crate_name),
+                    OsStr::new("WORKSPACE_ROOT") => ws_meta.workspace_root.as_os_str(),
+                    OsStr::new("CRATE_ROOT") => pkg.manifest_path.parent().unwrap_or_else(|| Path::new(".")).as_os_str(),
+                };
+                // we use dry_run environmental variable to run the script
+                // so here we set dry_run=false and always execute the command.
+                if !cmd::call_with_env(pre_rel_hook, envs, cwd, false)? {
+                    log::warn!(
+                        "Release of {} aborted by non-zero return of prerelease hook.",
+                        crate_name
+                    );
+                    return Ok(107);
+                }
+            }
+
+            let template = Template {
+                prev_version: Some(&pkg.prev_version.version_string),
+                version: Some(&new_version_string),
+                crate_name: Some(crate_name),
+                date: Some(NOW.as_str()),
+                ..Default::default()
+            };
+            let commit_msg = template.render(pkg.config.pre_release_commit_message());
+            if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
+                // commit failed, abort release
+                return Ok(102);
+            }
         }
     }
 
@@ -454,190 +624,6 @@ fn release_packages<'m>(
                     return Ok(106);
                 }
             }
-        }
-    }
-
-    Ok(0)
-}
-
-fn release_package(
-    args: &ReleaseOpt,
-    ws_meta: &cargo_metadata::Metadata,
-    pkg: &PackageRelease<'_>,
-) -> Result<i32, error::FatalError> {
-    // STEP 1: Query a bunch of information for later use.
-    let dry_run = args.dry_run;
-    let sign = pkg.config.sign_commit();
-    let cwd = pkg.package_path;
-    let crate_name = pkg.meta.name.as_str();
-
-    // STEP 2: update current version, save and commit
-    if let Some(version) = pkg.version.as_ref() {
-        let prev_tag_name = &pkg.prev_tag;
-        if let Some(changed) = git::changed_from(cwd, &prev_tag_name)? {
-            if !changed {
-                log::warn!(
-                    "Releasing {} despite no changes made since tag {}",
-                    crate_name,
-                    prev_tag_name
-                );
-            }
-        } else {
-            log::info!(
-                "Cannot detect changes for {} because tag {} is missing",
-                crate_name,
-                prev_tag_name
-            );
-        }
-
-        let new_version_string = version.version_string.as_str();
-        // Release Confirmation
-        if !dry_run && !args.no_confirm {
-            let confirmed = shell::confirm(&format!(
-                "Release version {} {}?",
-                crate_name, new_version_string
-            ));
-            if !confirmed {
-                return Ok(0);
-            }
-        }
-
-        log::info!("Update {} to version {}", crate_name, new_version_string);
-        if !dry_run {
-            cargo::set_package_version(&pkg.manifest_path, &new_version_string)?;
-        }
-        let mut dependents_failed = false;
-        for (dep_pkg, dep) in find_dependents(&ws_meta, &pkg.meta) {
-            match pkg.config.dependent_version() {
-                config::DependentVersion::Ignore => (),
-                config::DependentVersion::Warn => {
-                    if !dep.req.matches(&version.version) {
-                        log::warn!(
-                            "{}'s dependency on {} `{}` is incompatible with {}",
-                            dep_pkg.name,
-                            pkg.meta.name,
-                            dep.req,
-                            new_version_string
-                        );
-                    }
-                }
-                config::DependentVersion::Error => {
-                    if !dep.req.matches(&version.version) {
-                        log::warn!(
-                            "{}'s dependency on {} `{}` is incompatible with {}",
-                            dep_pkg.name,
-                            pkg.meta.name,
-                            dep.req,
-                            new_version_string
-                        );
-                        dependents_failed = true;
-                    }
-                }
-                config::DependentVersion::Fix => {
-                    if !dep.req.matches(&version.version) {
-                        let new_req = version::set_requirement(&dep.req, &version.version)?;
-                        if let Some(new_req) = new_req {
-                            if dry_run {
-                                log::info!(
-                                    "Fixing {}'s dependency on {} to `{}` (from `{}`)",
-                                    dep_pkg.name,
-                                    pkg.meta.name,
-                                    new_req,
-                                    dep.req
-                                );
-                            } else {
-                                cargo::set_dependency_version(
-                                    &dep_pkg.manifest_path,
-                                    &pkg.meta.name,
-                                    &new_req,
-                                )?;
-                            }
-                        }
-                    }
-                }
-                config::DependentVersion::Upgrade => {
-                    let new_req = version::set_requirement(&dep.req, &version.version)?;
-                    if let Some(new_req) = new_req {
-                        if dry_run {
-                            log::info!(
-                                "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
-                                dep_pkg.name,
-                                pkg.meta.name,
-                                new_req,
-                                dep.req
-                            );
-                        } else {
-                            cargo::set_dependency_version(
-                                &dep_pkg.manifest_path,
-                                &pkg.meta.name,
-                                &new_req,
-                            )?;
-                        }
-                    }
-                }
-            }
-        }
-        if dependents_failed {
-            return Ok(110);
-        }
-        if dry_run {
-            log::debug!("Updating lock file");
-        } else {
-            cargo::update_lock(&pkg.manifest_path)?;
-        }
-
-        if !pkg.config.pre_release_replacements().is_empty() {
-            // try replacing text in configured files
-            let template = Template {
-                prev_version: Some(&pkg.prev_version.version_string),
-                version: Some(&new_version_string),
-                crate_name: Some(crate_name),
-                date: Some(NOW.as_str()),
-                tag_name: pkg.tag.as_ref().map(|s| s.as_str()),
-                ..Default::default()
-            };
-            do_file_replacements(
-                pkg.config.pre_release_replacements(),
-                &template,
-                cwd,
-                dry_run,
-            )?;
-        }
-
-        // pre-release hook
-        if let Some(pre_rel_hook) = pkg.config.pre_release_hook() {
-            let pre_rel_hook = pre_rel_hook.args();
-            log::debug!("Calling pre-release hook: {:?}", pre_rel_hook);
-            let envs = btreemap! {
-                OsStr::new("PREV_VERSION") => pkg.prev_version.version_string.as_ref(),
-                OsStr::new("NEW_VERSION") => new_version_string.as_ref(),
-                OsStr::new("DRY_RUN") => OsStr::new(if dry_run { "true" } else { "false" }),
-                OsStr::new("CRATE_NAME") => OsStr::new(crate_name),
-                OsStr::new("WORKSPACE_ROOT") => ws_meta.workspace_root.as_os_str(),
-                OsStr::new("CRATE_ROOT") => pkg.manifest_path.parent().unwrap_or_else(|| Path::new(".")).as_os_str(),
-            };
-            // we use dry_run environmental variable to run the script
-            // so here we set dry_run=false and always execute the command.
-            if !cmd::call_with_env(pre_rel_hook, envs, cwd, false)? {
-                log::warn!(
-                    "Release of {} aborted by non-zero return of prerelease hook.",
-                    crate_name
-                );
-                return Ok(107);
-            }
-        }
-
-        let template = Template {
-            prev_version: Some(&pkg.prev_version.version_string),
-            version: Some(&new_version_string),
-            crate_name: Some(crate_name),
-            date: Some(NOW.as_str()),
-            ..Default::default()
-        };
-        let commit_msg = template.render(pkg.config.pre_release_commit_message());
-        if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
-            // commit failed, abort release
-            return Ok(102);
         }
     }
 
