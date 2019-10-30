@@ -784,8 +784,18 @@ impl config::ConfigSource for ConfigArgs {
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "cargo")]
+#[structopt(
+    setting = structopt::clap::AppSettings::UnifiedHelpMessage,
+    setting = structopt::clap::AppSettings::DeriveDisplayOrder,
+    setting = structopt::clap::AppSettings::DontCollapseArgsInUsage
+)]
 enum Command {
     #[structopt(name = "release")]
+    #[structopt(
+        setting = structopt::clap::AppSettings::UnifiedHelpMessage,
+        setting = structopt::clap::AppSettings::DeriveDisplayOrder,
+        setting = structopt::clap::AppSettings::DontCollapseArgsInUsage
+    )]
     Release(ReleaseOpt),
 }
 
