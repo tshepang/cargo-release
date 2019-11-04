@@ -357,17 +357,6 @@ fn release_packages<'m>(
             }
 
             let new_version_string = version.version_string.as_str();
-            // Release Confirmation
-            if !dry_run && !args.no_confirm {
-                let confirmed = shell::confirm(&format!(
-                    "Release version {} {}?",
-                    crate_name, new_version_string
-                ));
-                if !confirmed {
-                    return Ok(0);
-                }
-            }
-
             log::info!("Update {} to version {}", crate_name, new_version_string);
             if !dry_run {
                 cargo::set_package_version(&pkg.manifest_path, &new_version_string)?;
