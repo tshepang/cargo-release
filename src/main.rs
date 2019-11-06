@@ -65,6 +65,8 @@ struct PackageRelease<'m> {
     tag: Option<String>,
     post_version: Option<Version>,
 
+    dependents: Vec<Dependency<'m>>,
+
     //dependent_version: config::DependentVersion,
     //dependents: Vec<&'m Path>,
     //failed_dependents: Vec<&'m Path>,
@@ -74,6 +76,11 @@ struct PackageRelease<'m> {
 struct Version {
     version: semver::Version,
     version_string: String,
+}
+
+struct Dependency<'m> {
+    pkg: &'m cargo_metadata::Package,
+    req: &'m semver::VersionReq,
 }
 
 impl<'m> PackageRelease<'m> {
@@ -155,6 +162,13 @@ impl<'m> PackageRelease<'m> {
                 None
             }
         };
+        let dependents = if version.is_some() {
+            find_dependents(ws_meta, pkg_meta)
+                .map(|(pkg, dep)| Dependency { pkg, req: &dep.req })
+                .collect()
+        } else {
+            Vec::new()
+        };
 
         let base = version.as_ref().unwrap_or_else(|| &prev_version);
 
@@ -212,6 +226,7 @@ impl<'m> PackageRelease<'m> {
             version,
             tag,
             post_version,
+            dependents,
 
             features: features,
         };
@@ -362,14 +377,14 @@ fn release_packages<'m>(
                 cargo::set_package_version(&pkg.manifest_path, &new_version_string)?;
             }
             let mut dependents_failed = false;
-            for (dep_pkg, dep) in find_dependents(&ws_meta, &pkg.meta) {
+            for dep in pkg.dependents.iter() {
                 match pkg.config.dependent_version() {
                     config::DependentVersion::Ignore => (),
                     config::DependentVersion::Warn => {
                         if !dep.req.matches(&version.version) {
                             log::warn!(
                                 "{}'s dependency on {} `{}` is incompatible with {}",
-                                dep_pkg.name,
+                                dep.pkg.name,
                                 pkg.meta.name,
                                 dep.req,
                                 new_version_string
@@ -380,7 +395,7 @@ fn release_packages<'m>(
                         if !dep.req.matches(&version.version) {
                             log::warn!(
                                 "{}'s dependency on {} `{}` is incompatible with {}",
-                                dep_pkg.name,
+                                dep.pkg.name,
                                 pkg.meta.name,
                                 dep.req,
                                 new_version_string
@@ -395,14 +410,14 @@ fn release_packages<'m>(
                                 if dry_run {
                                     log::info!(
                                         "Fixing {}'s dependency on {} to `{}` (from `{}`)",
-                                        dep_pkg.name,
+                                        dep.pkg.name,
                                         pkg.meta.name,
                                         new_req,
                                         dep.req
                                     );
                                 } else {
                                     cargo::set_dependency_version(
-                                        &dep_pkg.manifest_path,
+                                        &dep.pkg.manifest_path,
                                         &pkg.meta.name,
                                         &new_req,
                                     )?;
@@ -416,14 +431,14 @@ fn release_packages<'m>(
                             if dry_run {
                                 log::info!(
                                     "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
-                                    dep_pkg.name,
+                                    dep.pkg.name,
                                     pkg.meta.name,
                                     new_req,
                                     dep.req
                                 );
                             } else {
                                 cargo::set_dependency_version(
-                                    &dep_pkg.manifest_path,
+                                    &dep.pkg.manifest_path,
                                     &pkg.meta.name,
                                     &new_req,
                                 )?;
