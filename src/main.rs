@@ -331,13 +331,20 @@ fn release_packages<'m>(
             let cwd = pkg.package_path;
             let crate_name = pkg.meta.name.as_str();
             let prev_tag_name = &pkg.prev_tag;
-            if let Some(changed) = git::changed_from(cwd, &prev_tag_name)? {
-                if !changed {
+            if let Some(changed) = git::changed_files(cwd, &prev_tag_name)? {
+                if changed.is_empty() {
                     log::warn!(
                         "Updating {} to {} despite no changes made since tag {}",
                         crate_name,
                         version.version_string,
                         prev_tag_name
+                    );
+                } else {
+                    log::trace!(
+                        "Files changed in {} since {}: {:#?}",
+                        crate_name,
+                        prev_tag_name,
+                        changed
                     );
                 }
             } else {

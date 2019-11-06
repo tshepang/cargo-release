@@ -2,6 +2,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 
+use bstr::ByteSlice;
+
 use crate::cmd::call_on_path;
 use crate::error::FatalError;
 
@@ -29,7 +31,7 @@ pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
     Ok(tracked_unclean || untracked)
 }
 
-pub fn changed_from(dir: &Path, tag: &str) -> Result<Option<bool>, FatalError> {
+pub fn changed_files(dir: &Path, tag: &str) -> Result<Option<Vec<PathBuf>>, FatalError> {
     let output = Command::new("git")
         .arg("diff")
         .arg(&format!("{}..HEAD", tag))
@@ -40,8 +42,15 @@ pub fn changed_from(dir: &Path, tag: &str) -> Result<Option<bool>, FatalError> {
         .output()
         .map_err(FatalError::from)?;
     match output.status.code() {
-        Some(0) => Ok(Some(false)),
-        Some(1) => Ok(Some(true)),
+        Some(0) => Ok(Some(Vec::new())),
+        Some(1) => {
+            let paths = output
+                .stdout
+                .lines()
+                .map(|l| dir.join(l.to_path_lossy()))
+                .collect();
+            Ok(Some(paths))
+        }
         _ => Ok(None), // For cases like non-existent tag
     }
 }
