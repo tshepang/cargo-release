@@ -321,6 +321,31 @@ fn release_packages<'m>(
 ) -> Result<i32, error::FatalError> {
     let dry_run = args.dry_run;
 
+    // STEP 0: Help the user make the right decisions.
+    for pkg in pkgs {
+        if let Some(version) = pkg.version.as_ref() {
+            let cwd = pkg.package_path;
+            let crate_name = pkg.meta.name.as_str();
+            let prev_tag_name = &pkg.prev_tag;
+            if let Some(changed) = git::changed_from(cwd, &prev_tag_name)? {
+                if !changed {
+                    log::warn!(
+                        "Updating {} to {} despite no changes made since tag {}",
+                        crate_name,
+                        version.version_string,
+                        prev_tag_name
+                    );
+                }
+            } else {
+                log::info!(
+                    "Cannot detect changes for {} because tag {} is missing",
+                    crate_name,
+                    prev_tag_name
+                );
+            }
+        }
+    }
+
     // STEP 1: Release Confirmation
     if !dry_run && !args.no_confirm {
         let prompt = if pkgs.len() == 1 {
@@ -354,23 +379,6 @@ fn release_packages<'m>(
 
         // STEP 2: update current version, save and commit
         if let Some(version) = pkg.version.as_ref() {
-            let prev_tag_name = &pkg.prev_tag;
-            if let Some(changed) = git::changed_from(cwd, &prev_tag_name)? {
-                if !changed {
-                    log::warn!(
-                        "Releasing {} despite no changes made since tag {}",
-                        crate_name,
-                        prev_tag_name
-                    );
-                }
-            } else {
-                log::info!(
-                    "Cannot detect changes for {} because tag {} is missing",
-                    crate_name,
-                    prev_tag_name
-                );
-            }
-
             let new_version_string = version.version_string.as_str();
             log::info!("Update {} to version {}", crate_name, new_version_string);
             if !dry_run {
