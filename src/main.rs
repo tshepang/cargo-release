@@ -132,7 +132,11 @@ impl<'m> PackageRelease<'m> {
             version_string: pkg_meta.version.to_string(),
         };
 
-        let prev_tag = {
+        let prev_tag = if let Some(prev_tag) = args.prev_tag_name.as_ref() {
+            // Trust the user that the tag passed in is the latest tag for the workspace and that
+            // they don't care about any changes from before this tag.
+            prev_tag.to_owned()
+        } else {
             let mut template = Template {
                 prev_version: Some(&prev_version.version_string),
                 version: Some(&prev_version.version_string),
@@ -338,7 +342,7 @@ fn release_packages<'m>(
                 }
             } else {
                 log::info!(
-                    "Cannot detect changes for {} because tag {} is missing",
+                    "Cannot detect changes for {} because tag {} is missing. Try setting `--prev-tag-name <TAG>`.",
                     crate_name,
                     prev_tag_name
                 );
@@ -666,6 +670,10 @@ struct ReleaseOpt {
     #[structopt(long)]
     /// Skip release confirmation and version preview
     no_confirm: bool,
+
+    #[structopt(long)]
+    /// The name of tag for the previous release.
+    prev_tag_name: Option<String>,
 
     #[structopt(flatten)]
     logging: Verbosity,
