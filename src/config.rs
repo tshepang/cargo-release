@@ -12,15 +12,7 @@ pub trait ConfigSource {
         None
     }
 
-    fn upload_doc(&self) -> Option<bool> {
-        None
-    }
-
     fn push_remote(&self) -> Option<&str> {
-        None
-    }
-
-    fn doc_branch(&self) -> Option<&str> {
         None
     }
 
@@ -73,10 +65,6 @@ pub trait ConfigSource {
         None
     }
 
-    fn doc_commit_message(&self) -> Option<&str> {
-        None
-    }
-
     fn disable_tag(&self) -> Option<bool> {
         None
     }
@@ -99,9 +87,7 @@ pub trait ConfigSource {
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
     pub sign_commit: Option<bool>,
-    pub upload_doc: Option<bool>,
     pub push_remote: Option<String>,
-    pub doc_branch: Option<String>,
     pub disable_publish: Option<bool>,
     pub disable_push: Option<bool>,
     pub dev_version_ext: Option<String>,
@@ -115,7 +101,6 @@ pub struct Config {
     pub tag_message: Option<String>,
     pub tag_prefix: Option<String>,
     pub tag_name: Option<String>,
-    pub doc_commit_message: Option<String>,
     pub disable_tag: Option<bool>,
     pub enable_features: Option<Vec<String>>,
     pub enable_all_features: Option<bool>,
@@ -127,14 +112,8 @@ impl Config {
         if let Some(sign_commit) = source.sign_commit() {
             self.sign_commit = Some(sign_commit);
         }
-        if let Some(upload_doc) = source.upload_doc() {
-            self.upload_doc = Some(upload_doc);
-        }
         if let Some(push_remote) = source.push_remote() {
             self.push_remote = Some(push_remote.to_owned());
-        }
-        if let Some(doc_branch) = source.doc_branch() {
-            self.doc_branch = Some(doc_branch.to_owned());
         }
         if let Some(disable_publish) = source.disable_publish() {
             self.disable_publish = Some(disable_publish);
@@ -176,9 +155,6 @@ impl Config {
         if let Some(tag_name) = source.tag_name() {
             self.tag_name = Some(tag_name.to_owned());
         }
-        if let Some(doc_commit_message) = source.doc_commit_message() {
-            self.doc_commit_message = Some(doc_commit_message.to_owned());
-        }
         if let Some(disable_tag) = source.disable_tag() {
             self.disable_tag = Some(disable_tag);
         }
@@ -197,22 +173,11 @@ impl Config {
         self.sign_commit.unwrap_or(false)
     }
 
-    pub fn upload_doc(&self) -> bool {
-        self.upload_doc.unwrap_or(false)
-    }
-
     pub fn push_remote(&self) -> &str {
         self.push_remote
             .as_ref()
             .map(|s| s.as_str())
             .unwrap_or("origin")
-    }
-
-    pub fn doc_branch(&self) -> &str {
-        self.doc_branch
-            .as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or("gh-pages")
     }
 
     pub fn disable_publish(&self) -> bool {
@@ -281,13 +246,6 @@ impl Config {
             .unwrap_or("{{prefix}}v{{version}}")
     }
 
-    pub fn doc_commit_message(&self) -> &str {
-        self.doc_commit_message
-            .as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or("(cargo-release) generate docs")
-    }
-
     pub fn disable_tag(&self) -> bool {
         self.disable_tag.unwrap_or(false)
     }
@@ -313,16 +271,8 @@ impl ConfigSource for Config {
         self.sign_commit
     }
 
-    fn upload_doc(&self) -> Option<bool> {
-        self.upload_doc
-    }
-
     fn push_remote(&self) -> Option<&str> {
         self.push_remote.as_ref().map(|s| s.as_str())
-    }
-
-    fn doc_branch(&self) -> Option<&str> {
-        self.doc_branch.as_ref().map(|s| s.as_str())
     }
 
     fn disable_publish(&self) -> Option<bool> {
@@ -374,10 +324,6 @@ impl ConfigSource for Config {
 
     fn tag_name(&self) -> Option<&str> {
         self.tag_name.as_ref().map(|s| s.as_str())
-    }
-
-    fn doc_commit_message(&self) -> Option<&str> {
-        self.doc_commit_message.as_ref().map(|s| s.as_str())
     }
 
     fn disable_tag(&self) -> Option<bool> {
