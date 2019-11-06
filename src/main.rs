@@ -65,6 +65,8 @@ struct PackageRelease<'m> {
     tag: Option<String>,
     post_version: Option<Version>,
 
+    dependents: Vec<Dependency<'m>>,
+
     //dependent_version: config::DependentVersion,
     //dependents: Vec<&'m Path>,
     //failed_dependents: Vec<&'m Path>,
@@ -74,6 +76,11 @@ struct PackageRelease<'m> {
 struct Version {
     version: semver::Version,
     version_string: String,
+}
+
+struct Dependency<'m> {
+    pkg: &'m cargo_metadata::Package,
+    req: &'m semver::VersionReq,
 }
 
 impl<'m> PackageRelease<'m> {
@@ -125,7 +132,11 @@ impl<'m> PackageRelease<'m> {
             version_string: pkg_meta.version.to_string(),
         };
 
-        let prev_tag = {
+        let prev_tag = if let Some(prev_tag) = args.prev_tag_name.as_ref() {
+            // Trust the user that the tag passed in is the latest tag for the workspace and that
+            // they don't care about any changes from before this tag.
+            prev_tag.to_owned()
+        } else {
             let mut template = Template {
                 prev_version: Some(&prev_version.version_string),
                 version: Some(&prev_version.version_string),
@@ -154,6 +165,13 @@ impl<'m> PackageRelease<'m> {
             } else {
                 None
             }
+        };
+        let dependents = if version.is_some() {
+            find_dependents(ws_meta, pkg_meta)
+                .map(|(pkg, dep)| Dependency { pkg, req: &dep.req })
+                .collect()
+        } else {
+            Vec::new()
         };
 
         let base = version.as_ref().unwrap_or_else(|| &prev_version);
@@ -212,6 +230,7 @@ impl<'m> PackageRelease<'m> {
             version,
             tag,
             post_version,
+            dependents,
 
             features: features,
         };
@@ -306,6 +325,49 @@ fn release_packages<'m>(
 ) -> Result<i32, error::FatalError> {
     let dry_run = args.dry_run;
 
+    // STEP 0: Help the user make the right decisions.
+    let lock_path = ws_meta.workspace_root.join("Cargo.lock");
+    for pkg in pkgs {
+        if let Some(version) = pkg.version.as_ref() {
+            let cwd = pkg.package_path;
+            let crate_name = pkg.meta.name.as_str();
+            let prev_tag_name = &pkg.prev_tag;
+            if let Some(mut changed) = git::changed_files(cwd, &prev_tag_name)? {
+                if let Some(lock_index) = changed.iter().enumerate().find_map(|(idx, path)| {
+                    if path == &lock_path {
+                        Some(idx)
+                    } else {
+                        None
+                    }
+                }) {
+                    log::debug!("Lock file changed since {} but ignored since it could be as simple as a pre-release version bump.", prev_tag_name);
+                    let _ = changed.swap_remove(lock_index);
+                }
+                if changed.is_empty() {
+                    log::warn!(
+                        "Updating {} to {} despite no changes made since tag {}",
+                        crate_name,
+                        version.version_string,
+                        prev_tag_name
+                    );
+                } else {
+                    log::trace!(
+                        "Files changed in {} since {}: {:#?}",
+                        crate_name,
+                        prev_tag_name,
+                        changed
+                    );
+                }
+            } else {
+                log::info!(
+                    "Cannot detect changes for {} because tag {} is missing. Try setting `--prev-tag-name <TAG>`.",
+                    crate_name,
+                    prev_tag_name
+                );
+            }
+        }
+    }
+
     // STEP 1: Release Confirmation
     if !dry_run && !args.no_confirm {
         let prompt = if pkgs.len() == 1 {
@@ -339,37 +401,20 @@ fn release_packages<'m>(
 
         // STEP 2: update current version, save and commit
         if let Some(version) = pkg.version.as_ref() {
-            let prev_tag_name = &pkg.prev_tag;
-            if let Some(changed) = git::changed_from(cwd, &prev_tag_name)? {
-                if !changed {
-                    log::warn!(
-                        "Releasing {} despite no changes made since tag {}",
-                        crate_name,
-                        prev_tag_name
-                    );
-                }
-            } else {
-                log::info!(
-                    "Cannot detect changes for {} because tag {} is missing",
-                    crate_name,
-                    prev_tag_name
-                );
-            }
-
             let new_version_string = version.version_string.as_str();
             log::info!("Update {} to version {}", crate_name, new_version_string);
             if !dry_run {
                 cargo::set_package_version(&pkg.manifest_path, &new_version_string)?;
             }
             let mut dependents_failed = false;
-            for (dep_pkg, dep) in find_dependents(&ws_meta, &pkg.meta) {
+            for dep in pkg.dependents.iter() {
                 match pkg.config.dependent_version() {
                     config::DependentVersion::Ignore => (),
                     config::DependentVersion::Warn => {
                         if !dep.req.matches(&version.version) {
                             log::warn!(
                                 "{}'s dependency on {} `{}` is incompatible with {}",
-                                dep_pkg.name,
+                                dep.pkg.name,
                                 pkg.meta.name,
                                 dep.req,
                                 new_version_string
@@ -380,7 +425,7 @@ fn release_packages<'m>(
                         if !dep.req.matches(&version.version) {
                             log::warn!(
                                 "{}'s dependency on {} `{}` is incompatible with {}",
-                                dep_pkg.name,
+                                dep.pkg.name,
                                 pkg.meta.name,
                                 dep.req,
                                 new_version_string
@@ -392,17 +437,16 @@ fn release_packages<'m>(
                         if !dep.req.matches(&version.version) {
                             let new_req = version::set_requirement(&dep.req, &version.version)?;
                             if let Some(new_req) = new_req {
-                                if dry_run {
-                                    log::info!(
-                                        "Fixing {}'s dependency on {} to `{}` (from `{}`)",
-                                        dep_pkg.name,
-                                        pkg.meta.name,
-                                        new_req,
-                                        dep.req
-                                    );
-                                } else {
+                                log::info!(
+                                    "Fixing {}'s dependency on {} to `{}` (from `{}`)",
+                                    dep.pkg.name,
+                                    pkg.meta.name,
+                                    new_req,
+                                    dep.req
+                                );
+                                if !dry_run {
                                     cargo::set_dependency_version(
-                                        &dep_pkg.manifest_path,
+                                        &dep.pkg.manifest_path,
                                         &pkg.meta.name,
                                         &new_req,
                                     )?;
@@ -413,17 +457,16 @@ fn release_packages<'m>(
                     config::DependentVersion::Upgrade => {
                         let new_req = version::set_requirement(&dep.req, &version.version)?;
                         if let Some(new_req) = new_req {
-                            if dry_run {
-                                log::info!(
-                                    "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
-                                    dep_pkg.name,
-                                    pkg.meta.name,
-                                    new_req,
-                                    dep.req
-                                );
-                            } else {
+                            log::info!(
+                                "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
+                                dep.pkg.name,
+                                pkg.meta.name,
+                                new_req,
+                                dep.req
+                            );
+                            if !dry_run {
                                 cargo::set_dependency_version(
-                                    &dep_pkg.manifest_path,
+                                    &dep.pkg.manifest_path,
                                     &pkg.meta.name,
                                     &new_req,
                                 )?;
@@ -643,6 +686,10 @@ struct ReleaseOpt {
     #[structopt(long)]
     /// Skip release confirmation and version preview
     no_confirm: bool,
+
+    #[structopt(long)]
+    /// The name of tag for the previous release.
+    prev_tag_name: Option<String>,
 
     #[structopt(flatten)]
     logging: Verbosity,
