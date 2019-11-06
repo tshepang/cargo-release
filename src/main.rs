@@ -326,12 +326,23 @@ fn release_packages<'m>(
     let dry_run = args.dry_run;
 
     // STEP 0: Help the user make the right decisions.
+    let lock_path = ws_meta.workspace_root.join("Cargo.lock");
     for pkg in pkgs {
         if let Some(version) = pkg.version.as_ref() {
             let cwd = pkg.package_path;
             let crate_name = pkg.meta.name.as_str();
             let prev_tag_name = &pkg.prev_tag;
-            if let Some(changed) = git::changed_files(cwd, &prev_tag_name)? {
+            if let Some(mut changed) = git::changed_files(cwd, &prev_tag_name)? {
+                if let Some(lock_index) = changed.iter().enumerate().find_map(|(idx, path)| {
+                    if path == &lock_path {
+                        Some(idx)
+                    } else {
+                        None
+                    }
+                }) {
+                    log::debug!("Lock file changed since {} but ignored since it could be as simple as a pre-release version bump.", prev_tag_name);
+                    let _ = changed.swap_remove(lock_index);
+                }
                 if changed.is_empty() {
                     log::warn!(
                         "Updating {} to {} despite no changes made since tag {}",
