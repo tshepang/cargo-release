@@ -437,15 +437,14 @@ fn release_packages<'m>(
                         if !dep.req.matches(&version.version) {
                             let new_req = version::set_requirement(&dep.req, &version.version)?;
                             if let Some(new_req) = new_req {
-                                if dry_run {
-                                    log::info!(
-                                        "Fixing {}'s dependency on {} to `{}` (from `{}`)",
-                                        dep.pkg.name,
-                                        pkg.meta.name,
-                                        new_req,
-                                        dep.req
-                                    );
-                                } else {
+                                log::info!(
+                                    "Fixing {}'s dependency on {} to `{}` (from `{}`)",
+                                    dep.pkg.name,
+                                    pkg.meta.name,
+                                    new_req,
+                                    dep.req
+                                );
+                                if !dry_run {
                                     cargo::set_dependency_version(
                                         &dep.pkg.manifest_path,
                                         &pkg.meta.name,
@@ -458,15 +457,14 @@ fn release_packages<'m>(
                     config::DependentVersion::Upgrade => {
                         let new_req = version::set_requirement(&dep.req, &version.version)?;
                         if let Some(new_req) = new_req {
-                            if dry_run {
-                                log::info!(
-                                    "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
-                                    dep.pkg.name,
-                                    pkg.meta.name,
-                                    new_req,
-                                    dep.req
-                                );
-                            } else {
+                            log::info!(
+                                "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
+                                dep.pkg.name,
+                                pkg.meta.name,
+                                new_req,
+                                dep.req
+                            );
+                            if !dry_run {
                                 cargo::set_dependency_version(
                                     &dep.pkg.manifest_path,
                                     &pkg.meta.name,
