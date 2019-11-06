@@ -54,20 +54,6 @@ pub fn publish(
     }
 }
 
-pub fn doc(dry_run: bool, manifest_path: &Path) -> Result<bool, FatalError> {
-    let cargo = cargo();
-    call(
-        vec![
-            &cargo,
-            "doc",
-            "--no-deps",
-            "--manifest-path",
-            manifest_path.to_str().unwrap(),
-        ],
-        dry_run,
-    )
-}
-
 pub fn set_package_version(manifest_path: &Path, version: &str) -> Result<(), FatalError> {
     let temp_manifest_path = manifest_path
         .parent()

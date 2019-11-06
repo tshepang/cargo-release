@@ -511,30 +511,6 @@ fn release_packages<'m>(
         }
     }
 
-    // STEP 4: upload doc
-    for pkg in pkgs {
-        if pkg.config.upload_doc() {
-            let sign = pkg.config.sign_commit();
-            let cwd = pkg.package_path;
-            let crate_name = pkg.meta.name.as_str();
-
-            log::info!("Building and exporting docs for {}", crate_name);
-            log::warn!("Doc uploading support is deprecated, see docs.rs instead");
-            cargo::doc(dry_run, &pkg.manifest_path)?;
-
-            let doc_path = ws_meta.target_directory.join("doc");
-
-            log::info!("Commit and push docs for {}", crate_name);
-            git::init(&doc_path, dry_run)?;
-            git::add_all(&doc_path, dry_run)?;
-            git::commit_all(&doc_path, pkg.config.doc_commit_message(), sign, dry_run)?;
-            let default_remote = git::origin_url(cwd)?;
-
-            let refspec = format!("master:{}", pkg.config.doc_branch());
-            git::force_push(&doc_path, default_remote.trim(), &refspec, dry_run)?;
-        }
-    }
-
     // STEP 5: Tag
     for pkg in pkgs {
         if let Some(tag_name) = pkg.tag.as_ref() {
@@ -707,10 +683,6 @@ struct ConfigArgs {
     /// Sign git commit and tag
     sign: bool,
 
-    #[structopt(long, hidden(true))]
-    /// Upload rust document to gh-pages branch
-    upload_doc: bool,
-
     #[structopt(long)]
     /// Git remote to push
     push_remote: Option<String>,
@@ -734,10 +706,6 @@ struct ConfigArgs {
     )]
     /// Specify how workspace dependencies on this crate should be handed.
     dependent_version: Option<config::DependentVersion>,
-
-    #[structopt(long, hidden(true))]
-    /// Git branch to push documentation on
-    doc_branch: Option<String>,
 
     #[structopt(long)]
     /// Prefix of git tag, note that this will override default prefix based on sub-directory
@@ -769,16 +737,8 @@ impl config::ConfigSource for ConfigArgs {
         self.sign.as_some(true)
     }
 
-    fn upload_doc(&self) -> Option<bool> {
-        self.upload_doc.as_some(true)
-    }
-
     fn push_remote(&self) -> Option<&str> {
         self.push_remote.as_ref().map(|s| s.as_str())
-    }
-
-    fn doc_branch(&self) -> Option<&str> {
-        self.doc_branch.as_ref().map(|s| s.as_str())
     }
 
     fn disable_publish(&self) -> Option<bool> {

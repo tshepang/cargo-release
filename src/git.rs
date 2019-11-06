@@ -97,34 +97,6 @@ pub fn top_level(dir: &Path) -> Result<PathBuf, FatalError> {
     Ok(Path::new(path).to_owned())
 }
 
-pub fn origin_url(dir: &Path) -> Result<String, FatalError> {
-    let output = Command::new("git")
-        .arg("remote")
-        .arg("get-url")
-        .arg("origin")
-        .current_dir(dir)
-        .output()
-        .map_err(FatalError::from)?;
-    String::from_utf8(output.stdout).map_err(FatalError::from)
-}
-
-pub fn init(dir: &Path, dry_run: bool) -> Result<bool, FatalError> {
-    call_on_path(vec!["git", "init"], dir, dry_run)
-}
-
-pub fn add_all(dir: &Path, dry_run: bool) -> Result<bool, FatalError> {
-    call_on_path(vec!["git", "add", "."], dir, dry_run)
-}
-
-pub fn force_push(
-    dir: &Path,
-    remote: &str,
-    refspec: &str,
-    dry_run: bool,
-) -> Result<bool, FatalError> {
-    call_on_path(vec!["git", "push", "-f", remote, refspec], dir, dry_run)
-}
-
 pub(crate) fn git_version() -> Result<(), FatalError> {
     Command::new("git")
         .arg("--version")
