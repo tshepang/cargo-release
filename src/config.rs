@@ -32,6 +32,10 @@ pub trait ConfigSource {
         None
     }
 
+    fn consolidate_commits(&self) -> Option<bool> {
+        None
+    }
+
     fn pre_release_commit_message(&self) -> Option<&str> {
         None
     }
@@ -92,6 +96,7 @@ pub struct Config {
     pub disable_push: Option<bool>,
     pub dev_version_ext: Option<String>,
     pub no_dev_version: Option<bool>,
+    pub consolidate_commits: Option<bool>,
     pub pre_release_commit_message: Option<String>,
     // depreacted
     pub pro_release_commit_message: Option<String>,
@@ -126,6 +131,9 @@ impl Config {
         }
         if let Some(no_dev_version) = source.no_dev_version() {
             self.no_dev_version = Some(no_dev_version);
+        }
+        if let Some(consolidate_commits) = source.consolidate_commits() {
+            self.consolidate_commits = Some(consolidate_commits);
         }
         if let Some(pre_release_commit_message) = source.pre_release_commit_message() {
             self.pre_release_commit_message = Some(pre_release_commit_message.to_owned());
@@ -197,6 +205,10 @@ impl Config {
 
     pub fn no_dev_version(&self) -> bool {
         self.no_dev_version.unwrap_or(false)
+    }
+
+    pub fn consolidate_commits(&self) -> bool {
+        self.consolidate_commits.unwrap_or(false)
     }
 
     pub fn pre_release_commit_message(&self) -> &str {
@@ -289,6 +301,10 @@ impl ConfigSource for Config {
 
     fn no_dev_version(&self) -> Option<bool> {
         self.no_dev_version
+    }
+
+    fn consolidate_commits(&self) -> Option<bool> {
+        self.consolidate_commits
     }
 
     fn pre_release_commit_message(&self) -> Option<&str> {
@@ -432,6 +448,32 @@ fn get_config_from_file(file_path: &Path) -> Result<Option<Config>, FatalError> 
 
 pub fn resolve_custom_config(file_path: &Path) -> Result<Option<Config>, FatalError> {
     get_config_from_file(file_path)
+}
+
+/// Try to resolve workspace configuration source.
+///
+/// This tries the following sources in order, merging the results:
+/// 1. $HOME/.release.toml
+/// 2. $(workspace)/release.toml
+pub fn resolve_workspace_config(workspace_root: &Path) -> Result<Config, FatalError> {
+    let mut config = Config::default();
+
+    // User-local configuration from home directory.
+    let home_dir = dirs::home_dir();
+    if let Some(mut home) = home_dir {
+        home.push(".release.toml");
+        if let Some(cfg) = get_config_from_file(&home)? {
+            config.update(&cfg);
+        }
+    };
+
+    let default_config = workspace_root.join("release.toml");
+    let current_dir_config = get_config_from_file(&default_config)?;
+    if let Some(cfg) = current_dir_config {
+        config.update(&cfg);
+    };
+
+    Ok(config)
 }
 
 /// Try to resolve configuration source.
