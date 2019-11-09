@@ -439,9 +439,11 @@ pub fn resolve_custom_config(file_path: &Path) -> Result<Option<Config>, FatalEr
 /// This tries the following sources in order, merging the results:
 /// 1. $HOME/.release.toml
 /// 2. $(workspace)/release.toml
-/// 3. $(crate)/Cargo.toml `package.metadata.release` (with deprecation warning)
 /// 4. $(crate)/release.toml
+/// 3. $(crate)/Cargo.toml `package.metadata.release`
 ///
+/// `$(crate)/Cargo.toml` is a way to differentiate configuration for the root crate and the
+/// workspace.
 pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Config, FatalError> {
     let mut config = Config::default();
 
@@ -464,15 +466,15 @@ pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Con
         };
     }
 
-    // Crate manifest.
-    let current_dir_config = get_config_from_manifest(manifest_path)?;
+    // Project release file.
+    let default_config = crate_root.join("release.toml");
+    let current_dir_config = get_config_from_file(&default_config)?;
     if let Some(cfg) = current_dir_config {
         config.update(&cfg);
     };
 
-    // Project release file.
-    let default_config = crate_root.join("release.toml");
-    let current_dir_config = get_config_from_file(&default_config)?;
+    // Crate manifest.
+    let current_dir_config = get_config_from_manifest(manifest_path)?;
     if let Some(cfg) = current_dir_config {
         config.update(&cfg);
     };
