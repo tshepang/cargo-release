@@ -240,6 +240,24 @@ impl<'m> PackageRelease<'m> {
 
 fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let ws_meta = args.manifest.metadata().exec().map_err(FatalError::from)?;
+    let ws_config = {
+        let mut release_config = config::Config::default();
+
+        if !args.isolated {
+            let cfg = config::resolve_workspace_config(&ws_meta.workspace_root)?;
+            release_config.update(&cfg);
+        }
+
+        if let Some(custom_config_path) = args.custom_config.as_ref() {
+            // when calling with -c option
+            let cfg =
+                config::resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
+            release_config.update(&cfg);
+        }
+
+        release_config.update(&args.config);
+        release_config
+    };
 
     git::git_version()?;
     if git::is_dirty(&ws_meta.workspace_root)? {
@@ -268,7 +286,7 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         .filter_map(|id| pkg_releases.get(id))
         .collect();
 
-    release_packages(args, &ws_meta, pkg_releases.as_slice())
+    release_packages(args, &ws_meta, &ws_config, pkg_releases.as_slice())
 }
 
 fn sort_workspace<'m>(ws_meta: &'m cargo_metadata::Metadata) -> Vec<&'m cargo_metadata::PackageId> {
@@ -321,6 +339,7 @@ fn sort_workspace_inner<'m>(
 fn release_packages<'m>(
     args: &ReleaseOpt,
     ws_meta: &cargo_metadata::Metadata,
+    ws_config: &config::Config,
     pkgs: &'m [&'m PackageRelease<'m>],
 ) -> Result<i32, error::FatalError> {
     let dry_run = args.dry_run;
@@ -393,13 +412,13 @@ fn release_packages<'m>(
         }
     }
 
+    // STEP 2: update current version, save and commit
+    let mut shared_commit = false;
     for pkg in pkgs {
         let dry_run = args.dry_run;
-        let sign = pkg.config.sign_commit();
         let cwd = pkg.package_path;
         let crate_name = pkg.meta.name.as_str();
 
-        // STEP 2: update current version, save and commit
         if let Some(version) = pkg.version.as_ref() {
             let new_version_string = version.version_string.as_str();
             log::info!("Update {} to version {}", crate_name, new_version_string);
@@ -525,18 +544,41 @@ fn release_packages<'m>(
                 }
             }
 
+            if ws_config.consolidate_commits() {
+                shared_commit = true;
+            } else {
+                let template = Template {
+                    prev_version: Some(&pkg.prev_version.version_string),
+                    version: Some(&new_version_string),
+                    crate_name: Some(crate_name),
+                    date: Some(NOW.as_str()),
+                    ..Default::default()
+                };
+                let commit_msg = template.render(pkg.config.pre_release_commit_message());
+                let sign = pkg.config.sign_commit();
+                if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
+                    // commit failed, abort release
+                    return Ok(102);
+                }
+            }
+        }
+    }
+    if shared_commit {
+        let shared_commit_msg = {
             let template = Template {
-                prev_version: Some(&pkg.prev_version.version_string),
-                version: Some(&new_version_string),
-                crate_name: Some(crate_name),
                 date: Some(NOW.as_str()),
                 ..Default::default()
             };
-            let commit_msg = template.render(pkg.config.pre_release_commit_message());
-            if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
-                // commit failed, abort release
-                return Ok(102);
-            }
+            template.render(ws_config.pre_release_commit_message())
+        };
+        if !git::commit_all(
+            &ws_meta.workspace_root,
+            &shared_commit_msg,
+            ws_config.sign_commit(),
+            dry_run,
+        )? {
+            // commit failed, abort release
+            return Ok(102);
         }
     }
 
@@ -581,9 +623,9 @@ fn release_packages<'m>(
     }
 
     // STEP 6: bump version
+    let mut shared_commit = false;
     for pkg in pkgs {
         if let Some(version) = pkg.post_version.as_ref() {
-            let sign = pkg.config.sign_commit();
             let cwd = pkg.package_path;
             let crate_name = pkg.meta.name.as_str();
 
@@ -608,9 +650,32 @@ fn release_packages<'m>(
             };
             let commit_msg = template.render(pkg.config.post_release_commit_message());
 
-            if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
-                return Ok(105);
+            if ws_config.consolidate_commits() {
+                shared_commit = true;
+            } else {
+                let sign = pkg.config.sign_commit();
+                if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
+                    return Ok(105);
+                }
             }
+        }
+    }
+    if shared_commit {
+        let shared_commit_msg = {
+            let template = Template {
+                date: Some(NOW.as_str()),
+                ..Default::default()
+            };
+            template.render(ws_config.post_release_commit_message())
+        };
+        if !git::commit_all(
+            &ws_meta.workspace_root,
+            &shared_commit_msg,
+            ws_config.sign_commit(),
+            dry_run,
+        )? {
+            // commit failed, abort release
+            return Ok(102);
         }
     }
 

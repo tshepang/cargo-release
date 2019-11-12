@@ -41,25 +41,3 @@ pre-release-replacements = [ {file="CHANGELOG.md", search="Unreleased", replace=
 current release version and date.
 
 You can find a real world example in a [handlebars-rust release commit](https://github.com/sunng87/handlebars-rust/commit/ca60fce3e1fce68f427d097d0706a7194600b982#diff-80398c5faae3c069e4e6aa2ed11b28c0)
-
-
-## How do I upload my rustdoc documentation?
-
-Most of the time, [docs.rs](https://docs.rs/about) service will be good enough
-for managing your documentation.  It will automatically generate and post your
-documentation when publishing your crate.
-
-However, if you wish to maintain your own copy (like for your unpublished
-`master`), you can use `--upload-doc` option, cargo-release will generate
-rustdoc during release process, and commit the doc directory to `gh-pages`
-branch. So you can access your rust doc at
-https://YOUR-GITHUB-USERNAME.github.io/YOUR-REPOSITORY-NAME/YOUR-CRATE-NAME
-
-If your hosting service uses different branch for pages, you can use
-`--doc-branch` to customize the branch we push docs to.
-
-#### WARNING
-
-This option will override your existed doc branch,
-use it at your own risk.
-
