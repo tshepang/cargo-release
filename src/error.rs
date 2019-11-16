@@ -94,5 +94,9 @@ quick_error! {
             description("git is not found")
             display("git is not found. git is required for cargo-release workflow.")
         }
+        PublishTimeoutError {
+            description("Timeout waiting for crate to be published.")
+            display("Timeout waiting for crate to be published.")
+        }
     }
 }

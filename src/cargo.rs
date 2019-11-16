@@ -54,6 +54,48 @@ pub fn publish(
     }
 }
 
+pub fn wait_for_publish(
+    name: &str,
+    version: &str,
+    timeout: std::time::Duration,
+    dry_run: bool,
+) -> Result<(), FatalError> {
+    if !dry_run {
+        let now = std::time::Instant::now();
+        let sleep_time = std::time::Duration::from_secs(1);
+        let client = crates_io_api::SyncClient::new();
+        let mut logged = false;
+        loop {
+            let crate_data = client.get_crate(name);
+            let crate_data = match crate_data {
+                Ok(crate_data) => Some(crate_data),
+                Err(e) => {
+                    log::debug!("Crate lookup failed with {}", e);
+                    None
+                }
+            };
+            let published = crate_data
+                .iter()
+                .flat_map(|c| c.versions.iter())
+                .find(|v| v.num == version)
+                .is_some();
+            if published {
+                break;
+            } else if timeout < now.elapsed() {
+                return Err(FatalError::PublishTimeoutError);
+            }
+
+            if !logged {
+                log::info!("Waiting for publish to complete...");
+                logged = true;
+            }
+            std::thread::sleep(sleep_time);
+        }
+    }
+
+    Ok(())
+}
+
 pub fn set_package_version(manifest_path: &Path, version: &str) -> Result<(), FatalError> {
     let temp_manifest_path = manifest_path
         .parent()
