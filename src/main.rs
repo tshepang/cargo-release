@@ -586,6 +586,7 @@ fn release_packages<'m>(
     for pkg in pkgs {
         if !pkg.config.disable_publish() {
             let crate_name = pkg.meta.name.as_str();
+            let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
 
             log::info!("Running cargo publish on {}", crate_name);
             // feature list to release
@@ -593,6 +594,8 @@ fn release_packages<'m>(
             if !cargo::publish(dry_run, &pkg.manifest_path, features)? {
                 return Ok(103);
             }
+            let timeout = std::time::Duration::from_secs(30);
+            cargo::wait_for_publish(crate_name, &base.version_string, timeout, dry_run)?;
         }
     }
 
