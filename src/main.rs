@@ -53,11 +53,34 @@ fn find_dependents<'w>(
     })
 }
 
+fn exclude_paths<'m>(
+    ws_pkgs: &[&'m cargo_metadata::Package],
+    pkg_meta: &'m cargo_metadata::Package,
+) -> Vec<&'m Path> {
+    let base_path = pkg_meta
+        .manifest_path
+        .parent()
+        .unwrap_or_else(|| Path::new("/"));
+    ws_pkgs
+        .iter()
+        .filter_map(|p| {
+            let cur_path = p.manifest_path.parent().unwrap_or_else(|| Path::new("/"));
+            if cur_path != base_path && cur_path.starts_with(base_path) {
+                Some(cur_path)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 struct PackageRelease<'m> {
     meta: &'m cargo_metadata::Package,
     manifest_path: &'m Path,
     package_path: &'m Path,
     config: config::Config,
+
+    change_exclude: Vec<&'m Path>,
 
     prev_version: Version,
     prev_tag: String,
@@ -88,6 +111,7 @@ impl<'m> PackageRelease<'m> {
         args: &ReleaseOpt,
         git_root: &Path,
         ws_meta: &'m cargo_metadata::Metadata,
+        ws_pkgs: &[&'m cargo_metadata::Package],
         pkg_meta: &'m cargo_metadata::Package,
     ) -> Result<Self, error::FatalError> {
         let manifest_path = pkg_meta.manifest_path.as_path();
@@ -131,6 +155,8 @@ impl<'m> PackageRelease<'m> {
             version: pkg_meta.version.clone(),
             version_string: pkg_meta.version.to_string(),
         };
+
+        let change_exclude = exclude_paths(ws_pkgs, pkg_meta);
 
         let prev_tag = if let Some(prev_tag) = args.prev_tag_name.as_ref() {
             // Trust the user that the tag passed in is the latest tag for the workspace and that
@@ -225,6 +251,8 @@ impl<'m> PackageRelease<'m> {
             package_path: cwd,
             config,
 
+            change_exclude,
+
             prev_version,
             prev_tag,
             version,
@@ -269,16 +297,19 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 
     let pkg_ids = sort_workspace(&ws_meta);
 
-    let (selected_pkgs, _excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
+    let (selected_pkgs, excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
     if selected_pkgs.is_empty() {
         log::info!("No packages selected.");
         return Ok(0);
     }
+    let mut all_pkgs = selected_pkgs.clone();
+    all_pkgs.extend(excluded_pkgs);
+    let all_pkgs = all_pkgs;
 
     let root = git::top_level(&ws_meta.workspace_root)?;
     let pkg_releases: Result<HashMap<_, _>, _> = selected_pkgs
         .iter()
-        .map(|p| PackageRelease::load(args, &root, &ws_meta, p).map(|p| (&p.meta.id, p)))
+        .map(|p| PackageRelease::load(args, &root, &ws_meta, &all_pkgs, p).map(|p| (&p.meta.id, p)))
         .collect();
     let pkg_releases = pkg_releases?;
     let pkg_releases: Vec<_> = pkg_ids
@@ -351,7 +382,16 @@ fn release_packages<'m>(
             let cwd = pkg.package_path;
             let crate_name = pkg.meta.name.as_str();
             let prev_tag_name = &pkg.prev_tag;
-            if let Some(mut changed) = git::changed_files(cwd, &prev_tag_name)? {
+            if let Some(changed) = git::changed_files(cwd, &prev_tag_name)? {
+                let mut changed: Vec<_> = changed
+                    .into_iter()
+                    .filter(|p| {
+                        !pkg.change_exclude
+                            .iter()
+                            .find(|base| p.starts_with(base))
+                            .is_some()
+                    })
+                    .collect();
                 if let Some(lock_index) = changed.iter().enumerate().find_map(|(idx, path)| {
                     if path == &lock_path {
                         Some(idx)
