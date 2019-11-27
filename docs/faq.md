@@ -3,7 +3,28 @@
 ## How do I update my README or other files
 
 Cargo-release 0.8 allows you to search and replace version string in
-any project or source file. See [`pre-release-replacements`](reference.md).
+any project or source file.
+
+For example, to update the version in predicates
+[`README.md`](https://github.com/assert-rs/predicates-rs/blob/master/README.md):
+```toml
+[dependencies]
+predicates = "1.0.2"
+```
+
+You use the following
+[`release.toml`](https://github.com/assert-rs/predicates-rs/blob/master/release.toml):
+```toml
+pre-release-replacements = [
+  {file="README.md", search="predicates = .*", replace="{{crate_name}} = \"{{version}}\""},
+  {file="src/lib.rs", search="predicates = .*", replace="{{crate_name}} = \"{{version}}\""},
+]
+```
+
+Note: we only substitute variables on `replace` and not `search` so you'll need
+to change `predicates` to match your crate name.
+
+See [`pre-release-replacements`](reference.md) for more.
 
 ## Maintaining Changelog
 
