@@ -17,7 +17,10 @@ keep your changelog arranged during feature development, in an `Unreleased`
 section (recommended by [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)):
 
 ```markdown
+<!-- next-header -->
+
 ## [Unreleased] - ReleaseDate
+
 ### Added
 - feature 3
 
@@ -28,16 +31,28 @@ section (recommended by [Keep a Changelog](http://keepachangelog.com/en/1.0.0/))
 ### Added
 - feature 1
 - feature 2
+
+<!-- next-url -->
+[Unreleased]: https://github.com/assert-rs/predicates-rs/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/assert-rs/predicates-rs/compare/v0.9.0...v1.0.0
 ```
 
 In `Cargo.toml`, configure `cargo release` to do replacements while
 bumping version:
 
 ```toml
-pre-release-replacements = [ {file="CHANGELOG.md", search="Unreleased", replace="{{version}}"}, {file="CHANGELOG.md", search="ReleaseDate", replace="{{date}}"} ]
+pre-release-replacements = [
+  {file="CHANGELOG.md", search="Unreleased", replace="{{version}}"},
+  {file="CHANGELOG.md", search="\\.\\.\\.HEAD", replace="...{{tag_name}}"},
+  {file="CHANGELOG.md", search="ReleaseDate", replace="{{date}}"},
+  {file="CHANGELOG.md", search="<!-- next-header -->", replace="<!-- next-header -->\n\n## [Unreleased] - ReleaseDate"},
+  {file="CHANGELOG.md", search="<!-- next-url -->", replace="<!-- next-url -->\n[Unreleased]: https://github.com/assert-rs/predicates-rs/compare/{{tag_name}}...HEAD"},
+]
 ```
 
 `{{version}}` and `{{date}}` are pre-defined variables with value of
 current release version and date.
 
-You can find a real world example in a [handlebars-rust release commit](https://github.com/sunng87/handlebars-rust/commit/ca60fce3e1fce68f427d097d0706a7194600b982#diff-80398c5faae3c069e4e6aa2ed11b28c0)
+`predicates` is a real world example
+- [`release.toml`](https://github.com/assert-rs/predicates-rs/blob/master/release.toml)
+- [`CHANGELOG.md`](https://github.com/assert-rs/predicates-rs/blob/master/CHANGELOG.md)
