@@ -77,3 +77,49 @@ current release version and date.
 `predicates` is a real world example
 - [`release.toml`](https://github.com/assert-rs/predicates-rs/blob/master/release.toml)
 - [`CHANGELOG.md`](https://github.com/assert-rs/predicates-rs/blob/master/CHANGELOG.md)
+
+## How do I apply a setting only to one crate in my workspace?
+
+Example problems:
+- Release fails because `cargo-release` was trying to update a non-existent `CHANGELOG.md` ([#157](https://github.com/sunng87/cargo-release/issues/157))
+- Only create one tag for the entire workspace ([#162](https://github.com/sunng87/cargo-release/issues/162))
+
+Somethings only need to be done on for a release, like updating the
+`CHANGELOG.md`, no matter how many crates are being released.  Usually these
+operations are tied to a specific crate.  This is straightforward when you do
+not have a crate in your workspace root.
+
+When you have a root crate, it shares its `release.toml` with the workspace,
+making it less obvious how to do root-crate-specific settings.   If you'd like
+to customize settings differently for the root crate vs the other crate's, you
+have two choices:
+- Put the common setting in the workspace's `release.toml` and override it for the root crate in `Cargo.toml`.
+- Modify each crate's `release.toml` with the setting relevant for that crate.
+
+## How do I customize my tagging in a workspace?
+
+Example problems:
+- Customizing tags while needing the root workspace to follow a specific convention ([#172](https://github.com/sunng87/cargo-release/issues/172))
+
+By default, your tag will look like:
+- `v{{version}}` if the crate is in the repo root.
+- `{{crate_name}}-v{{version}}` otherwise.
+
+This is determined by `tag-name` with the default `"{{prefix}}v{{version}}"`.
+- `"{{prefix}}"` comes from `tag-prefix` which has two defaults:
+  - `""` if the crate is in the repo root.
+  - `"{{crate_name}}-"` otherwise.
+- `"{{version}}"` is the current crate's version.
+
+Other variables are available for use.  See the [reference](reference.md) for more.
+
+`tag-name`, `tag-prefix` come from the config file and `cargo-release` uses a layered config.  The relevant layers are:
+1. Read from the crate's `Cargo.toml`
+2. Read from the crate's `release.toml`
+3. Read from the workspace's `release.toml`.
+
+Something to keep in mind is if you have a crate in your workspace root, it
+shares the `release.toml` with the workspace.  If you'd like to customize the
+tag differently for the root crate vs the other crate's, you have two choices:
+- Put the common setting in the workspace's `release.toml` and override it for the root crate in `Cargo.toml`.
+- Modify each crate's `release.toml` with the setting relevant for that crate.
