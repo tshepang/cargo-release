@@ -6,12 +6,17 @@
 
 Performs release best-practices, including:
 
-* Ensure the git working directory is clean.
-* Bump the version in Cargo.toml
-* Run `cargo publish` ([if not disabled](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional))
-* Create a git tag for this version
-* Bump version for next development cycle
-* `git push`
+1. Ensure the git working directory is clean.
+2. Bump the version in Cargo.toml
+3. Create a git tag for this version
+4. Run `cargo publish` ([if not disabled](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional))
+5. Bump version for next development cycle
+6. `git push`
+
+Features for workspaces include:
+- Report which crates might be able to be skipped
+- Update version ranges in dependent crates
+- Optionally using a single commit for all version bumps
 
 ## Install
 
