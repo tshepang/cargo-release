@@ -63,6 +63,9 @@ This field is an array of tables with the following
 * `file`: the file to search and replace
 * `search`: regex that matches string you want to replace
 * `replace`: the replacement string; you can use the any of the placeholders mentioned below.
+* `min` (default is `1`): Minimum occurrences of `search`.
+* `max` (optional): Maximum occurrences of `search`.
+* `exactly` (optional): Number of occurrences of `search`.
 
 See [release.toml](https://github.com/sunng87/cargo-release/blob/master/release.toml) for example.
 

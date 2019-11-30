@@ -365,6 +365,9 @@ pub struct Replace {
     pub file: PathBuf,
     pub search: String,
     pub replace: String,
+    pub min: Option<usize>,
+    pub max: Option<usize>,
+    pub exactly: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
