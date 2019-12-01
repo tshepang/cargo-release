@@ -553,10 +553,12 @@ fn release_packages<'m>(
                     tag_name: pkg.tag.as_ref().map(|s| s.as_str()),
                     ..Default::default()
                 };
+                let prerelease = !version.version.pre.is_empty();
                 do_file_replacements(
                     pkg.config.pre_release_replacements(),
                     &template,
                     cwd,
+                    prerelease,
                     dry_run,
                 )?;
             }

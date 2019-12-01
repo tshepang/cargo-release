@@ -50,19 +50,41 @@ pub fn do_file_replacements(
     replace_config: &[Replace],
     template: &Template<'_>,
     cwd: &Path,
+    prerelease: bool,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
     for replace in replace_config {
-        let file = cwd.join(replace.file.as_path());
-        let pattern = replace.search.as_str();
-        let to_replace = replace.replace.as_str();
+        if replace.prerelease && prerelease {
+            log::debug!("Pre-release, not replacing {}", replace.search);
+            continue;
+        }
 
+        let to_replace = replace.replace.as_str();
         let replacer = template.render(to_replace);
 
+        let file = cwd.join(replace.file.as_path());
         log::debug!("Substituting values for {}", file.display());
         let data = std::fs::read_to_string(&file)?;
 
+        let pattern = replace.search.as_str();
         let r = Regex::new(pattern).map_err(FatalError::from)?;
+        let min = replace.min.or(replace.exactly).unwrap_or(1);
+        let max = replace.min.or(replace.exactly).unwrap_or(std::usize::MAX);
+        let actual = r.find_iter(&data).count();
+        if actual < min {
+            return Err(FatalError::ReplacerMinError(
+                pattern.to_owned(),
+                min,
+                actual,
+            ))?;
+        } else if max < actual {
+            return Err(FatalError::ReplacerMaxError(
+                pattern.to_owned(),
+                min,
+                actual,
+            ))?;
+        }
+
         let result = r.replace_all(&data, replacer.as_str());
 
         if dry_run {

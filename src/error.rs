@@ -84,6 +84,14 @@ quick_error! {
             display("RegexError {}", err)
             description(err.description())
         }
+        ReplacerMinError(pattern: String, req: usize, actual: usize) {
+            display("For `{}`, at least {} replacements expected, found {}", pattern, req, actual)
+            description("Too few replacements")
+        }
+        ReplacerMaxError(pattern: String, req: usize, actual: usize) {
+            display("For `{}`, at most {} replacements expected, found {}", pattern, req, actual)
+            description("Too many replacements")
+        }
         VarError(err: VarError) {
             from()
             cause(err)
