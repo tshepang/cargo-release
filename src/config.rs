@@ -368,6 +368,8 @@ pub struct Replace {
     pub min: Option<usize>,
     pub max: Option<usize>,
     pub exactly: Option<usize>,
+    #[serde(default)]
+    pub prerelease: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
