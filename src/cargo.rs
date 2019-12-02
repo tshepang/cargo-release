@@ -196,7 +196,7 @@ mod test {
         #[test]
         fn succeeds() {
             let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
             let manifest_path = temp.child("Cargo.toml");
 
             let meta = cargo_metadata::MetadataCommand::new()
@@ -223,7 +223,7 @@ mod test {
         #[test]
         fn preserve_table_order() {
             let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
             let manifest_path = temp.child("Cargo.toml");
             manifest_path
                 .write_str(
@@ -269,7 +269,7 @@ mod test {
         #[test]
         fn dependencies() {
             let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
             let manifest_path = temp.child("Cargo.toml");
             manifest_path
                 .write_str(
@@ -315,7 +315,7 @@ mod test {
         #[test]
         fn dev_dependencies() {
             let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
             let manifest_path = temp.child("Cargo.toml");
             manifest_path
                 .write_str(
@@ -361,7 +361,7 @@ mod test {
         #[test]
         fn build_dependencies() {
             let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
             let manifest_path = temp.child("Cargo.toml");
             manifest_path
                 .write_str(
@@ -407,7 +407,7 @@ mod test {
         #[test]
         fn all_dependencies() {
             let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
             let manifest_path = temp.child("Cargo.toml");
             manifest_path
                 .write_str(
@@ -465,7 +465,7 @@ mod test {
         #[test]
         fn in_pkg() {
             let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["*"]).unwrap();
+            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
             let manifest_path = temp.child("Cargo.toml");
             let lock_path = temp.child("Cargo.lock");
 
@@ -485,7 +485,7 @@ mod test {
         #[test]
         fn in_pure_workspace() {
             let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/pure_ws", &["*"]).unwrap();
+            temp.copy_from("tests/fixtures/pure_ws", &["**"]).unwrap();
             let manifest_path = temp.child("b/Cargo.toml");
             let lock_path = temp.child("Cargo.lock");
 
@@ -505,7 +505,7 @@ mod test {
         #[test]
         fn in_mixed_workspace() {
             let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/mixed_ws", &["*"]).unwrap();
+            temp.copy_from("tests/fixtures/mixed_ws", &["**"]).unwrap();
             let manifest_path = temp.child("Cargo.toml");
             let lock_path = temp.child("Cargo.lock");
 
