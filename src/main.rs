@@ -965,9 +965,7 @@ pub fn get_logging(level: log::Level) -> env_logger::Builder {
 
     builder.filter(None, level.to_level_filter());
 
-    builder
-        .default_format_timestamp(false)
-        .default_format_module_path(false);
+    builder.format_timestamp_secs().format_module_path(false);
 
     builder
 }

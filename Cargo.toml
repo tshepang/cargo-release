@@ -11,7 +11,7 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-cargo_metadata = "0.8"
+cargo_metadata = "0.9"
 crates_io_api = "0.5"
 toml = {version = "0.5", default-features = false}
 toml_edit = "0.1"
@@ -30,12 +30,12 @@ difference = "2.0"
 once_cell = "1.2.0"
 structopt = {version = "0.3.0", default-features = false}
 clap = { version = "2", default-features = false }
-clap-cargo = { version = "0.2", features = ["cargo_metadata"] }
+clap-cargo = { version = "0.3", features = ["cargo_metadata"] }
 log = "0.4"
-env_logger = "0.6"
+env_logger = "0.7"
 
 [dev-dependencies]
-assert_fs = "0.11"
+assert_fs = "0.13"
 predicates = "1.0"
 
 [badges]
