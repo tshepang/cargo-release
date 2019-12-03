@@ -178,18 +178,33 @@ impl<'m> PackageRelease<'m> {
 
         let version = {
             let mut potential_version = prev_version.version.clone();
-            if args
-                .level
-                .bump_version(&mut potential_version, args.metadata.as_ref())?
-            {
-                let version = potential_version;
-                let version_string = version.to_string();
-                Some(Version {
-                    version,
-                    version_string,
-                })
+            if let Ok(bump_level) = BumpLevel::from_str(&args.level) {
+                // bump level
+                if bump_level.bump_version(&mut potential_version, args.metadata.as_ref())? {
+                    let version = potential_version;
+                    let version_string = version.to_string();
+                    Some(Version {
+                        version,
+                        version_string,
+                    })
+                } else {
+                    None
+                }
             } else {
-                None
+                // given version
+                let new_version = semver::Version::from(&args.level);
+                if new_version > potential_version {
+                    Some(version {
+                        new_version,
+                        args.level.to_owned(),
+                    })
+                } else if new_version = potential_version {
+                    None
+                } else {
+                    return error::FatalError::UnsupportedVersionReq(
+                        "Cannot release version smaller than current one",
+                    );
+                }
             }
         };
         let dependents = if version.is_some() {
@@ -772,7 +787,7 @@ struct ReleaseOpt {
         case_insensitive(true),
         default_value = "release"
     )]
-    level: version::BumpLevel,
+    level: String,
 
     #[structopt(short = "m")]
     /// Semver metadata
