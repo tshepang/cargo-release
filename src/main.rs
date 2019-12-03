@@ -16,6 +16,7 @@ use std::ffi::OsStr;
 use std::io::Write;
 use std::path::Path;
 use std::process::exit;
+use std::str::FromStr;
 
 use boolinator::Boolinator;
 use chrono::prelude::Local;
@@ -176,13 +177,15 @@ impl<'m> PackageRelease<'m> {
             template.render(config.tag_name())
         };
 
+        let mut is_pre_release = false;
         let version = {
             let mut potential_version = prev_version.version.clone();
-            if let Ok(bump_level) = BumpLevel::from_str(&args.level) {
+            if let Ok(bump_level) = version::BumpLevel::from_str(&args.level) {
                 // bump level
                 if bump_level.bump_version(&mut potential_version, args.metadata.as_ref())? {
                     let version = potential_version;
                     let version_string = version.to_string();
+                    is_pre_release = bump_level.is_pre_release();
                     Some(Version {
                         version,
                         version_string,
@@ -192,18 +195,19 @@ impl<'m> PackageRelease<'m> {
                 }
             } else {
                 // given version
-                let new_version = semver::Version::from(&args.level);
+                let new_version = semver::Version::parse(&args.level).map_err(FatalError::from)?;
                 if new_version > potential_version {
-                    Some(version {
-                        new_version,
-                        args.level.to_owned(),
+                    is_pre_release = new_version.is_prerelease();
+                    Some(Version {
+                        version: new_version,
+                        version_string: args.level.to_owned(),
                     })
-                } else if new_version = potential_version {
+                } else if new_version == potential_version {
                     None
                 } else {
-                    return error::FatalError::UnsupportedVersionReq(
-                        "Cannot release version smaller than current one",
-                    );
+                    return Err(error::FatalError::UnsupportedVersionReq(
+                        "Cannot release version smaller than current one".to_owned(),
+                    ));
                 }
             }
         };
@@ -233,7 +237,7 @@ impl<'m> PackageRelease<'m> {
             Some(template.render(config.tag_name()))
         };
 
-        let post_version = if !args.level.is_pre_release() && !config.no_dev_version() {
+        let post_version = if !is_pre_release && !config.no_dev_version() {
             let mut post = base.version.clone();
             post.increment_patch();
             post.pre.push(Identifier::AlphaNumeric(
