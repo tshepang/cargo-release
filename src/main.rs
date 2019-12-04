@@ -786,11 +786,7 @@ struct ReleaseOpt {
     workspace: clap_cargo::Workspace,
 
     /// Release level: bumping specified version field or remove prerelease extensions by default
-    #[structopt(
-        possible_values(&version::BumpLevel::variants()),
-        case_insensitive(true),
-        default_value = "release"
-    )]
+    #[structopt(case_insensitive(true), default_value = "release")]
     level: String,
 
     #[structopt(short = "m")]
