@@ -180,7 +180,7 @@ impl<'m> PackageRelease<'m> {
         let mut is_pre_release = false;
         let version = {
             let mut potential_version = prev_version.version.clone();
-            if let Ok(bump_level) = version::BumpLevel::from_str(&args.level) {
+            if let Ok(bump_level) = version::BumpLevel::from_str(&args.level_or_version) {
                 // bump level
                 if bump_level.bump_version(&mut potential_version, args.metadata.as_ref())? {
                     let version = potential_version;
@@ -195,12 +195,13 @@ impl<'m> PackageRelease<'m> {
                 }
             } else {
                 // given version
-                let new_version = semver::Version::parse(&args.level).map_err(FatalError::from)?;
+                let new_version =
+                    semver::Version::parse(&args.level_or_version).map_err(FatalError::from)?;
                 if new_version > potential_version {
                     is_pre_release = new_version.is_prerelease();
                     Some(Version {
                         version: new_version,
-                        version_string: args.level.to_owned(),
+                        version_string: args.level_or_version.to_owned(),
                     })
                 } else if new_version == potential_version {
                     None
@@ -785,9 +786,9 @@ struct ReleaseOpt {
     #[structopt(flatten)]
     workspace: clap_cargo::Workspace,
 
-    /// Release level: bumping specified version field or remove prerelease extensions by default
+    /// Release level or version: bumping specified version field or remove prerelease extensions by default. Possible level value: major, minor, patch, release, rc, beta, alpha or any valid semver version that is greater than current version
     #[structopt(case_insensitive(true), default_value = "release")]
-    level: String,
+    level_or_version: String,
 
     #[structopt(short = "m")]
     /// Semver metadata
