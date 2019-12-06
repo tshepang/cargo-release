@@ -16,6 +16,7 @@ use std::ffi::OsStr;
 use std::io::Write;
 use std::path::Path;
 use std::process::exit;
+use std::str::FromStr;
 
 use boolinator::Boolinator;
 use chrono::prelude::Local;
@@ -176,20 +177,39 @@ impl<'m> PackageRelease<'m> {
             template.render(config.tag_name())
         };
 
+        let mut is_pre_release = false;
         let version = {
             let mut potential_version = prev_version.version.clone();
-            if args
-                .level
-                .bump_version(&mut potential_version, args.metadata.as_ref())?
-            {
-                let version = potential_version;
-                let version_string = version.to_string();
-                Some(Version {
-                    version,
-                    version_string,
-                })
+            if let Ok(bump_level) = version::BumpLevel::from_str(&args.level_or_version) {
+                // bump level
+                if bump_level.bump_version(&mut potential_version, args.metadata.as_ref())? {
+                    let version = potential_version;
+                    let version_string = version.to_string();
+                    is_pre_release = bump_level.is_pre_release();
+                    Some(Version {
+                        version,
+                        version_string,
+                    })
+                } else {
+                    None
+                }
             } else {
-                None
+                // given version
+                let new_version =
+                    semver::Version::parse(&args.level_or_version).map_err(FatalError::from)?;
+                if new_version > potential_version {
+                    is_pre_release = new_version.is_prerelease();
+                    Some(Version {
+                        version: new_version,
+                        version_string: args.level_or_version.to_owned(),
+                    })
+                } else if new_version == potential_version {
+                    None
+                } else {
+                    return Err(error::FatalError::UnsupportedVersionReq(
+                        "Cannot release version smaller than current one".to_owned(),
+                    ));
+                }
             }
         };
         let dependents = if version.is_some() {
@@ -218,7 +238,7 @@ impl<'m> PackageRelease<'m> {
             Some(template.render(config.tag_name()))
         };
 
-        let post_version = if !args.level.is_pre_release() && !config.no_dev_version() {
+        let post_version = if !is_pre_release && !config.no_dev_version() {
             let mut post = base.version.clone();
             post.increment_patch();
             post.pre.push(Identifier::AlphaNumeric(
@@ -766,13 +786,9 @@ struct ReleaseOpt {
     #[structopt(flatten)]
     workspace: clap_cargo::Workspace,
 
-    /// Release level: bumping specified version field or remove prerelease extensions by default
-    #[structopt(
-        possible_values(&version::BumpLevel::variants()),
-        case_insensitive(true),
-        default_value = "release"
-    )]
-    level: version::BumpLevel,
+    /// Release level or version: bumping specified version field or remove prerelease extensions by default. Possible level value: major, minor, patch, release, rc, beta, alpha or any valid semver version that is greater than current version
+    #[structopt(case_insensitive(true), default_value = "release")]
+    level_or_version: String,
 
     #[structopt(short = "m")]
     /// Semver metadata
