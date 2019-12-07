@@ -1,5 +1,27 @@
 # Change Log
 
+## [Unreleased] - ReleaseDate
+
+### Added
+
+* Notify users on unchanged crates when releasing workspace #148
+* Strict check on replacements #187
+* Trace replacement diff on dry-run #171
+* Allow workspace release commits to be consolidated #181
+* Releasing specific version
+
+### Changed
+
+* Renamed option "pro-release-commit-message" to
+  "post-release-commit-message" #140
+* Use logging for output #152
+* Fixed issue when crate.io didn't update in time that causing
+  workspace release failed #183
+
+### Removed
+
+* Doc upload removed #176
+
 ## [0.12.4] - 2019-08-03
 
 ### Changed
