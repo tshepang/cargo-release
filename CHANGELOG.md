@@ -8,7 +8,7 @@
 * Strict check on replacements #187
 * Trace replacement diff on dry-run #171
 * Allow workspace release commits to be consolidated #181
-* Releasing specific version
+* Releasing specific version #191
 
 ### Changed
 
