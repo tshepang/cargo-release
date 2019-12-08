@@ -15,10 +15,10 @@
 ### Changed
 
 * Renamed option "pro-release-commit-message" to
-  "post-release-commit-message" #140
-* Use logging for output #152
+  "post-release-commit-message" [#140]
+* Use logging for output [#152]
 * Fixed issue when crate.io didn't update in time that causing
-  workspace release failed #183
+  workspace release failed [#183]
 * Also check untracked files in initial dirty check [#146]
 * `[package.metadata.release]` in `$CRATE/Cargo.toml` now has a higher
   priority than `$CRATE/release.toml` [7cc9890] [#181]
