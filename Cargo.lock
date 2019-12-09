@@ -146,7 +146,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-release"
-version = "0.12.5-alpha.0"
+version = "0.13.0"
 dependencies = [
  "assert_fs 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "boolinator 2.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
