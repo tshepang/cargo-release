@@ -46,6 +46,12 @@ quick_error! {
             display("SemVerError {}", err)
             description(err.description())
         }
+        IgnoreError(err: ignore::Error) {
+            from()
+            cause(err)
+            display("ignore-pattern {}", err)
+            description(err.description())
+        }
         Utf8Error(err: Utf8Error) {
             from()
             cause(err)
