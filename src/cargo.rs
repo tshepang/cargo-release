@@ -63,22 +63,22 @@ pub fn wait_for_publish(
     if !dry_run {
         let now = std::time::Instant::now();
         let sleep_time = std::time::Duration::from_secs(1);
-        let client = crates_io_api::SyncClient::new();
+        let index = crates_index::Index::new_cargo_default();
         let mut logged = false;
         loop {
-            let crate_data = client.get_crate(name);
-            let crate_data = match crate_data {
-                Ok(crate_data) => Some(crate_data),
+            match index.update() {
                 Err(e) => {
-                    log::debug!("Crate lookup failed with {}", e);
-                    None
+                    log::debug!("Crate index update failed with {}", e);
                 }
-            };
+                _ => (),
+            }
+            let crate_data = index.crate_(name);
             let published = crate_data
                 .iter()
-                .flat_map(|c| c.versions.iter())
-                .find(|v| v.num == version)
+                .flat_map(|c| c.versions().iter())
+                .find(|v| v.version() == version)
                 .is_some();
+
             if published {
                 break;
             } else if timeout < now.elapsed() {
