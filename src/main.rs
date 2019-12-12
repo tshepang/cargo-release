@@ -81,7 +81,8 @@ struct PackageRelease<'m> {
     package_path: &'m Path,
     config: config::Config,
 
-    change_exclude: Vec<&'m Path>,
+    crate_excludes: Vec<&'m Path>,
+    custom_ignore: ignore::gitignore::Gitignore,
 
     prev_version: Version,
     prev_tag: String,
@@ -157,7 +158,14 @@ impl<'m> PackageRelease<'m> {
             version_string: pkg_meta.version.to_string(),
         };
 
-        let change_exclude = exclude_paths(ws_pkgs, pkg_meta);
+        let crate_excludes = exclude_paths(ws_pkgs, pkg_meta);
+        let mut custom_ignore = ignore::gitignore::GitignoreBuilder::new(cwd);
+        if let Some(globs) = config.exclude_paths() {
+            for glob in globs {
+                custom_ignore.add_line(None, glob)?;
+            }
+        }
+        let custom_ignore = custom_ignore.build()?;
 
         let prev_tag = if let Some(prev_tag) = args.prev_tag_name.as_ref() {
             // Trust the user that the tag passed in is the latest tag for the workspace and that
@@ -271,7 +279,8 @@ impl<'m> PackageRelease<'m> {
             package_path: cwd,
             config,
 
-            change_exclude,
+            crate_excludes,
+            custom_ignore,
 
             prev_version,
             prev_tag,
@@ -406,10 +415,25 @@ fn release_packages<'m>(
                 let mut changed: Vec<_> = changed
                     .into_iter()
                     .filter(|p| {
-                        !pkg.change_exclude
+                        let file_in_subcrate = pkg
+                            .crate_excludes
                             .iter()
                             .find(|base| p.starts_with(base))
-                            .is_some()
+                            .is_some();
+                        if file_in_subcrate {
+                            return false;
+                        }
+                        let glob_status = pkg.custom_ignore.matched_path_or_any_parents(p, false);
+                        if glob_status.is_ignore() {
+                            log::trace!(
+                                "{}: ignoring {} due to {:?}",
+                                crate_name,
+                                p.display(),
+                                glob_status
+                            );
+                            return false;
+                        }
+                        true
                     })
                     .collect();
                 if let Some(lock_index) = changed.iter().enumerate().find_map(|(idx, path)| {
@@ -430,7 +454,7 @@ fn release_packages<'m>(
                         prev_tag_name
                     );
                 } else {
-                    log::trace!(
+                    log::debug!(
                         "Files changed in {} since {}: {:#?}",
                         crate_name,
                         prev_tag_name,

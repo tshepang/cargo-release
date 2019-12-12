@@ -1,5 +1,13 @@
 # Change Log
 
+<!-- next-header -->
+
+## [Unreleased] - ReleaseDate
+
+### Added
+
+* Config: `exclude_paths` list of globs to get more accurate listing of files-changed [#149]
+
 ## [0.13.0] - 2019-12-09
 
 ### Added
