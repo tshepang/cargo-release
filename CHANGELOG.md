@@ -8,6 +8,10 @@
 
 * Config: `exclude_paths` list of globs to get more accurate listing of files-changed [#149]
 
+### Fixed
+
+* Take 2 on waiting for a crate to be published before publishing the next one [#194]
+
 ## [0.13.0] - 2019-12-09
 
 ### Added
