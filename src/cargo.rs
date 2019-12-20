@@ -18,40 +18,36 @@ pub fn publish(
     dry_run: bool,
     manifest_path: &Path,
     features: &Features,
+    token: Option<&str>,
 ) -> Result<bool, FatalError> {
     let cargo = cargo();
-    match features {
-        Features::None => call(
-            vec![
-                &cargo,
-                "publish",
-                "--manifest-path",
-                manifest_path.to_str().unwrap(),
-            ],
-            dry_run,
-        ),
-        Features::Selective(vec) => call(
-            vec![
-                &cargo,
-                "publish",
-                "--features",
-                &vec.join(" "),
-                "--manifest-path",
-                manifest_path.to_str().unwrap(),
-            ],
-            dry_run,
-        ),
-        Features::All => call(
-            vec![
-                &cargo,
-                "publish",
-                "--all-features",
-                "--manifest-path",
-                manifest_path.to_str().unwrap(),
-            ],
-            dry_run,
-        ),
+
+    let mut command: Vec<&str> = vec![
+        &cargo,
+        "publish",
+        "--manifest-path",
+        manifest_path.to_str().unwrap(),
+    ];
+
+    if let Some(token) = token {
+        command.push("--token");
+        command.push(token);
     }
+
+    let additional = match features {
+        Features::None => None,
+        Features::Selective(vec) => Some(vec.join(" ")),
+        Features::All => {
+            command.push("--all-features");
+            None
+        }
+    };
+
+    if let Some(ref additional) = additional {
+        command.push(additional);
+    }
+
+    call(command, dry_run)
 }
 
 pub fn wait_for_publish(

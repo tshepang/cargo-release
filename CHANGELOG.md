@@ -7,6 +7,7 @@
 ### Added
 
 * Config: `exclude_paths` list of globs to get more accurate listing of files-changed [#149]
+* CLI: `--token` can be used to specify the token used by `cargo publish`
 
 ### Fixed
 
