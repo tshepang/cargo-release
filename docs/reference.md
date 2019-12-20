@@ -10,6 +10,7 @@
 | `--config`      | string | Load a config file from disk |
 | `<LEVEL>`       | string | Bump specified version field. |
 | `--metadata`    | string | Populate the metadata field in the version. |
+| `--token`       | string | Token to use when running `cargo publish` |
 
 ### Bump level
 
