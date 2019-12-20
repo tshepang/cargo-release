@@ -677,7 +677,12 @@ fn release_packages<'m>(
             log::info!("Running cargo publish on {}", crate_name);
             // feature list to release
             let features = &pkg.features;
-            if !cargo::publish(dry_run, &pkg.manifest_path, features)? {
+            if !cargo::publish(
+                dry_run,
+                &pkg.manifest_path,
+                features,
+                args.config.token.as_ref().map(AsRef::as_ref),
+            )? {
                 return Ok(103);
             }
             let timeout = std::time::Duration::from_secs(30);
@@ -927,6 +932,10 @@ struct ConfigArgs {
     #[structopt(long)]
     /// Enable all features via `all-features`. Overrides `features`
     all_features: bool,
+
+    #[structopt(long)]
+    /// Token to use when uploading
+    token: Option<String>,
 }
 
 impl config::ConfigSource for ConfigArgs {
