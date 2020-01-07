@@ -51,13 +51,13 @@ Configuration is read from the following (in precedence order)
 | `disable-push` | `--skip-push`   | bool   | Don't do git push |
 | `disable-tag`  | `--skip-tag`    | bool   | Don't do git tag |
 | `disable-publish` | `--skip-publish` |  bool | Don't do cargo publish right now, see [manifest `publish` field](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional) to permanently disable publish. |
-| `dev-version-ext` | `--dev-version-ext` | string | Pre-release extension to use on the next development version. |
 | `consolidate-commits` | \- | bool | When releasing a workspace, use a single commit for the pre-release version bump and a single commit for the post-release version bump. |
 | `pre-release-commit-message` | \- | string | A commit message template for release. For example: `"release {{version}}"`, where `{{version}}` will be replaced by actual version. |
 | `post-release-commit-message` | \- | string | A commit message template for bumping version after release. For example: `Released {{version}}, starting {{next_version}}`. The placeholder `{{next_version}}` (the version in git after release) is supported in addition to the global placeholders mentioned below. |
 | `tag-message`  | \-              | string | A message template for tag. The placeholder `{{tag_name}}` and `{{prefix}}` (the tag prefix) is supported in addition to the global placeholders mentioned below. |
 | `tag-prefix`   | `--tag-prefix`  | string | Prefix of git tag, note that this will override default prefix based on crate name. |
 | `tag-name`     | `--tag-name`    | string | The name of the git tag.  The placeholder `{{prefix}}` (the tag prefix) is supported in addition to the global placeholders mentioned below. |
+| `dev-version-ext` | `--dev-version-ext` | string | Pre-release extension to use on the next development version. |
 | `no-dev-version` | `--no-dev-version` |  bool | Disable version bump after release. |
 | `pre-release-replacements` | \-   | array of tables (see below) | Specify files that cargo-release will search and replace with new version |
 | `pre-release-hook` | \-          | list of arguments | Provide a command to run before `cargo-release` commits version change. If the return code of hook command is greater than 0, the release process will be aborted. |
