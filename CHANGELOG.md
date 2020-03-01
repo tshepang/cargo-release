@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.13.1] - 2020-03-01
+
 ### Added
 
 * Config: `exclude_paths` list of globs to get more accurate listing of files-changed [#149]
