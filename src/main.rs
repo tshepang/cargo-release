@@ -681,12 +681,17 @@ fn release_packages<'m>(
                 dry_run,
                 &pkg.manifest_path,
                 features,
+                pkg.config.registry(),
                 args.config.token.as_ref().map(AsRef::as_ref),
             )? {
                 return Ok(103);
             }
             let timeout = std::time::Duration::from_secs(30);
-            cargo::wait_for_publish(crate_name, &base.version_string, timeout, dry_run)?;
+
+            // cargo publish doesn't update local registries that aren't crates.io
+            if pkg.config.registry().is_none() {
+                cargo::wait_for_publish(crate_name, &base.version_string, timeout, dry_run)?;
+            }
         }
     }
 
@@ -890,6 +895,10 @@ struct ConfigArgs {
     push_remote: Option<String>,
 
     #[structopt(long)]
+    /// Cargo registry to upload to
+    registry: Option<String>,
+
+    #[structopt(long)]
     /// Do not run cargo publish on release
     skip_publish: bool,
 
@@ -945,6 +954,10 @@ impl config::ConfigSource for ConfigArgs {
 
     fn push_remote(&self) -> Option<&str> {
         self.push_remote.as_ref().map(|s| s.as_str())
+    }
+
+    fn registry(&self) -> Option<&str> {
+        self.registry.as_ref().map(|s| s.as_str())
     }
 
     fn disable_publish(&self) -> Option<bool> {

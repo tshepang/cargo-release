@@ -18,6 +18,7 @@ pub fn publish(
     dry_run: bool,
     manifest_path: &Path,
     features: &Features,
+    registry: Option<&str>,
     token: Option<&str>,
 ) -> Result<bool, FatalError> {
     let cargo = cargo();
@@ -28,6 +29,11 @@ pub fn publish(
         "--manifest-path",
         manifest_path.to_str().unwrap(),
     ];
+
+    if let Some(registry) = registry {
+        command.push("--registry");
+        command.push(registry);
+    }
 
     if let Some(token) = token {
         command.push("--token");
