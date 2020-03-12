@@ -4,6 +4,10 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+* Ability to upload to alternate registries (though wait-for-publish is skipped) [#203]
+
 ## [0.13.1] - 2020-03-01
 
 ### Added

@@ -20,6 +20,10 @@ pub trait ConfigSource {
         None
     }
 
+    fn registry(&self) -> Option<&str> {
+        None
+    }
+
     fn disable_publish(&self) -> Option<bool> {
         None
     }
@@ -97,6 +101,7 @@ pub struct Config {
     pub exclude_paths: Option<Vec<String>>,
     pub sign_commit: Option<bool>,
     pub push_remote: Option<String>,
+    pub registry: Option<String>,
     pub disable_publish: Option<bool>,
     pub disable_push: Option<bool>,
     pub dev_version_ext: Option<String>,
@@ -127,6 +132,9 @@ impl Config {
         }
         if let Some(push_remote) = source.push_remote() {
             self.push_remote = Some(push_remote.to_owned());
+        }
+        if let Some(registry) = source.registry() {
+            self.registry = Some(registry.to_owned());
         }
         if let Some(disable_publish) = source.disable_publish() {
             self.disable_publish = Some(disable_publish);
@@ -198,6 +206,10 @@ impl Config {
             .as_ref()
             .map(|s| s.as_str())
             .unwrap_or("origin")
+    }
+
+    pub fn registry(&self) -> Option<&str> {
+        self.registry.as_ref().map(|s| s.as_str())
     }
 
     pub fn disable_publish(&self) -> bool {
@@ -301,6 +313,10 @@ impl ConfigSource for Config {
 
     fn push_remote(&self) -> Option<&str> {
         self.push_remote.as_ref().map(|s| s.as_str())
+    }
+
+    fn registry(&self) -> Option<&str> {
+        self.registry.as_ref().map(|s| s.as_str())
     }
 
     fn disable_publish(&self) -> Option<bool> {
