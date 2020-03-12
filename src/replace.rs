@@ -54,7 +54,7 @@ pub fn do_file_replacements(
     dry_run: bool,
 ) -> Result<bool, FatalError> {
     for replace in replace_config {
-        if replace.prerelease && prerelease {
+        if prerelease && !replace.prerelease {
             log::debug!("Pre-release, not replacing {}", replace.search);
             continue;
         }

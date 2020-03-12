@@ -98,6 +98,7 @@ struct PackageRelease<'m> {
     features: Features,
 }
 
+#[derive(Debug)]
 struct Version {
     version: semver::Version,
     version_string: String,
