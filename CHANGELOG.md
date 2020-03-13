@@ -6,7 +6,12 @@
 
 ### Added
 
-* Ability to upload to alternate registries (though wait-for-publish is skipped) [#203]
+* Ability to upload to alternate registries (though wait-for-publish
+  is skipped) [#203]
+
+### Fixed
+
+* Prerelease check for replacement
 
 ## [0.13.1] - 2020-03-01
 
