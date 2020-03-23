@@ -687,7 +687,7 @@ fn release_packages<'m>(
             )? {
                 return Ok(103);
             }
-            let timeout = std::time::Duration::from_secs(30);
+            let timeout = std::time::Duration::from_secs(300);
 
             if pkg.config.registry().is_none() {
                 cargo::wait_for_publish(crate_name, &base.version_string, timeout, dry_run)?;
