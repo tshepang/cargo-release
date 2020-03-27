@@ -4,9 +4,11 @@
 
 ## [Unreleased] - ReleaseDate
 
-## [0.13.3] - 2020-03-13
+### Changed
 
-## [0.13.2] - 2020-03-13
+* Changed default timeout on waiting crate to land on crates.io [#207]
+
+## [0.13.3] - 2020-03-13
 
 ### Added
 
