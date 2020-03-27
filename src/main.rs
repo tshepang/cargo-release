@@ -463,7 +463,7 @@ fn release_packages<'m>(
                     );
                 }
             } else {
-                log::info!(
+                log::debug!(
                     "Cannot detect changes for {} because tag {} is missing. Try setting `--prev-tag-name <TAG>`.",
                     crate_name,
                     prev_tag_name
