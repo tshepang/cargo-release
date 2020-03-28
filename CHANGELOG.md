@@ -7,6 +7,7 @@
 ### Changed
 
 * Changed default timeout on waiting crate to land on crates.io [#207]
+* Changed change detection log to debug [#208]
 
 ## [0.13.3] - 2020-03-13
 
