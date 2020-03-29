@@ -747,6 +747,7 @@ fn release_packages<'m>(
                 crate_name,
                 updated_version_string,
             );
+            update_dependent_versions(pkg, version, dry_run)?;
             if !dry_run {
                 cargo::set_package_version(&pkg.manifest_path, &updated_version_string)?;
                 cargo::update_lock(&pkg.manifest_path)?;
