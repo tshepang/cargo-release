@@ -296,6 +296,88 @@ impl<'m> PackageRelease<'m> {
     }
 }
 
+fn update_dependent_versions(
+    pkg: &PackageRelease,
+    version: &Version,
+    dry_run: bool,
+) -> Result<(), error::FatalError> {
+    let new_version_string = version.version_string.as_str();
+    let mut dependents_failed = false;
+    for dep in pkg.dependents.iter() {
+        match pkg.config.dependent_version() {
+            config::DependentVersion::Ignore => (),
+            config::DependentVersion::Warn => {
+                if !dep.req.matches(&version.version) {
+                    log::warn!(
+                        "{}'s dependency on {} `{}` is incompatible with {}",
+                        dep.pkg.name,
+                        pkg.meta.name,
+                        dep.req,
+                        new_version_string
+                    );
+                }
+            }
+            config::DependentVersion::Error => {
+                if !dep.req.matches(&version.version) {
+                    log::warn!(
+                        "{}'s dependency on {} `{}` is incompatible with {}",
+                        dep.pkg.name,
+                        pkg.meta.name,
+                        dep.req,
+                        new_version_string
+                    );
+                    dependents_failed = true;
+                }
+            }
+            config::DependentVersion::Fix => {
+                if !dep.req.matches(&version.version) {
+                    let new_req = version::set_requirement(&dep.req, &version.version)?;
+                    if let Some(new_req) = new_req {
+                        log::info!(
+                            "Fixing {}'s dependency on {} to `{}` (from `{}`)",
+                            dep.pkg.name,
+                            pkg.meta.name,
+                            new_req,
+                            dep.req
+                        );
+                        if !dry_run {
+                            cargo::set_dependency_version(
+                                &dep.pkg.manifest_path,
+                                &pkg.meta.name,
+                                &new_req,
+                            )?;
+                        }
+                    }
+                }
+            }
+            config::DependentVersion::Upgrade => {
+                let new_req = version::set_requirement(&dep.req, &version.version)?;
+                if let Some(new_req) = new_req {
+                    log::info!(
+                        "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
+                        dep.pkg.name,
+                        pkg.meta.name,
+                        new_req,
+                        dep.req
+                    );
+                    if !dry_run {
+                        cargo::set_dependency_version(
+                            &dep.pkg.manifest_path,
+                            &pkg.meta.name,
+                            &new_req,
+                        )?;
+                    }
+                }
+            }
+        }
+    }
+    if dependents_failed {
+        Err(FatalError::DependencyVersionConflict)
+    } else {
+        Ok(())
+    }
+}
+
 fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let ws_meta = args.manifest.metadata().exec().map_err(FatalError::from)?;
     let ws_config = {
@@ -510,78 +592,7 @@ fn release_packages<'m>(
             if !dry_run {
                 cargo::set_package_version(&pkg.manifest_path, &new_version_string)?;
             }
-            let mut dependents_failed = false;
-            for dep in pkg.dependents.iter() {
-                match pkg.config.dependent_version() {
-                    config::DependentVersion::Ignore => (),
-                    config::DependentVersion::Warn => {
-                        if !dep.req.matches(&version.version) {
-                            log::warn!(
-                                "{}'s dependency on {} `{}` is incompatible with {}",
-                                dep.pkg.name,
-                                pkg.meta.name,
-                                dep.req,
-                                new_version_string
-                            );
-                        }
-                    }
-                    config::DependentVersion::Error => {
-                        if !dep.req.matches(&version.version) {
-                            log::warn!(
-                                "{}'s dependency on {} `{}` is incompatible with {}",
-                                dep.pkg.name,
-                                pkg.meta.name,
-                                dep.req,
-                                new_version_string
-                            );
-                            dependents_failed = true;
-                        }
-                    }
-                    config::DependentVersion::Fix => {
-                        if !dep.req.matches(&version.version) {
-                            let new_req = version::set_requirement(&dep.req, &version.version)?;
-                            if let Some(new_req) = new_req {
-                                log::info!(
-                                    "Fixing {}'s dependency on {} to `{}` (from `{}`)",
-                                    dep.pkg.name,
-                                    pkg.meta.name,
-                                    new_req,
-                                    dep.req
-                                );
-                                if !dry_run {
-                                    cargo::set_dependency_version(
-                                        &dep.pkg.manifest_path,
-                                        &pkg.meta.name,
-                                        &new_req,
-                                    )?;
-                                }
-                            }
-                        }
-                    }
-                    config::DependentVersion::Upgrade => {
-                        let new_req = version::set_requirement(&dep.req, &version.version)?;
-                        if let Some(new_req) = new_req {
-                            log::info!(
-                                "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
-                                dep.pkg.name,
-                                pkg.meta.name,
-                                new_req,
-                                dep.req
-                            );
-                            if !dry_run {
-                                cargo::set_dependency_version(
-                                    &dep.pkg.manifest_path,
-                                    &pkg.meta.name,
-                                    &new_req,
-                                )?;
-                            }
-                        }
-                    }
-                }
-            }
-            if dependents_failed {
-                return Ok(110);
-            }
+            update_dependent_versions(pkg, version, dry_run)?;
             if dry_run {
                 log::debug!("Updating lock file");
             } else {
