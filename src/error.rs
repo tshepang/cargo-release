@@ -93,5 +93,8 @@ quick_error! {
         PublishTimeoutError {
             display("Timeout waiting for crate to be published.")
         }
+        DependencyVersionConflict {
+            display("Dependency is configured to conflict with new version")
+        }
     }
 }
