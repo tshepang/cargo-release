@@ -16,6 +16,10 @@ pub trait ConfigSource {
         None
     }
 
+    fn sign_tag(&self) -> Option<bool> {
+        None
+    }
+
     fn push_remote(&self) -> Option<&str> {
         None
     }
@@ -100,6 +104,7 @@ pub trait ConfigSource {
 pub struct Config {
     pub exclude_paths: Option<Vec<String>>,
     pub sign_commit: Option<bool>,
+    pub sign_tag: Option<bool>,
     pub push_remote: Option<String>,
     pub registry: Option<String>,
     pub disable_publish: Option<bool>,
@@ -129,6 +134,9 @@ impl Config {
         }
         if let Some(sign_commit) = source.sign_commit() {
             self.sign_commit = Some(sign_commit);
+        }
+        if let Some(sign_tag) = source.sign_tag() {
+            self.sign_tag = Some(sign_tag);
         }
         if let Some(push_remote) = source.push_remote() {
             self.push_remote = Some(push_remote.to_owned());
@@ -199,6 +207,10 @@ impl Config {
 
     pub fn sign_commit(&self) -> bool {
         self.sign_commit.unwrap_or(false)
+    }
+
+    pub fn sign_tag(&self) -> bool {
+        self.sign_tag.unwrap_or(false)
     }
 
     pub fn push_remote(&self) -> &str {
@@ -309,6 +321,10 @@ impl ConfigSource for Config {
 
     fn sign_commit(&self) -> Option<bool> {
         self.sign_commit
+    }
+
+    fn sign_tag(&self) -> Option<bool> {
+        self.sign_tag
     }
 
     fn push_remote(&self) -> Option<&str> {

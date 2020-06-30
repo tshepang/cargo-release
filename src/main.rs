@@ -711,7 +711,7 @@ fn release_packages<'m>(
     // STEP 5: Tag
     for pkg in pkgs {
         if let Some(tag_name) = pkg.tag.as_ref() {
-            let sign = pkg.config.sign_commit();
+            let sign = pkg.config.sign_commit() || pkg.config.sign_tag();
             let cwd = pkg.package_path;
             let crate_name = pkg.meta.name.as_str();
 
