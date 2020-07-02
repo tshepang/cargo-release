@@ -712,6 +712,12 @@ fn release_packages<'m>(
     for pkg in pkgs {
         if let Some(tag_name) = pkg.tag.as_ref() {
             let sign = pkg.config.sign_commit() || pkg.config.sign_tag();
+
+            // FIXME: remove when the meaning of sign_commit is changed
+            if !pkg.config.sign_tag() && pkg.config.sign_commit() {
+                log::warn!("In next minor release, `sign-commit` will be only used to control commit signing only. Use `sign-tag` for tag signing.");
+            }
+
             let cwd = pkg.package_path;
             let crate_name = pkg.meta.name.as_str();
 
