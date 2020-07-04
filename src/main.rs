@@ -715,7 +715,7 @@ fn release_packages<'m>(
 
             // FIXME: remove when the meaning of sign_commit is changed
             if !pkg.config.sign_tag() && pkg.config.sign_commit() {
-                log::warn!("In next minor release, `sign-commit` will be only used to control commit signing only. Use `sign-tag` for tag signing.");
+                log::warn!("In next minor release, `sign-commit` will only be used to control git commit signing. Use option `sign-tag` for tag signing.");
             }
 
             let cwd = pkg.package_path;
@@ -907,8 +907,16 @@ impl Verbosity {
 #[derive(Debug, StructOpt)]
 struct ConfigArgs {
     #[structopt(long)]
-    /// Sign git commit and tag
+    /// Sign both git commit and tag,
     sign: bool,
+
+    #[structopt(long)]
+    /// Sign git commit
+    sign_commit: bool,
+
+    #[structopt(long)]
+    /// Sign git tag
+    sign_tag: bool,
 
     #[structopt(long)]
     /// Git remote to push
@@ -969,7 +977,11 @@ struct ConfigArgs {
 
 impl config::ConfigSource for ConfigArgs {
     fn sign_commit(&self) -> Option<bool> {
-        self.sign.as_some(true)
+        self.sign.as_some(true).or(self.sign_commit.as_some(true))
+    }
+
+    fn sign_tag(&self) -> Option<bool> {
+        self.sign.as_some(true).or(self.sign_tag.as_some(true))
     }
 
     fn push_remote(&self) -> Option<&str> {
