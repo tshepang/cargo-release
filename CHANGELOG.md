@@ -4,6 +4,10 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+* Added new option `sign-tag` for tag signing only
+
 ## [0.13.4] - 2020-05-10
 
 ### Changed
