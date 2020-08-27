@@ -69,7 +69,7 @@ pub fn do_file_replacements(
         let pattern = replace.search.as_str();
         let r = Regex::new(pattern).map_err(FatalError::from)?;
         let min = replace.min.or(replace.exactly).unwrap_or(1);
-        let max = replace.min.or(replace.exactly).unwrap_or(std::usize::MAX);
+        let max = replace.max.or(replace.exactly).unwrap_or(std::usize::MAX);
         let actual = r.find_iter(&data).count();
         if actual < min {
             return Err(FatalError::ReplacerMinError(
