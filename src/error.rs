@@ -1,5 +1,6 @@
 use std::env::VarError;
 use std::io::Error as IOError;
+use std::path::PathBuf;
 use std::str::Utf8Error;
 use std::string::FromUtf8Error;
 
@@ -16,6 +17,9 @@ quick_error! {
             from()
             cause(err)
             display("IO Error: {}", err)
+        }
+        FileNotFound(filename: PathBuf){
+            display("Unable to find file {} to perform replace", filename.display())
         }
         InvalidCargoFileFormat(err: TomlError) {
             display("Invalid TOML file format: {}", err)
