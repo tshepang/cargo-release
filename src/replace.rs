@@ -64,6 +64,9 @@ pub fn do_file_replacements(
 
         let file = cwd.join(replace.file.as_path());
         log::debug!("Substituting values for {}", file.display());
+        if !file.exists() {
+            return Err(FatalError::FileNotFound(file));
+        }
         let data = std::fs::read_to_string(&file)?;
 
         let pattern = replace.search.as_str();
