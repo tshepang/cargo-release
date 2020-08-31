@@ -4,6 +4,11 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+* `min`/`max` bug with replacement settings [#225]
+* Better error message for IOError [#226]
+
 ## [0.13.5] - 2020-07-04
 
 ### Added
