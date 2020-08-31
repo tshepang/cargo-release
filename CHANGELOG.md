@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.13.6] - 2020-08-31
+
 ### Fixed
 
 * `min`/`max` bug with replacement settings [#225]
