@@ -764,9 +764,20 @@ fn release_packages<'m>(
                 version: Some(&base.version_string),
                 crate_name: Some(crate_name),
                 date: Some(NOW.as_str()),
+                tag_name: pkg.tag.as_ref().map(|s| s.as_str()),
                 next_version: Some(updated_version_string),
                 ..Default::default()
             };
+            if !pkg.config.post_release_replacements().is_empty() {
+                // try replacing text in configured files
+                do_file_replacements(
+                    pkg.config.post_release_replacements(),
+                    &template,
+                    cwd,
+                    false, // post-release replacements should always be applied
+                    dry_run,
+                )?;
+            }
             let commit_msg = template.render(pkg.config.post_release_commit_message());
 
             if ws_config.consolidate_commits() {

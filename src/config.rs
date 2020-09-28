@@ -65,6 +65,10 @@ pub trait ConfigSource {
         None
     }
 
+    fn post_release_replacements(&self) -> Option<&[Replace]> {
+        None
+    }
+
     fn pre_release_hook(&self) -> Option<&Command> {
         None
     }
@@ -117,6 +121,7 @@ pub struct Config {
     pub pro_release_commit_message: Option<String>,
     pub post_release_commit_message: Option<String>,
     pub pre_release_replacements: Option<Vec<Replace>>,
+    pub post_release_replacements: Option<Vec<Replace>>,
     pub pre_release_hook: Option<Command>,
     pub tag_message: Option<String>,
     pub tag_prefix: Option<String>,
@@ -174,6 +179,9 @@ impl Config {
         }
         if let Some(pre_release_replacements) = source.pre_release_replacements() {
             self.pre_release_replacements = Some(pre_release_replacements.to_owned());
+        }
+        if let Some(post_release_replacements) = source.post_release_replacements() {
+            self.post_release_replacements = Some(post_release_replacements.to_owned());
         }
         if let Some(pre_release_hook) = source.pre_release_hook() {
             self.pre_release_hook = Some(pre_release_hook.to_owned());
@@ -263,6 +271,13 @@ impl Config {
 
     pub fn pre_release_replacements(&self) -> &[Replace] {
         self.pre_release_replacements
+            .as_ref()
+            .map(|v| v.as_ref())
+            .unwrap_or(&[])
+    }
+
+    pub fn post_release_replacements(&self) -> &[Replace] {
+        self.post_release_replacements
             .as_ref()
             .map(|v| v.as_ref())
             .unwrap_or(&[])
@@ -372,6 +387,10 @@ impl ConfigSource for Config {
 
     fn pre_release_replacements(&self) -> Option<&[Replace]> {
         self.pre_release_replacements.as_ref().map(|v| v.as_ref())
+    }
+
+    fn post_release_replacements(&self) -> Option<&[Replace]> {
+        self.post_release_replacements.as_ref().map(|v| v.as_ref())
     }
 
     fn pre_release_hook(&self) -> Option<&Command> {
