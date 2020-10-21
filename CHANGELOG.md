@@ -6,7 +6,15 @@
 
 ## [0.13.8] - 2020-09-29
 
+### Added
+
+* New option `post-release-replacements` support [#228]
+
 ## [0.13.7] - 2020-09-27
+
+### Changed
+
+* Upgraded crate-index and minimum rust version [#227]
 
 ## [0.13.6] - 2020-08-31
 
