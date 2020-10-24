@@ -39,40 +39,9 @@ Current release: 0.13.8
 
 ### Dry run
 
-We recommend calling `cargo release --dry-run` with your custom options before
-actually executing it. The dry-run mode will print all commands to
-execute during the release process. And you will get an overview of
-what's going on.
-
-Here is an example.
-
-```
- $ cargo release --dry-run
-cd .
-git commit -S -am (cargo-release) version 0.18.3
-cd -
-cargo publish
-Building and exporting docs.
-cargo doc --no-deps
-cd target/doc/
-git init
-cd -
-cd target/doc/
-git add .
-cd -
-cd target/doc/
-git commit -S -am (cargo-release) generate docs
-cd -
-cd target/doc/
-git push -f git@github.com:sunng87/handlebars-rust.git master:gh-pages
-cd -
-git tag -a 0.18.3 -m (cargo-release)  version 0.18.3 -s
-Starting next development iteration 0.18.4-pre
-cd .
-git commit -S -am (cargo-release) start next development iteration 0.18.4-pre
-cd -
-git push origin --follow-tags
-```
+We recommend calling `cargo release --dry-run -vv` with your custom options before
+actually executing it. The dry-run mode with verbose output will print all commands to
+execute during the release process. And you will get an overview of what's going on.
 
 ## License
 
