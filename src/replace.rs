@@ -65,7 +65,7 @@ pub fn do_file_replacements(
     }
 
     for (path, replaces) in by_file.into_iter() {
-        let file = cwd.join(path);
+        let file = cwd.join(&path);
         log::debug!("Substituting values for {}", file.display());
         if !file.exists() {
             return Err(FatalError::FileNotFound(file));
@@ -107,8 +107,19 @@ pub fn do_file_replacements(
 
         if data != replaced {
             if dry_run {
-                let ch = difference::Changeset::new(&data, &replaced, "\n");
-                log::trace!("Change:\n{}", ch);
+                let display_path = path.display().to_string();
+                let data_lines: Vec<_> = data.lines().map(|s| format!("{}\n", s)).collect();
+                let replaced_lines: Vec<_> = replaced.lines().map(|s| format!("{}\n", s)).collect();
+                let diff = difflib::unified_diff(
+                    &data_lines,
+                    &replaced_lines,
+                    display_path.as_str(),
+                    display_path.as_str(),
+                    "original",
+                    "replaced",
+                    0,
+                );
+                log::trace!("Change:\n{}", itertools::join(diff.into_iter(), ""));
             } else {
                 std::fs::write(&file, replaced)?;
             }
