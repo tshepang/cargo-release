@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use regex::Regex;
@@ -53,48 +54,64 @@ pub fn do_file_replacements(
     prerelease: bool,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
+    // Since we don't have a convenient insert-order map, let's do sorted, rather than random.
+    let mut by_file = BTreeMap::new();
     for replace in replace_config {
-        if prerelease && !replace.prerelease {
-            log::debug!("Pre-release, not replacing {}", replace.search);
-            continue;
-        }
+        let file = replace.file.clone();
+        by_file
+            .entry(file)
+            .or_insert_with(|| Vec::new())
+            .push(replace);
+    }
 
-        let to_replace = replace.replace.as_str();
-        let replacer = template.render(to_replace);
-
-        let file = cwd.join(replace.file.as_path());
+    for (path, replaces) in by_file.into_iter() {
+        let file = cwd.join(path);
         log::debug!("Substituting values for {}", file.display());
         if !file.exists() {
             return Err(FatalError::FileNotFound(file));
         }
         let data = std::fs::read_to_string(&file)?;
+        let mut replaced = data.clone();
 
-        let pattern = replace.search.as_str();
-        let r = Regex::new(pattern).map_err(FatalError::from)?;
-        let min = replace.min.or(replace.exactly).unwrap_or(1);
-        let max = replace.max.or(replace.exactly).unwrap_or(std::usize::MAX);
-        let actual = r.find_iter(&data).count();
-        if actual < min {
-            return Err(FatalError::ReplacerMinError(
-                pattern.to_owned(),
-                min,
-                actual,
-            ))?;
-        } else if max < actual {
-            return Err(FatalError::ReplacerMaxError(
-                pattern.to_owned(),
-                min,
-                actual,
-            ))?;
+        for replace in replaces {
+            if prerelease && !replace.prerelease {
+                log::debug!("Pre-release, not replacing {}", replace.search);
+                continue;
+            }
+
+            let pattern = replace.search.as_str();
+            let r = Regex::new(pattern).map_err(FatalError::from)?;
+
+            let min = replace.min.or(replace.exactly).unwrap_or(1);
+            let max = replace.max.or(replace.exactly).unwrap_or(std::usize::MAX);
+            let actual = r.find_iter(&replaced).count();
+            if actual < min {
+                return Err(FatalError::ReplacerMinError(
+                    pattern.to_owned(),
+                    min,
+                    actual,
+                ))?;
+            } else if max < actual {
+                return Err(FatalError::ReplacerMaxError(
+                    pattern.to_owned(),
+                    min,
+                    actual,
+                ))?;
+            }
+
+            let to_replace = replace.replace.as_str();
+            let replacer = template.render(to_replace);
+
+            replaced = r.replace_all(&replaced, replacer.as_str()).into_owned();
         }
 
-        let result = r.replace_all(&data, replacer.as_str());
-
-        if dry_run {
-            let ch = difference::Changeset::new(&data, &result, "\n");
-            log::trace!("Change:\n{}", ch);
-        } else {
-            std::fs::write(&file, result.as_ref())?;
+        if data != replaced {
+            if dry_run {
+                let ch = difference::Changeset::new(&data, &replaced, "\n");
+                log::trace!("Change:\n{}", ch);
+            } else {
+                std::fs::write(&file, replaced)?;
+            }
         }
     }
     Ok(true)
