@@ -27,7 +27,8 @@ maplit = "1.0"
 chrono = "0.4"
 dirs = "2.0"
 boolinator = "2.4"
-difference = "2.0"
+difflib = "0.4"
+itertools = "0.9"
 once_cell = "1.2.0"
 structopt = {version = "0.3.0", default-features = false}
 clap = { version = "2", default-features = false }
