@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.13.9] - 2020-11-29
+
 ### Changed
 
 * Improved diff view in dry-run mode
