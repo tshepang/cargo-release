@@ -91,7 +91,7 @@ The following placeholders in configuration values will be be replaced with the 
 * `{{crate_name}}`: The name of the current crate in `Cargo.toml`.
 * `{{date}}`: The current date in `%Y-%m-%d` format.
 * `{{prefix}}` (only valid for `tag-name` / `tag-message`): The value prepended to the tag name.
-* `{{tag_name}}` (only valid for `tag-message`): The name o the git tag.
+* `{{tag_name}}` (only valid for `tag-message`): The name of the git tag.
 
 ### Hook Environment Variables.
 
