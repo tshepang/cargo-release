@@ -561,7 +561,7 @@ pub fn resolve_workspace_config(workspace_root: &Path) -> Result<Config, FatalEr
     let mut config = Config::default();
 
     // User-local configuration from home directory.
-    let home_dir = dirs::home_dir();
+    let home_dir = dirs_next::home_dir();
     if let Some(mut home) = home_dir {
         home.push(".release.toml");
         if let Some(cfg) = get_config_from_file(&home)? {
@@ -592,7 +592,7 @@ pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Con
     let mut config = Config::default();
 
     // User-local configuration from home directory.
-    let home_dir = dirs::home_dir();
+    let home_dir = dirs_next::home_dir();
     if let Some(mut home) = home_dir {
         home.push(".release.toml");
         if let Some(cfg) = get_config_from_file(&home)? {
