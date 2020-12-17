@@ -15,7 +15,7 @@ quick_error! {
     pub enum FatalError {
         IOError(err: IOError) {
             from()
-            cause(err)
+            source(err)
             display("IO Error: {}", err)
         }
         FileNotFound(filename: PathBuf){
@@ -24,39 +24,39 @@ quick_error! {
         InvalidCargoFileFormat(err: TomlError) {
             display("Invalid TOML file format: {}", err)
             from()
-            cause(err)
+            source(err)
         }
         InvalidCargoFileFormat2(err: TomlEditError) {
             display("Invalid TOML file format: {}", err)
             from()
-            cause(err)
+            source(err)
         }
         InvalidCargoFileFormat3(err: CargoMetaError) {
             display("Invalid TOML file format: {}", err)
             from()
-            cause(err)
+            source(err)
         }
         InvalidCargoConfigKeys {
             display("Invalid cargo-release config item found")
         }
         SemVerError(err: SemVerError) {
             from()
-            cause(err)
+            source(err)
             display("SemVerError {}", err)
         }
         IgnoreError(err: ignore::Error) {
             from()
-            cause(err)
+            source(err)
             display("ignore-pattern {}", err)
         }
         Utf8Error(err: Utf8Error) {
             from()
-            cause(err)
+            source(err)
             display("Utf8Error {}", err)
         }
         FromUtf8Error(err: FromUtf8Error) {
             from()
-            cause(err)
+            source(err)
             display("FromUtf8Error {}", err)
         }
         NoPackage {
@@ -77,7 +77,7 @@ quick_error! {
         }
         ReplacerRegexError(err: RegexError) {
             from()
-            cause(err)
+            source(err)
             display("RegexError {}", err)
         }
         ReplacerMinError(pattern: String, req: usize, actual: usize) {
@@ -88,7 +88,7 @@ quick_error! {
         }
         VarError(err: VarError) {
             from()
-            cause(err)
+            source(err)
             display("Environment Variable Error: {}", err)
         }
         GitError {
