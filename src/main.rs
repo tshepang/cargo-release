@@ -702,6 +702,9 @@ fn release_packages<'m>(
 
             if pkg.config.registry().is_none() {
                 cargo::wait_for_publish(crate_name, &base.version_string, timeout, dry_run)?;
+                // HACK: Even once the index is updated, there seems to be another step before the publish is fully ready.
+                // We don't have a way yet to check for that, so waiting for now in hopes everything is ready
+                std::time::Duration::from_secs(5);
             } else {
                 log::debug!("Not waiting for publish because the registry is not crates.io and doesn't get updated automatically");
             }
