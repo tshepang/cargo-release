@@ -4,6 +4,11 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Changed
+
+* Dependencies updated
+* Add sleep between publish [#247]
+
 ## [0.13.9] - 2020-11-29
 
 ### Changed
