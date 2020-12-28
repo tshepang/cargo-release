@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.13.10] - 2020-12-28
+
 ### Changed
 
 * Dependencies updated
