@@ -817,18 +817,18 @@ fn release_packages<'m>(
     for pkg in pkgs {
         if !pkg.config.disable_push() {
             let git_remote = pkg.config.push_remote();
+            if let Some(tag_name) = pkg.tag.as_ref() {
+                log::info!("Pushing {} to {}", tag_name, git_remote);
+                if !git::push_tag(&ws_meta.workspace_root, git_remote, &tag_name, dry_run)? {
+                    return Ok(106);
+                }
+            }
             if !pushed.contains(git_remote) {
                 log::info!("Pushing HEAD to {}", git_remote);
                 if !git::push(&ws_meta.workspace_root, git_remote, dry_run)? {
                     return Ok(106);
                 }
                 pushed.insert(git_remote);
-            }
-            if let Some(tag_name) = pkg.tag.as_ref() {
-                log::info!("Pushing {} to {}", tag_name, git_remote);
-                if !git::push_tag(&ws_meta.workspace_root, git_remote, &tag_name, dry_run)? {
-                    return Ok(106);
-                }
             }
         }
     }
