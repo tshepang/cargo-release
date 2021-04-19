@@ -4,6 +4,12 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+* Add `--publish-grace-sleep` parameter that allows to set the number of seconds to sleep between
+  two invocations of `cargo publish`
+* Do not sleep between publishes on dry runs
+
 ### Changed
 
 * New `diable-release` config flag to skip crates in a workspace

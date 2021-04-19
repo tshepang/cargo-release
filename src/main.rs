@@ -709,7 +709,9 @@ fn release_packages<'m>(
                 cargo::wait_for_publish(crate_name, &base.version_string, timeout, dry_run)?;
                 // HACK: Even once the index is updated, there seems to be another step before the publish is fully ready.
                 // We don't have a way yet to check for that, so waiting for now in hopes everything is ready
-                std::thread::sleep(std::time::Duration::from_secs(60));
+                if !dry_run {
+                    std::thread::sleep(std::time::Duration::from_secs(args.config.publish_grace_sleep));
+                }
             } else {
                 log::debug!("Not waiting for publish because the registry is not crates.io and doesn't get updated automatically");
             }
@@ -992,6 +994,10 @@ struct ConfigArgs {
     #[structopt(long)]
     /// Token to use when uploading
     token: Option<String>,
+
+    #[structopt(long, default_value = "5")]
+    /// Number of seconds that we sleep between two invocations of cargo publish
+    publish_grace_sleep: u64,
 }
 
 impl config::ConfigSource for ConfigArgs {
