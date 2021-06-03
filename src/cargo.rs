@@ -40,18 +40,18 @@ pub fn publish(
         command.push(token);
     }
 
-    let additional = match features {
-        Features::None => None,
-        Features::Selective(vec) => Some(vec.join(" ")),
+    let feature_arg;
+    match features {
+        Features::None => (),
+        Features::Selective(vec) => {
+            feature_arg = vec.join(" ");
+            command.push("--features");
+            command.push(&feature_arg);
+        }
         Features::All => {
             command.push("--all-features");
-            None
         }
     };
-
-    if let Some(ref additional) = additional {
-        command.push(additional);
-    }
 
     call(command, dry_run)
 }
