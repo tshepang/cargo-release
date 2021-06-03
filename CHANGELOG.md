@@ -4,6 +4,10 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Changed
+
+* New `diable-release` config flag to skip crates in a workspace
+
 ## [0.13.11] - 2021-03-25
 
 ## [0.13.10] - 2020-12-28
