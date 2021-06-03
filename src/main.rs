@@ -116,7 +116,7 @@ impl<'m> PackageRelease<'m> {
         ws_meta: &'m cargo_metadata::Metadata,
         ws_pkgs: &[&'m cargo_metadata::Package],
         pkg_meta: &'m cargo_metadata::Package,
-    ) -> Result<Self, error::FatalError> {
+    ) -> Result<Option<Self>, error::FatalError> {
         let manifest_path = pkg_meta.manifest_path.as_path();
         let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
@@ -151,6 +151,10 @@ impl<'m> PackageRelease<'m> {
 
             release_config
         };
+        if config.disable_release() {
+            log::debug!("Disabled in config, skipping {}", manifest_path.display());
+            return Ok(None);
+        }
 
         let is_root = git_root == cwd;
 
@@ -292,7 +296,7 @@ impl<'m> PackageRelease<'m> {
 
             features: features,
         };
-        Ok(pkg)
+        Ok(Some(pkg))
     }
 }
 
@@ -421,7 +425,8 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     let root = git::top_level(&ws_meta.workspace_root)?;
     let pkg_releases: Result<HashMap<_, _>, _> = selected_pkgs
         .iter()
-        .map(|p| PackageRelease::load(args, &root, &ws_meta, &all_pkgs, p).map(|p| (&p.meta.id, p)))
+        .filter_map(|p| PackageRelease::load(args, &root, &ws_meta, &all_pkgs, p).transpose())
+        .map(|p| p.map(|p| (&p.meta.id, p)))
         .collect();
     let pkg_releases = pkg_releases?;
     let pkg_releases: Vec<_> = pkg_ids

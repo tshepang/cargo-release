@@ -28,6 +28,10 @@ pub trait ConfigSource {
         None
     }
 
+    fn disable_release(&self) -> Option<bool> {
+        None
+    }
+
     fn disable_publish(&self) -> Option<bool> {
         None
     }
@@ -111,6 +115,7 @@ pub struct Config {
     pub sign_tag: Option<bool>,
     pub push_remote: Option<String>,
     pub registry: Option<String>,
+    pub disable_release: Option<bool>,
     pub disable_publish: Option<bool>,
     pub disable_push: Option<bool>,
     pub dev_version_ext: Option<String>,
@@ -148,6 +153,9 @@ impl Config {
         }
         if let Some(registry) = source.registry() {
             self.registry = Some(registry.to_owned());
+        }
+        if let Some(disable_release) = source.disable_release() {
+            self.disable_release = Some(disable_release);
         }
         if let Some(disable_publish) = source.disable_publish() {
             self.disable_publish = Some(disable_publish);
@@ -230,6 +238,10 @@ impl Config {
 
     pub fn registry(&self) -> Option<&str> {
         self.registry.as_ref().map(|s| s.as_str())
+    }
+
+    pub fn disable_release(&self) -> bool {
+        self.disable_release.unwrap_or(false)
     }
 
     pub fn disable_publish(&self) -> bool {
@@ -348,6 +360,10 @@ impl ConfigSource for Config {
 
     fn registry(&self) -> Option<&str> {
         self.registry.as_ref().map(|s| s.as_str())
+    }
+
+    fn disable_release(&self) -> Option<bool> {
+        self.disable_release
     }
 
     fn disable_publish(&self) -> Option<bool> {
