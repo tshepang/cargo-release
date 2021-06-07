@@ -6,8 +6,8 @@
 
 ### Added
 
-* Add `--publish-grace-sleep` parameter that allows to set the number of seconds to sleep between
-  two invocations of `cargo publish`
+* Add `PUBLISH_GRACE_SLEEP` environment variable that allows to set the number of seconds to sleep between
+  two invocations of `cargo publish`. Default is `5`
 * Do not sleep between publishes on dry runs
 
 ### Changed
