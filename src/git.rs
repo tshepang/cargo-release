@@ -7,6 +7,53 @@ use bstr::ByteSlice;
 use crate::cmd::call_on_path;
 use crate::error::FatalError;
 
+pub fn fetch(dir: &Path, remote: &str, branch: &str) -> Result<(), FatalError> {
+    Command::new("git")
+        .arg("fetch")
+        .arg(remote)
+        .arg(branch)
+        .current_dir(dir)
+        .output()
+        .map(|_| ())
+        .map_err(|_| FatalError::GitError)
+}
+
+pub fn is_behind_remote(dir: &Path, remote: &str, branch: &str) -> Result<bool, FatalError> {
+    let output = Command::new("git")
+        .arg("merge-base")
+        .arg(&format!("{}/{}", remote, branch))
+        .arg(branch)
+        .current_dir(dir)
+        .output()
+        .map_err(FatalError::from)?;
+    let base_sha = String::from_utf8(output.stdout)?.trim().to_owned();
+
+    let output = Command::new("git")
+        .arg("rev-parse")
+        .arg(&format!("{}/{}", remote, branch))
+        .current_dir(dir)
+        .output()
+        .map_err(FatalError::from)?;
+    let upstream_sha = String::from_utf8(output.stdout)?.trim().to_owned();
+
+    log::trace!("{}/{}: {}", remote, branch, upstream_sha);
+    log::trace!("merge base: {}", base_sha);
+
+    Ok(base_sha != upstream_sha)
+}
+
+pub fn current_branch(dir: &Path) -> Result<String, FatalError> {
+    let output = Command::new("git")
+        .arg("rev-parse")
+        .arg("--abbrev-ref")
+        .arg("HEAD")
+        .current_dir(dir)
+        .output()
+        .map_err(FatalError::from)?;
+    let branch = String::from_utf8(output.stdout)?.trim().to_owned();
+    Ok(branch)
+}
+
 pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
     let output = Command::new("git")
         .arg("diff")

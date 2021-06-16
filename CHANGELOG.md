@@ -7,6 +7,8 @@
 ### Changed
 
 * New `diable-release` config flag to skip crates in a workspace
+* Warn on detached HEADs and being behind the remote
+  * **Note:** This means we are now doing a `git fetch` at the beginning, even with `--dry-run`
 
 ## [0.13.11] - 2021-03-25
 
