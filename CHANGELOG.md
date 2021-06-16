@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.14.0] - 2021-06-16
+
 ### Added
 
 * Add `PUBLISH_GRACE_SLEEP` environment variable that allows to set the number of seconds to sleep between
