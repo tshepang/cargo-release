@@ -494,7 +494,21 @@ fn release_packages<'m>(
 
     // STEP 0: Help the user make the right decisions.
     let lock_path = ws_meta.workspace_root.join("Cargo.lock");
+    let mut pulled: HashSet<_> = HashSet::new();
     for pkg in pkgs {
+        let git_remote = pkg.config.push_remote();
+        if !pulled.contains(git_remote) {
+            let branch = git::current_branch(&ws_meta.workspace_root)?;
+            if branch == "HEAD" {
+                log::warn!("Releasing from a detached HEAD");
+            }
+            git::fetch(&ws_meta.workspace_root, git_remote, &branch)?;
+            if git::is_behind_remote(&ws_meta.workspace_root, git_remote, &branch)? {
+                log::warn!("{} is behind {}/{}", branch, git_remote, branch);
+            }
+            pulled.insert(git_remote);
+        }
+
         if let Some(version) = pkg.version.as_ref() {
             let cwd = pkg.package_path;
             let crate_name = pkg.meta.name.as_str();
