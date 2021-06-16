@@ -68,6 +68,10 @@ Configuration is read from the following (in precedence order)
 | `enable-features` | `--features` | list of names | Provide a set of feature flags that should be passed to `cargo publish` (requires rust 1.33+) |
 | `all-features` | `--all-features` | bool  | Signal to `cargo publish`, that all features should be used (requires rust 1.33+) |
 
+### Supported Environment Variables
+
+* `PUBLISH_GRACE_SLEEP`: sleep timeout between crates publish when releasing from workspace. This is a workaround to make previous crate discoveriable on crates.io.  
+
 ### {Pre,Post}-release Replacements
 
 This field is an array of tables with the following
