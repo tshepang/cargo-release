@@ -4,6 +4,10 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Changed
+
+* `disable-push`, `push-remote` now only apply at the workspace level, when in a workspace.
+
 ## [0.14.0] - 2021-06-16
 
 ### Added

@@ -494,21 +494,7 @@ fn release_packages<'m>(
 
     // STEP 0: Help the user make the right decisions.
     let lock_path = ws_meta.workspace_root.join("Cargo.lock");
-    let mut pulled: HashSet<_> = HashSet::new();
     for pkg in pkgs {
-        let git_remote = pkg.config.push_remote();
-        if !pulled.contains(git_remote) {
-            let branch = git::current_branch(&ws_meta.workspace_root)?;
-            if branch == "HEAD" {
-                log::warn!("Releasing from a detached HEAD");
-            }
-            git::fetch(&ws_meta.workspace_root, git_remote, &branch)?;
-            if git::is_behind_remote(&ws_meta.workspace_root, git_remote, &branch)? {
-                log::warn!("{} is behind {}/{}", branch, git_remote, branch);
-            }
-            pulled.insert(git_remote);
-        }
-
         if let Some(version) = pkg.version.as_ref() {
             let cwd = pkg.package_path;
             let crate_name = pkg.meta.name.as_str();
@@ -571,6 +557,16 @@ fn release_packages<'m>(
                 );
             }
         }
+    }
+
+    let git_remote = ws_config.push_remote();
+    let branch = git::current_branch(&ws_meta.workspace_root)?;
+    if branch == "HEAD" {
+        log::warn!("Releasing from a detached HEAD");
+    }
+    git::fetch(&ws_meta.workspace_root, git_remote, &branch)?;
+    if git::is_behind_remote(&ws_meta.workspace_root, git_remote, &branch)? {
+        log::warn!("{} is behind {}/{}", branch, git_remote, branch);
     }
 
     // STEP 1: Release Confirmation
@@ -842,23 +838,19 @@ fn release_packages<'m>(
     }
 
     // STEP 7: git push
-    let mut pushed: HashSet<_> = HashSet::new();
-    for pkg in pkgs {
-        if !pkg.config.disable_push() {
-            let git_remote = pkg.config.push_remote();
+    if !ws_config.disable_push() {
+        for pkg in pkgs {
             if let Some(tag_name) = pkg.tag.as_ref() {
                 log::info!("Pushing {} to {}", tag_name, git_remote);
                 if !git::push_tag(&ws_meta.workspace_root, git_remote, &tag_name, dry_run)? {
                     return Ok(106);
                 }
             }
-            if !pushed.contains(git_remote) {
-                log::info!("Pushing HEAD to {}", git_remote);
-                if !git::push(&ws_meta.workspace_root, git_remote, dry_run)? {
-                    return Ok(106);
-                }
-                pushed.insert(git_remote);
-            }
+        }
+
+        log::info!("Pushing HEAD to {}", git_remote);
+        if !git::push(&ws_meta.workspace_root, git_remote, dry_run)? {
+            return Ok(106);
         }
     }
 
