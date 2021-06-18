@@ -40,6 +40,10 @@ pub trait ConfigSource {
         None
     }
 
+    fn push_options(&self) -> Option<&[String]> {
+        None
+    }
+
     fn dev_version_ext(&self) -> Option<&str> {
         None
     }
@@ -118,6 +122,7 @@ pub struct Config {
     pub disable_release: Option<bool>,
     pub disable_publish: Option<bool>,
     pub disable_push: Option<bool>,
+    pub push_options: Option<Vec<String>>,
     pub dev_version_ext: Option<String>,
     pub no_dev_version: Option<bool>,
     pub consolidate_commits: Option<bool>,
@@ -162,6 +167,9 @@ impl Config {
         }
         if let Some(disable_push) = source.disable_push() {
             self.disable_push = Some(disable_push);
+        }
+        if let Some(push_options) = source.push_options() {
+            self.push_options = Some(push_options.to_owned());
         }
         if let Some(dev_version_ext) = source.dev_version_ext() {
             self.dev_version_ext = Some(dev_version_ext.to_owned());
@@ -250,6 +258,13 @@ impl Config {
 
     pub fn disable_push(&self) -> bool {
         self.disable_push.unwrap_or(false)
+    }
+
+    pub fn push_options(&self) -> &[String] {
+        self.push_options
+            .as_ref()
+            .map(|v| v.as_ref())
+            .unwrap_or(&[])
     }
 
     pub fn dev_version_ext(&self) -> &str {
@@ -372,6 +387,10 @@ impl ConfigSource for Config {
 
     fn disable_push(&self) -> Option<bool> {
         self.disable_push
+    }
+
+    fn push_options(&self) -> Option<&[String]> {
+        self.push_options.as_ref().map(|v| v.as_ref())
     }
 
     fn dev_version_ext(&self) -> Option<&str> {

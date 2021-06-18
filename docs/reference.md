@@ -52,6 +52,7 @@ Configuration is read from the following (in precedence order)
 | `registry`     | `--registry`    | string | Cargo registry name to publish to (default uses Rust's default, which goes to `crates.io`) |
 | `disable-release` | `--exclude`  | bool   | Skip the entire release process (usually for internal crates in a workspace) |
 | `disable-push` | `--skip-push`   | bool   | Don't do git push |
+| `push-options` | \-              | list of strings | Flags to send to the server when doing a `git push` |
 | `disable-tag`  | `--skip-tag`    | bool   | Don't do git tag |
 | `disable-publish` | `--skip-publish` |  bool | Don't do cargo publish right now, see [manifest `publish` field](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional) to permanently disable publish. |
 | `consolidate-commits` | \- | bool | When releasing a workspace, use a single commit for the pre-release version bump and a single commit for the post-release version bump. |
