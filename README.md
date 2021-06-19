@@ -20,7 +20,7 @@ Features for workspaces include:
 
 ## Install
 
-Current release: 0.14.0
+Current release: 0.15.0
 
 `cargo install cargo-release`
 

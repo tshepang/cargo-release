@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.15.0] - 2021-06-19
+
 ### Added
 
 * `push-options` to send flags to the server, on push.  Current limitations include:
