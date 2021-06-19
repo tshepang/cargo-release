@@ -14,6 +14,7 @@
 ### Changed
 
 * `disable-push`, `push-remote` now only apply at the workspace level, when in a workspace.
+* tags are pushed before branch as requested in #250
 
 ## [0.14.0] - 2021-06-16
 
