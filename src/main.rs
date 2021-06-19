@@ -849,7 +849,12 @@ fn release_packages<'m>(
         }
 
         log::info!("Pushing HEAD to {}", git_remote);
-        if !git::push(&ws_meta.workspace_root, git_remote, dry_run)? {
+        if !git::push(
+            &ws_meta.workspace_root,
+            git_remote,
+            ws_config.push_options(),
+            dry_run,
+        )? {
             return Ok(106);
         }
     }

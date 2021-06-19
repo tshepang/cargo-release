@@ -4,6 +4,13 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+* `push-options` to send flags to the server, on push.  Current limitations include:
+  * Only on branch and not tag push
+  * Operates at the workspace level
+  * No placeholders are supported
+
 ### Changed
 
 * `disable-push`, `push-remote` now only apply at the workspace level, when in a workspace.

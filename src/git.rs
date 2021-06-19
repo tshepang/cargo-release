@@ -132,8 +132,19 @@ pub fn tag(
     )
 }
 
-pub fn push(dir: &Path, remote: &str, dry_run: bool) -> Result<bool, FatalError> {
-    call_on_path(vec!["git", "push", remote], dir, dry_run)
+pub fn push(
+    dir: &Path,
+    remote: &str,
+    options: &[String],
+    dry_run: bool,
+) -> Result<bool, FatalError> {
+    let mut command = vec!["git", "push"];
+    for option in options {
+        command.push("--push-option");
+        command.push(option.as_str());
+    }
+    command.push(remote);
+    call_on_path(command, dir, dry_run)
 }
 
 pub fn push_tag(dir: &Path, remote: &str, tag: &str, dry_run: bool) -> Result<bool, FatalError> {
