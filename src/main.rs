@@ -206,20 +206,20 @@ impl<'m> PackageRelease<'m> {
                 }
             } else {
                 // given version
-                let new_version =
-                    semver::Version::parse(&args.level_or_version).map_err(FatalError::from)?;
-                if new_version > potential_version {
-                    is_pre_release = new_version.is_prerelease();
-                    Some(Version {
-                        version: new_version,
-                        version_string: args.level_or_version.to_owned(),
-                    })
-                } else if new_version == potential_version {
-                    None
-                } else {
-                    return Err(error::FatalError::UnsupportedVersionReq(
-                        "Cannot release version smaller than current one".to_owned(),
-                    ));
+                match semver::Version::parse(&args.level_or_version)? {
+                    version if version > potential_version => {
+                        is_pre_release = version.is_prerelease();
+                        Some(Version {
+                            version,
+                            version_string: args.level_or_version.to_owned(),
+                        })
+                    }
+                    version if version == potential_version => None,
+                    _ => {
+                        return Err(error::FatalError::UnsupportedVersionReq(
+                            "Cannot release version smaller than current one".to_owned(),
+                        ));
+                    }
                 }
             }
         };
