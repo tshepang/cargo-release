@@ -87,13 +87,13 @@ pub fn do_file_replacements(
                     pattern.to_owned(),
                     min,
                     actual,
-                ))?;
+                ));
             } else if max < actual {
                 return Err(FatalError::ReplacerMaxError(
                     pattern.to_owned(),
                     min,
                     actual,
-                ))?;
+                ));
             }
 
             let to_replace = replace.replace.as_str();
