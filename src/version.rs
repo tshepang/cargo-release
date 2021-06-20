@@ -2,9 +2,9 @@ use semver::{Identifier, Version};
 
 use crate::error::FatalError;
 
-static VERSION_ALPHA: &'static str = "alpha";
-static VERSION_BETA: &'static str = "beta";
-static VERSION_RC: &'static str = "rc";
+static VERSION_ALPHA: &str = "alpha";
+static VERSION_BETA: &str = "beta";
+static VERSION_RC: &str = "rc";
 
 arg_enum! {
     #[derive(Debug, Clone, Copy)]
