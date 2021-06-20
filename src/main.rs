@@ -294,7 +294,7 @@ impl<'m> PackageRelease<'m> {
             post_version,
             dependents,
 
-            features: features,
+            features,
         };
         Ok(Some(pkg))
     }
