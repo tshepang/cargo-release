@@ -301,7 +301,7 @@ mod display {
             if self.0.predicates.is_empty() {
                 write!(fmt, "*")?;
             } else {
-                for (i, ref pred) in self.0.predicates.iter().enumerate() {
+                for (i, pred) in self.0.predicates.iter().enumerate() {
                     if i == 0 {
                         write!(fmt, "{}", DisplayPredicate(pred))?;
                     } else {

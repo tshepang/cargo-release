@@ -124,7 +124,7 @@ impl<'m> PackageRelease<'m> {
             let mut release_config = config::Config::default();
 
             if !args.isolated {
-                let cfg = config::resolve_config(&ws_meta.workspace_root, &manifest_path)?;
+                let cfg = config::resolve_config(&ws_meta.workspace_root, manifest_path)?;
                 release_config.update(&cfg);
             }
 
@@ -138,7 +138,7 @@ impl<'m> PackageRelease<'m> {
             release_config.update(&args.config);
 
             // the publish flag in cargo file
-            let cargo_file = cargo::parse_cargo_config(&manifest_path)?;
+            let cargo_file = cargo::parse_cargo_config(manifest_path)?;
             if !cargo_file
                 .get("package")
                 .and_then(|f| f.as_table())
@@ -335,7 +335,7 @@ fn update_dependent_versions(
             }
             config::DependentVersion::Fix => {
                 if !dep.req.matches(&version.version) {
-                    let new_req = version::set_requirement(&dep.req, &version.version)?;
+                    let new_req = version::set_requirement(dep.req, &version.version)?;
                     if let Some(new_req) = new_req {
                         log::info!(
                             "Fixing {}'s dependency on {} to `{}` (from `{}`)",
@@ -355,7 +355,7 @@ fn update_dependent_versions(
                 }
             }
             config::DependentVersion::Upgrade => {
-                let new_req = version::set_requirement(&dep.req, &version.version)?;
+                let new_req = version::set_requirement(dep.req, &version.version)?;
                 if let Some(new_req) = new_req {
                     log::info!(
                         "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
@@ -457,7 +457,7 @@ fn sort_workspace<'m>(ws_meta: &'m cargo_metadata::Metadata) -> Vec<&'m cargo_me
     let mut sorted = Vec::new();
     let mut processed = HashSet::new();
     for pkg_id in ws_meta.workspace_members.iter() {
-        sort_workspace_inner(&ws_meta, pkg_id, &dep_tree, &mut processed, &mut sorted);
+        sort_workspace_inner(ws_meta, pkg_id, &dep_tree, &mut processed, &mut sorted);
     }
 
     sorted
@@ -499,7 +499,7 @@ fn release_packages<'m>(
             let cwd = pkg.package_path;
             let crate_name = pkg.meta.name.as_str();
             let prev_tag_name = &pkg.prev_tag;
-            if let Some(changed) = git::changed_files(cwd, &prev_tag_name)? {
+            if let Some(changed) = git::changed_files(cwd, prev_tag_name)? {
                 let mut changed: Vec<_> = changed
                     .into_iter()
                     .filter(|p| {
@@ -605,20 +605,20 @@ fn release_packages<'m>(
             let new_version_string = version.version_string.as_str();
             log::info!("Update {} to version {}", crate_name, new_version_string);
             if !dry_run {
-                cargo::set_package_version(&pkg.manifest_path, &new_version_string)?;
+                cargo::set_package_version(pkg.manifest_path, new_version_string)?;
             }
             update_dependent_versions(pkg, version, dry_run)?;
             if dry_run {
                 log::debug!("Updating lock file");
             } else {
-                cargo::update_lock(&pkg.manifest_path)?;
+                cargo::update_lock(pkg.manifest_path)?;
             }
 
             if !pkg.config.pre_release_replacements().is_empty() {
                 // try replacing text in configured files
                 let template = Template {
                     prev_version: Some(&pkg.prev_version.version_string),
-                    version: Some(&new_version_string),
+                    version: Some(new_version_string),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
                     tag_name: pkg.tag.as_deref(),
@@ -662,7 +662,7 @@ fn release_packages<'m>(
             } else {
                 let template = Template {
                     prev_version: Some(&pkg.prev_version.version_string),
-                    version: Some(&new_version_string),
+                    version: Some(new_version_string),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
                     ..Default::default()
@@ -706,7 +706,7 @@ fn release_packages<'m>(
             let features = &pkg.features;
             if !cargo::publish(
                 dry_run,
-                &pkg.manifest_path,
+                pkg.manifest_path,
                 features,
                 pkg.config.registry(),
                 args.config.token.as_ref().map(AsRef::as_ref),
@@ -754,14 +754,14 @@ fn release_packages<'m>(
                 prev_version: Some(&pkg.prev_version.version_string),
                 version: Some(&base.version_string),
                 crate_name: Some(crate_name),
-                tag_name: Some(&tag_name),
+                tag_name: Some(tag_name),
                 date: Some(NOW.as_str()),
                 ..Default::default()
             };
             let tag_message = template.render(pkg.config.tag_message());
 
             log::debug!("Creating git tag {}", tag_name);
-            if !git::tag(cwd, &tag_name, &tag_message, sign, dry_run)? {
+            if !git::tag(cwd, tag_name, &tag_message, sign, dry_run)? {
                 // tag failed, abort release
                 return Ok(104);
             }
@@ -783,8 +783,8 @@ fn release_packages<'m>(
             );
             update_dependent_versions(pkg, version, dry_run)?;
             if !dry_run {
-                cargo::set_package_version(&pkg.manifest_path, &updated_version_string)?;
-                cargo::update_lock(&pkg.manifest_path)?;
+                cargo::set_package_version(pkg.manifest_path, updated_version_string)?;
+                cargo::update_lock(pkg.manifest_path)?;
             }
             let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
             let template = Template {
@@ -842,7 +842,7 @@ fn release_packages<'m>(
         for pkg in pkgs {
             if let Some(tag_name) = pkg.tag.as_ref() {
                 log::info!("Pushing {} to {}", tag_name, git_remote);
-                if !git::push_tag(&ws_meta.workspace_root, git_remote, &tag_name, dry_run)? {
+                if !git::push_tag(&ws_meta.workspace_root, git_remote, tag_name, dry_run)? {
                     return Ok(106);
                 }
             }

@@ -189,7 +189,7 @@ pub fn update_lock(manifest_path: &Path) -> Result<(), FatalError> {
 }
 
 pub fn parse_cargo_config(manifest_path: &Path) -> Result<Value, FatalError> {
-    let cargo_file_content = load_from_file(&manifest_path).map_err(FatalError::from)?;
+    let cargo_file_content = load_from_file(manifest_path).map_err(FatalError::from)?;
     cargo_file_content.parse().map_err(FatalError::from)
 }
 
