@@ -21,10 +21,7 @@ arg_enum! {
 
 impl BumpLevel {
     pub fn is_pre_release(self) -> bool {
-        match self {
-            BumpLevel::Alpha | BumpLevel::Beta | BumpLevel::Rc => true,
-            _ => false,
-        }
+        matches!(self, BumpLevel::Alpha | BumpLevel::Beta | BumpLevel::Rc)
     }
 
     pub fn bump_version(
