@@ -621,7 +621,7 @@ fn release_packages<'m>(
                     version: Some(&new_version_string),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
-                    tag_name: pkg.tag.as_ref().map(|s| s.as_str()),
+                    tag_name: pkg.tag.as_deref(),
                     ..Default::default()
                 };
                 let prerelease = !version.version.pre.is_empty();
@@ -792,7 +792,7 @@ fn release_packages<'m>(
                 version: Some(&base.version_string),
                 crate_name: Some(crate_name),
                 date: Some(NOW.as_str()),
-                tag_name: pkg.tag.as_ref().map(|s| s.as_str()),
+                tag_name: pkg.tag.as_deref(),
                 next_version: Some(updated_version_string),
                 ..Default::default()
             };
@@ -1025,11 +1025,11 @@ impl config::ConfigSource for ConfigArgs {
     }
 
     fn push_remote(&self) -> Option<&str> {
-        self.push_remote.as_ref().map(|s| s.as_str())
+        self.push_remote.as_deref()
     }
 
     fn registry(&self) -> Option<&str> {
-        self.registry.as_ref().map(|s| s.as_str())
+        self.registry.as_deref()
     }
 
     fn disable_publish(&self) -> Option<bool> {
@@ -1041,7 +1041,7 @@ impl config::ConfigSource for ConfigArgs {
     }
 
     fn dev_version_ext(&self) -> Option<&str> {
-        self.dev_version_ext.as_ref().map(|s| s.as_str())
+        self.dev_version_ext.as_deref()
     }
 
     fn no_dev_version(&self) -> Option<bool> {
@@ -1049,11 +1049,11 @@ impl config::ConfigSource for ConfigArgs {
     }
 
     fn tag_prefix(&self) -> Option<&str> {
-        self.tag_prefix.as_ref().map(|s| s.as_str())
+        self.tag_prefix.as_deref()
     }
 
     fn tag_name(&self) -> Option<&str> {
-        self.tag_name.as_ref().map(|s| s.as_str())
+        self.tag_name.as_deref()
     }
 
     fn disable_tag(&self) -> Option<bool> {

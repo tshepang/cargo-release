@@ -464,7 +464,7 @@ mod test {
             let req = semver::VersionReq::parse(req).unwrap();
             let actual = set_requirement(&req, &version).unwrap();
             let expected = expected.into();
-            assert_eq!(actual.as_ref().map(|s| s.as_str()), expected);
+            assert_eq!(actual.as_deref(), expected);
         }
 
         #[test]
