@@ -721,7 +721,7 @@ fn release_packages<'m>(
                 // We don't have a way yet to check for that, so waiting for now in hopes everything is ready
                 if !dry_run {
                     let publish_grace_sleep = std::env::var("PUBLISH_GRACE_SLEEP")
-                        .unwrap_or("5".to_owned())
+                        .unwrap_or_else(|_| String::from("5"))
                         .parse()
                         .unwrap_or(5);
                     log::info!(
@@ -1017,11 +1017,15 @@ struct ConfigArgs {
 
 impl config::ConfigSource for ConfigArgs {
     fn sign_commit(&self) -> Option<bool> {
-        self.sign.as_some(true).or(self.sign_commit.as_some(true))
+        self.sign
+            .as_some(true)
+            .or_else(|| self.sign_commit.as_some(true))
     }
 
     fn sign_tag(&self) -> Option<bool> {
-        self.sign.as_some(true).or(self.sign_tag.as_some(true))
+        self.sign
+            .as_some(true)
+            .or_else(|| self.sign_tag.as_some(true))
     }
 
     fn push_remote(&self) -> Option<&str> {
