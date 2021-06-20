@@ -503,11 +503,8 @@ fn release_packages<'m>(
                 let mut changed: Vec<_> = changed
                     .into_iter()
                     .filter(|p| {
-                        let file_in_subcrate = pkg
-                            .crate_excludes
-                            .iter()
-                            .find(|base| p.starts_with(base))
-                            .is_some();
+                        let file_in_subcrate =
+                            pkg.crate_excludes.iter().any(|base| p.starts_with(base));
                         if file_in_subcrate {
                             return false;
                         }

@@ -78,8 +78,7 @@ pub fn wait_for_publish(
             let published = crate_data
                 .iter()
                 .flat_map(|c| c.versions().iter())
-                .find(|v| v.version() == version)
-                .is_some();
+                .any(|v| v.version() == version);
 
             if published {
                 break;
