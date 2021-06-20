@@ -5,8 +5,6 @@ extern crate maplit;
 #[macro_use]
 extern crate quick_error;
 
-use structopt;
-
 #[cfg(test)]
 extern crate assert_fs;
 

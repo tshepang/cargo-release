@@ -200,7 +200,6 @@ fn load_from_file(path: &Path) -> io::Result<String> {
 mod test {
     use super::*;
 
-    use assert_fs;
     #[allow(unused_imports)] // Not being detected
     use assert_fs::prelude::*;
     use predicates::prelude::*;
