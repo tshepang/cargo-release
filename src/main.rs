@@ -437,7 +437,7 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     release_packages(args, &ws_meta, &ws_config, pkg_releases.as_slice())
 }
 
-fn sort_workspace<'m>(ws_meta: &'m cargo_metadata::Metadata) -> Vec<&'m cargo_metadata::PackageId> {
+fn sort_workspace(ws_meta: &cargo_metadata::Metadata) -> Vec<&cargo_metadata::PackageId> {
     let members: HashSet<_> = ws_meta.workspace_members.iter().collect();
     let dep_tree: HashMap<_, _> = ws_meta
         .resolve
