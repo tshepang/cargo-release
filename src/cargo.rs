@@ -68,11 +68,8 @@ pub fn wait_for_publish(
         let index = crates_index::Index::new_cargo_default();
         let mut logged = false;
         loop {
-            match index.update() {
-                Err(e) => {
-                    log::debug!("Crate index update failed with {}", e);
-                }
-                _ => (),
+            if let Err(e) = index.update() {
+                log::debug!("Crate index update failed with {}", e);
             }
             let crate_data = index.crate_(name);
             let published = crate_data
