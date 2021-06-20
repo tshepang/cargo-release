@@ -58,10 +58,7 @@ pub fn do_file_replacements(
     let mut by_file = BTreeMap::new();
     for replace in replace_config {
         let file = replace.file.clone();
-        by_file
-            .entry(file)
-            .or_insert_with(|| Vec::new())
-            .push(replace);
+        by_file.entry(file).or_insert_with(Vec::new).push(replace);
     }
 
     for (path, replaces) in by_file.into_iter() {
