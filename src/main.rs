@@ -233,7 +233,7 @@ impl<'m> PackageRelease<'m> {
             Vec::new()
         };
 
-        let base = version.as_ref().unwrap_or_else(|| &prev_version);
+        let base = version.as_ref().unwrap_or(&prev_version);
 
         let tag = if config.disable_tag() {
             None
@@ -574,14 +574,14 @@ fn release_packages<'m>(
         let prompt = if pkgs.len() == 1 {
             let pkg = pkgs[0];
             let crate_name = pkg.meta.name.as_str();
-            let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+            let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
             format!("Release {} {}?", crate_name, base.version_string)
         } else {
             let mut buffer: Vec<u8> = vec![];
             writeln!(&mut buffer, "Release").unwrap();
             for pkg in pkgs {
                 let crate_name = pkg.meta.name.as_str();
-                let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+                let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
                 writeln!(&mut buffer, "  {} {}", crate_name, base.version_string).unwrap();
             }
             write!(&mut buffer, "?").unwrap();
@@ -699,7 +699,7 @@ fn release_packages<'m>(
     for pkg in pkgs {
         if !pkg.config.disable_publish() {
             let crate_name = pkg.meta.name.as_str();
-            let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+            let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
 
             log::info!("Running cargo publish on {}", crate_name);
             // feature list to release
@@ -749,7 +749,7 @@ fn release_packages<'m>(
             let cwd = pkg.package_path;
             let crate_name = pkg.meta.name.as_str();
 
-            let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+            let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
             let template = Template {
                 prev_version: Some(&pkg.prev_version.version_string),
                 version: Some(&base.version_string),
@@ -786,7 +786,7 @@ fn release_packages<'m>(
                 cargo::set_package_version(pkg.manifest_path, updated_version_string)?;
                 cargo::update_lock(pkg.manifest_path)?;
             }
-            let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+            let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
             let template = Template {
                 prev_version: Some(&pkg.prev_version.version_string),
                 version: Some(&base.version_string),
