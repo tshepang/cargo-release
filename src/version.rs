@@ -1,3 +1,4 @@
+use clap::arg_enum;
 use semver::{Identifier, Version};
 
 use crate::error::FatalError;

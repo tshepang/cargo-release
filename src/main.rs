@@ -1,13 +1,3 @@
-#[macro_use]
-extern crate clap;
-#[macro_use]
-extern crate maplit;
-#[macro_use]
-extern crate quick_error;
-
-#[cfg(test)]
-extern crate assert_fs;
-
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ffi::OsStr;
@@ -633,7 +623,7 @@ fn release_packages<'m>(
             if let Some(pre_rel_hook) = pkg.config.pre_release_hook() {
                 let pre_rel_hook = pre_rel_hook.args();
                 log::debug!("Calling pre-release hook: {:?}", pre_rel_hook);
-                let envs = btreemap! {
+                let envs = maplit::btreemap! {
                     OsStr::new("PREV_VERSION") => pkg.prev_version.version_string.as_ref(),
                     OsStr::new("NEW_VERSION") => new_version_string.as_ref(),
                     OsStr::new("DRY_RUN") => OsStr::new(if dry_run { "true" } else { "false" }),

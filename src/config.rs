@@ -3,6 +3,7 @@ use std::io;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
+use clap::arg_enum;
 use serde::{Deserialize, Serialize};
 
 use crate::error::FatalError;
