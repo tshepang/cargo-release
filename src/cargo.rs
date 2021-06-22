@@ -143,6 +143,32 @@ pub fn set_dependency_version(
             }
         }
 
+        if manifest.as_table().contains_table("target") {
+            for target_cfg in manifest["target"]
+                .as_table()
+                .expect("manifest is already verified")
+                .iter()
+                // This map + collect breaks the borrow on manifest, letting us mutate in the loop.
+                .map(|(k, _)| k.to_owned())
+                .collect::<Vec<_>>()
+            {
+                for key in &["dependencies", "dev-dependencies", "build-dependencies"] {
+                    let target_table = manifest["target"][&target_cfg]
+                        .as_table()
+                        .expect("manifest is already verified");
+                    if target_table.contains_key(key)
+                        && target_table[key]
+                            .as_table()
+                            .expect("manifest is already verified")
+                            .contains_key(name)
+                    {
+                        manifest["target"][&target_cfg][key][name]["version"] =
+                            toml_edit::value(version);
+                    }
+                }
+            }
+        }
+
         let mut file_out = File::create(&temp_manifest_path).map_err(FatalError::from)?;
         file_out
             .write(manifest.to_string_in_original_order().as_bytes())
