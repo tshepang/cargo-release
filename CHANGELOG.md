@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.15.1] - 2021-06-24
+
 ### Fixed
 * Fixed issue where the versions of cfg specific dependencies wouldn't be properly bumped.
 
