@@ -5,6 +5,7 @@ use std::str::Utf8Error;
 use std::string::FromUtf8Error;
 
 use cargo_metadata::Error as CargoMetaError;
+use quick_error::quick_error;
 use regex::Error as RegexError;
 use semver::SemVerError;
 use toml::de::Error as TomlError;

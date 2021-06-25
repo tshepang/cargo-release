@@ -3,6 +3,7 @@ use std::io;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
+use clap::arg_enum;
 use serde::{Deserialize, Serialize};
 
 use crate::error::FatalError;
@@ -238,14 +239,11 @@ impl Config {
     }
 
     pub fn push_remote(&self) -> &str {
-        self.push_remote
-            .as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or("origin")
+        self.push_remote.as_deref().unwrap_or("origin")
     }
 
     pub fn registry(&self) -> Option<&str> {
-        self.registry.as_ref().map(|s| s.as_str())
+        self.registry.as_deref()
     }
 
     pub fn disable_release(&self) -> bool {
@@ -268,10 +266,7 @@ impl Config {
     }
 
     pub fn dev_version_ext(&self) -> &str {
-        self.dev_version_ext
-            .as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or("alpha.0")
+        self.dev_version_ext.as_deref().unwrap_or("alpha.0")
     }
 
     pub fn no_dev_version(&self) -> bool {
@@ -284,15 +279,13 @@ impl Config {
 
     pub fn pre_release_commit_message(&self) -> &str {
         self.pre_release_commit_message
-            .as_ref()
-            .map(|s| s.as_str())
+            .as_deref()
             .unwrap_or("(cargo-release) version {{version}}")
     }
 
     pub fn post_release_commit_message(&self) -> &str {
         self.post_release_commit_message
-            .as_ref()
-            .map(|s| s.as_str())
+            .as_deref()
             .unwrap_or("(cargo-release) start next development iteration {{next_version}}")
     }
 
@@ -316,24 +309,19 @@ impl Config {
 
     pub fn tag_message(&self) -> &str {
         self.tag_message
-            .as_ref()
-            .map(|s| s.as_str())
+            .as_deref()
             .unwrap_or("(cargo-release) {{crate_name}} version {{version}}")
     }
 
     pub fn tag_prefix(&self, is_root: bool) -> &str {
         // crate_name as default tag prefix for multi-crate project
         self.tag_prefix
-            .as_ref()
-            .map(|s| s.as_str())
+            .as_deref()
             .unwrap_or_else(|| if !is_root { "{{crate_name}}-" } else { "" })
     }
 
     pub fn tag_name(&self) -> &str {
-        self.tag_name
-            .as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or("{{prefix}}v{{version}}")
+        self.tag_name.as_deref().unwrap_or("{{prefix}}v{{version}}")
     }
 
     pub fn disable_tag(&self) -> bool {
@@ -370,11 +358,11 @@ impl ConfigSource for Config {
     }
 
     fn push_remote(&self) -> Option<&str> {
-        self.push_remote.as_ref().map(|s| s.as_str())
+        self.push_remote.as_deref()
     }
 
     fn registry(&self) -> Option<&str> {
-        self.registry.as_ref().map(|s| s.as_str())
+        self.registry.as_deref()
     }
 
     fn disable_release(&self) -> Option<bool> {
@@ -394,7 +382,7 @@ impl ConfigSource for Config {
     }
 
     fn dev_version_ext(&self) -> Option<&str> {
-        self.dev_version_ext.as_ref().map(|s| s.as_str())
+        self.dev_version_ext.as_deref()
     }
 
     fn no_dev_version(&self) -> Option<bool> {
@@ -406,18 +394,16 @@ impl ConfigSource for Config {
     }
 
     fn pre_release_commit_message(&self) -> Option<&str> {
-        self.pre_release_commit_message.as_ref().map(|s| s.as_str())
+        self.pre_release_commit_message.as_deref()
     }
 
     // deprecated
     fn pro_release_commit_message(&self) -> Option<&str> {
-        self.pro_release_commit_message.as_ref().map(|s| s.as_str())
+        self.pro_release_commit_message.as_deref()
     }
 
     fn post_release_commit_message(&self) -> Option<&str> {
-        self.post_release_commit_message
-            .as_ref()
-            .map(|s| s.as_str())
+        self.post_release_commit_message.as_deref()
     }
 
     fn pre_release_replacements(&self) -> Option<&[Replace]> {
@@ -433,15 +419,15 @@ impl ConfigSource for Config {
     }
 
     fn tag_message(&self) -> Option<&str> {
-        self.tag_message.as_ref().map(|s| s.as_str())
+        self.tag_message.as_deref()
     }
 
     fn tag_prefix(&self) -> Option<&str> {
-        self.tag_prefix.as_ref().map(|s| s.as_str())
+        self.tag_prefix.as_deref()
     }
 
     fn tag_name(&self) -> Option<&str> {
-        self.tag_name.as_ref().map(|s| s.as_str())
+        self.tag_name.as_deref()
     }
 
     fn disable_tag(&self) -> Option<bool> {

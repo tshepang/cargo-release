@@ -1,10 +1,11 @@
+use clap::arg_enum;
 use semver::{Identifier, Version};
 
 use crate::error::FatalError;
 
-static VERSION_ALPHA: &'static str = "alpha";
-static VERSION_BETA: &'static str = "beta";
-static VERSION_RC: &'static str = "rc";
+static VERSION_ALPHA: &str = "alpha";
+static VERSION_BETA: &str = "beta";
+static VERSION_RC: &str = "rc";
 
 arg_enum! {
     #[derive(Debug, Clone, Copy)]
@@ -21,10 +22,7 @@ arg_enum! {
 
 impl BumpLevel {
     pub fn is_pre_release(self) -> bool {
-        match self {
-            BumpLevel::Alpha | BumpLevel::Beta | BumpLevel::Rc => true,
-            _ => false,
-        }
+        matches!(self, BumpLevel::Alpha | BumpLevel::Beta | BumpLevel::Rc)
     }
 
     pub fn bump_version(
@@ -301,7 +299,7 @@ mod display {
             if self.0.predicates.is_empty() {
                 write!(fmt, "*")?;
             } else {
-                for (i, ref pred) in self.0.predicates.iter().enumerate() {
+                for (i, pred) in self.0.predicates.iter().enumerate() {
                     if i == 0 {
                         write!(fmt, "{}", DisplayPredicate(pred))?;
                     } else {
@@ -464,7 +462,7 @@ mod test {
             let req = semver::VersionReq::parse(req).unwrap();
             let actual = set_requirement(&req, &version).unwrap();
             let expected = expected.into();
-            assert_eq!(actual.as_ref().map(|s| s.as_str()), expected);
+            assert_eq!(actual.as_deref(), expected);
         }
 
         #[test]

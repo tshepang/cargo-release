@@ -1,15 +1,3 @@
-#[macro_use]
-extern crate clap;
-#[macro_use]
-extern crate maplit;
-#[macro_use]
-extern crate quick_error;
-
-use structopt;
-
-#[cfg(test)]
-extern crate assert_fs;
-
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ffi::OsStr;
@@ -124,7 +112,7 @@ impl<'m> PackageRelease<'m> {
             let mut release_config = config::Config::default();
 
             if !args.isolated {
-                let cfg = config::resolve_config(&ws_meta.workspace_root, &manifest_path)?;
+                let cfg = config::resolve_config(&ws_meta.workspace_root, manifest_path)?;
                 release_config.update(&cfg);
             }
 
@@ -138,7 +126,7 @@ impl<'m> PackageRelease<'m> {
             release_config.update(&args.config);
 
             // the publish flag in cargo file
-            let cargo_file = cargo::parse_cargo_config(&manifest_path)?;
+            let cargo_file = cargo::parse_cargo_config(manifest_path)?;
             if !cargo_file
                 .get("package")
                 .and_then(|f| f.as_table())
@@ -208,20 +196,20 @@ impl<'m> PackageRelease<'m> {
                 }
             } else {
                 // given version
-                let new_version =
-                    semver::Version::parse(&args.level_or_version).map_err(FatalError::from)?;
-                if new_version > potential_version {
-                    is_pre_release = new_version.is_prerelease();
-                    Some(Version {
-                        version: new_version,
-                        version_string: args.level_or_version.to_owned(),
-                    })
-                } else if new_version == potential_version {
-                    None
-                } else {
-                    return Err(error::FatalError::UnsupportedVersionReq(
-                        "Cannot release version smaller than current one".to_owned(),
-                    ));
+                match semver::Version::parse(&args.level_or_version)? {
+                    version if version > potential_version => {
+                        is_pre_release = version.is_prerelease();
+                        Some(Version {
+                            version,
+                            version_string: args.level_or_version.to_owned(),
+                        })
+                    }
+                    version if version == potential_version => None,
+                    _ => {
+                        return Err(error::FatalError::UnsupportedVersionReq(
+                            "Cannot release version smaller than current one".to_owned(),
+                        ));
+                    }
                 }
             }
         };
@@ -233,7 +221,7 @@ impl<'m> PackageRelease<'m> {
             Vec::new()
         };
 
-        let base = version.as_ref().unwrap_or_else(|| &prev_version);
+        let base = version.as_ref().unwrap_or(&prev_version);
 
         let tag = if config.disable_tag() {
             None
@@ -294,7 +282,7 @@ impl<'m> PackageRelease<'m> {
             post_version,
             dependents,
 
-            features: features,
+            features,
         };
         Ok(Some(pkg))
     }
@@ -335,7 +323,7 @@ fn update_dependent_versions(
             }
             config::DependentVersion::Fix => {
                 if !dep.req.matches(&version.version) {
-                    let new_req = version::set_requirement(&dep.req, &version.version)?;
+                    let new_req = version::set_requirement(dep.req, &version.version)?;
                     if let Some(new_req) = new_req {
                         log::info!(
                             "Fixing {}'s dependency on {} to `{}` (from `{}`)",
@@ -355,7 +343,7 @@ fn update_dependent_versions(
                 }
             }
             config::DependentVersion::Upgrade => {
-                let new_req = version::set_requirement(&dep.req, &version.version)?;
+                let new_req = version::set_requirement(dep.req, &version.version)?;
                 if let Some(new_req) = new_req {
                     log::info!(
                         "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
@@ -437,7 +425,7 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     release_packages(args, &ws_meta, &ws_config, pkg_releases.as_slice())
 }
 
-fn sort_workspace<'m>(ws_meta: &'m cargo_metadata::Metadata) -> Vec<&'m cargo_metadata::PackageId> {
+fn sort_workspace(ws_meta: &cargo_metadata::Metadata) -> Vec<&cargo_metadata::PackageId> {
     let members: HashSet<_> = ws_meta.workspace_members.iter().collect();
     let dep_tree: HashMap<_, _> = ws_meta
         .resolve
@@ -457,7 +445,7 @@ fn sort_workspace<'m>(ws_meta: &'m cargo_metadata::Metadata) -> Vec<&'m cargo_me
     let mut sorted = Vec::new();
     let mut processed = HashSet::new();
     for pkg_id in ws_meta.workspace_members.iter() {
-        sort_workspace_inner(&ws_meta, pkg_id, &dep_tree, &mut processed, &mut sorted);
+        sort_workspace_inner(ws_meta, pkg_id, &dep_tree, &mut processed, &mut sorted);
     }
 
     sorted
@@ -499,15 +487,12 @@ fn release_packages<'m>(
             let cwd = pkg.package_path;
             let crate_name = pkg.meta.name.as_str();
             let prev_tag_name = &pkg.prev_tag;
-            if let Some(changed) = git::changed_files(cwd, &prev_tag_name)? {
+            if let Some(changed) = git::changed_files(cwd, prev_tag_name)? {
                 let mut changed: Vec<_> = changed
                     .into_iter()
                     .filter(|p| {
-                        let file_in_subcrate = pkg
-                            .crate_excludes
-                            .iter()
-                            .find(|base| p.starts_with(base))
-                            .is_some();
+                        let file_in_subcrate =
+                            pkg.crate_excludes.iter().any(|base| p.starts_with(base));
                         if file_in_subcrate {
                             return false;
                         }
@@ -574,14 +559,14 @@ fn release_packages<'m>(
         let prompt = if pkgs.len() == 1 {
             let pkg = pkgs[0];
             let crate_name = pkg.meta.name.as_str();
-            let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+            let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
             format!("Release {} {}?", crate_name, base.version_string)
         } else {
             let mut buffer: Vec<u8> = vec![];
             writeln!(&mut buffer, "Release").unwrap();
             for pkg in pkgs {
                 let crate_name = pkg.meta.name.as_str();
-                let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+                let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
                 writeln!(&mut buffer, "  {} {}", crate_name, base.version_string).unwrap();
             }
             write!(&mut buffer, "?").unwrap();
@@ -605,23 +590,23 @@ fn release_packages<'m>(
             let new_version_string = version.version_string.as_str();
             log::info!("Update {} to version {}", crate_name, new_version_string);
             if !dry_run {
-                cargo::set_package_version(&pkg.manifest_path, &new_version_string)?;
+                cargo::set_package_version(pkg.manifest_path, new_version_string)?;
             }
             update_dependent_versions(pkg, version, dry_run)?;
             if dry_run {
                 log::debug!("Updating lock file");
             } else {
-                cargo::update_lock(&pkg.manifest_path)?;
+                cargo::update_lock(pkg.manifest_path)?;
             }
 
             if !pkg.config.pre_release_replacements().is_empty() {
                 // try replacing text in configured files
                 let template = Template {
                     prev_version: Some(&pkg.prev_version.version_string),
-                    version: Some(&new_version_string),
+                    version: Some(new_version_string),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
-                    tag_name: pkg.tag.as_ref().map(|s| s.as_str()),
+                    tag_name: pkg.tag.as_deref(),
                     ..Default::default()
                 };
                 let prerelease = !version.version.pre.is_empty();
@@ -638,7 +623,7 @@ fn release_packages<'m>(
             if let Some(pre_rel_hook) = pkg.config.pre_release_hook() {
                 let pre_rel_hook = pre_rel_hook.args();
                 log::debug!("Calling pre-release hook: {:?}", pre_rel_hook);
-                let envs = btreemap! {
+                let envs = maplit::btreemap! {
                     OsStr::new("PREV_VERSION") => pkg.prev_version.version_string.as_ref(),
                     OsStr::new("NEW_VERSION") => new_version_string.as_ref(),
                     OsStr::new("DRY_RUN") => OsStr::new(if dry_run { "true" } else { "false" }),
@@ -662,7 +647,7 @@ fn release_packages<'m>(
             } else {
                 let template = Template {
                     prev_version: Some(&pkg.prev_version.version_string),
-                    version: Some(&new_version_string),
+                    version: Some(new_version_string),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
                     ..Default::default()
@@ -699,14 +684,14 @@ fn release_packages<'m>(
     for pkg in pkgs {
         if !pkg.config.disable_publish() {
             let crate_name = pkg.meta.name.as_str();
-            let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+            let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
 
             log::info!("Running cargo publish on {}", crate_name);
             // feature list to release
             let features = &pkg.features;
             if !cargo::publish(
                 dry_run,
-                &pkg.manifest_path,
+                pkg.manifest_path,
                 features,
                 pkg.config.registry(),
                 args.config.token.as_ref().map(AsRef::as_ref),
@@ -721,7 +706,7 @@ fn release_packages<'m>(
                 // We don't have a way yet to check for that, so waiting for now in hopes everything is ready
                 if !dry_run {
                     let publish_grace_sleep = std::env::var("PUBLISH_GRACE_SLEEP")
-                        .unwrap_or("5".to_owned())
+                        .unwrap_or_else(|_| String::from("5"))
                         .parse()
                         .unwrap_or(5);
                     log::info!(
@@ -749,19 +734,19 @@ fn release_packages<'m>(
             let cwd = pkg.package_path;
             let crate_name = pkg.meta.name.as_str();
 
-            let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+            let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
             let template = Template {
                 prev_version: Some(&pkg.prev_version.version_string),
                 version: Some(&base.version_string),
                 crate_name: Some(crate_name),
-                tag_name: Some(&tag_name),
+                tag_name: Some(tag_name),
                 date: Some(NOW.as_str()),
                 ..Default::default()
             };
             let tag_message = template.render(pkg.config.tag_message());
 
             log::debug!("Creating git tag {}", tag_name);
-            if !git::tag(cwd, &tag_name, &tag_message, sign, dry_run)? {
+            if !git::tag(cwd, tag_name, &tag_message, sign, dry_run)? {
                 // tag failed, abort release
                 return Ok(104);
             }
@@ -783,16 +768,16 @@ fn release_packages<'m>(
             );
             update_dependent_versions(pkg, version, dry_run)?;
             if !dry_run {
-                cargo::set_package_version(&pkg.manifest_path, &updated_version_string)?;
-                cargo::update_lock(&pkg.manifest_path)?;
+                cargo::set_package_version(pkg.manifest_path, updated_version_string)?;
+                cargo::update_lock(pkg.manifest_path)?;
             }
-            let base = pkg.version.as_ref().unwrap_or_else(|| &pkg.prev_version);
+            let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
             let template = Template {
                 prev_version: Some(&pkg.prev_version.version_string),
                 version: Some(&base.version_string),
                 crate_name: Some(crate_name),
                 date: Some(NOW.as_str()),
-                tag_name: pkg.tag.as_ref().map(|s| s.as_str()),
+                tag_name: pkg.tag.as_deref(),
                 next_version: Some(updated_version_string),
                 ..Default::default()
             };
@@ -842,7 +827,7 @@ fn release_packages<'m>(
         for pkg in pkgs {
             if let Some(tag_name) = pkg.tag.as_ref() {
                 log::info!("Pushing {} to {}", tag_name, git_remote);
-                if !git::push_tag(&ws_meta.workspace_root, git_remote, &tag_name, dry_run)? {
+                if !git::push_tag(&ws_meta.workspace_root, git_remote, tag_name, dry_run)? {
                     return Ok(106);
                 }
             }
@@ -1017,19 +1002,23 @@ struct ConfigArgs {
 
 impl config::ConfigSource for ConfigArgs {
     fn sign_commit(&self) -> Option<bool> {
-        self.sign.as_some(true).or(self.sign_commit.as_some(true))
+        self.sign
+            .as_some(true)
+            .or_else(|| self.sign_commit.as_some(true))
     }
 
     fn sign_tag(&self) -> Option<bool> {
-        self.sign.as_some(true).or(self.sign_tag.as_some(true))
+        self.sign
+            .as_some(true)
+            .or_else(|| self.sign_tag.as_some(true))
     }
 
     fn push_remote(&self) -> Option<&str> {
-        self.push_remote.as_ref().map(|s| s.as_str())
+        self.push_remote.as_deref()
     }
 
     fn registry(&self) -> Option<&str> {
-        self.registry.as_ref().map(|s| s.as_str())
+        self.registry.as_deref()
     }
 
     fn disable_publish(&self) -> Option<bool> {
@@ -1041,7 +1030,7 @@ impl config::ConfigSource for ConfigArgs {
     }
 
     fn dev_version_ext(&self) -> Option<&str> {
-        self.dev_version_ext.as_ref().map(|s| s.as_str())
+        self.dev_version_ext.as_deref()
     }
 
     fn no_dev_version(&self) -> Option<bool> {
@@ -1049,11 +1038,11 @@ impl config::ConfigSource for ConfigArgs {
     }
 
     fn tag_prefix(&self) -> Option<&str> {
-        self.tag_prefix.as_ref().map(|s| s.as_str())
+        self.tag_prefix.as_deref()
     }
 
     fn tag_name(&self) -> Option<&str> {
-        self.tag_name.as_ref().map(|s| s.as_str())
+        self.tag_name.as_deref()
     }
 
     fn disable_tag(&self) -> Option<bool> {

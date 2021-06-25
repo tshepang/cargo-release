@@ -68,18 +68,14 @@ pub fn wait_for_publish(
         let index = crates_index::Index::new_cargo_default();
         let mut logged = false;
         loop {
-            match index.update() {
-                Err(e) => {
-                    log::debug!("Crate index update failed with {}", e);
-                }
-                _ => (),
+            if let Err(e) = index.update() {
+                log::debug!("Crate index update failed with {}", e);
             }
             let crate_data = index.crate_(name);
             let published = crate_data
                 .iter()
                 .flat_map(|c| c.versions().iter())
-                .find(|v| v.version() == version)
-                .is_some();
+                .any(|v| v.version() == version);
 
             if published {
                 break;
@@ -189,7 +185,7 @@ pub fn update_lock(manifest_path: &Path) -> Result<(), FatalError> {
 }
 
 pub fn parse_cargo_config(manifest_path: &Path) -> Result<Value, FatalError> {
-    let cargo_file_content = load_from_file(&manifest_path).map_err(FatalError::from)?;
+    let cargo_file_content = load_from_file(manifest_path).map_err(FatalError::from)?;
     cargo_file_content.parse().map_err(FatalError::from)
 }
 
@@ -204,7 +200,6 @@ fn load_from_file(path: &Path) -> io::Result<String> {
 mod test {
     use super::*;
 
-    use assert_fs;
     #[allow(unused_imports)] // Not being detected
     use assert_fs::prelude::*;
     use predicates::prelude::*;
