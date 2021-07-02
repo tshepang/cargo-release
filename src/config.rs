@@ -57,6 +57,10 @@ pub trait ConfigSource {
         None
     }
 
+    fn consolidate_pushes(&self) -> Option<bool> {
+        None
+    }
+
     fn pre_release_commit_message(&self) -> Option<&str> {
         None
     }
@@ -127,6 +131,7 @@ pub struct Config {
     pub dev_version_ext: Option<String>,
     pub no_dev_version: Option<bool>,
     pub consolidate_commits: Option<bool>,
+    pub consolidate_pushes: Option<bool>,
     pub pre_release_commit_message: Option<String>,
     // depreacted
     pub pro_release_commit_message: Option<String>,
@@ -180,6 +185,9 @@ impl Config {
         }
         if let Some(consolidate_commits) = source.consolidate_commits() {
             self.consolidate_commits = Some(consolidate_commits);
+        }
+        if let Some(consolidate_pushes) = source.consolidate_pushes() {
+            self.consolidate_pushes = Some(consolidate_pushes);
         }
         if let Some(pre_release_commit_message) = source.pre_release_commit_message() {
             self.pre_release_commit_message = Some(pre_release_commit_message.to_owned());
@@ -275,6 +283,10 @@ impl Config {
 
     pub fn consolidate_commits(&self) -> bool {
         self.consolidate_commits.unwrap_or(false)
+    }
+
+    pub fn consolidate_pushes(&self) -> bool {
+        self.consolidate_pushes.unwrap_or(false)
     }
 
     pub fn pre_release_commit_message(&self) -> &str {
@@ -391,6 +403,10 @@ impl ConfigSource for Config {
 
     fn consolidate_commits(&self) -> Option<bool> {
         self.consolidate_commits
+    }
+
+    fn consolidate_pushes(&self) -> Option<bool> {
+        self.consolidate_pushes
     }
 
     fn pre_release_commit_message(&self) -> Option<&str> {

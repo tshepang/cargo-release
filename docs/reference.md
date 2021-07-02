@@ -56,6 +56,7 @@ Configuration is read from the following (in precedence order)
 | `disable-tag`  | `--skip-tag`    | bool   | Don't do git tag |
 | `disable-publish` | `--skip-publish` |  bool | Don't do cargo publish right now, see [manifest `publish` field](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional) to permanently disable publish. |
 | `consolidate-commits` | \- | bool | When releasing a workspace, use a single commit for the pre-release version bump and a single commit for the post-release version bump. |
+| `consolidate-pushes` | \- | bool | When releasing a workspace, use do a single push across all crates in a workspace. |
 | `pre-release-commit-message` | \- | string | A commit message template for release. For example: `"release {{version}}"`, where `{{version}}` will be replaced by actual version. |
 | `post-release-commit-message` | \- | string | A commit message template for bumping version after release. For example: `Released {{version}}, starting {{next_version}}`. The placeholder `{{next_version}}` (the version in git after release) is supported in addition to the global placeholders mentioned below. |
 | `tag-message`  | \-              | string | A message template for tag. The placeholder `{{tag_name}}` and `{{prefix}}` (the tag prefix) is supported in addition to the global placeholders mentioned below. |

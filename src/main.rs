@@ -824,6 +824,7 @@ fn release_packages<'m>(
 
     // STEP 7: git push
     if !ws_config.disable_push() {
+        let mut shared_push = false;
         for pkg in pkgs {
             if let Some(tag_name) = pkg.tag.as_ref() {
                 log::info!("Pushing {} to {}", tag_name, git_remote);
@@ -831,16 +832,31 @@ fn release_packages<'m>(
                     return Ok(106);
                 }
             }
-        }
 
-        log::info!("Pushing HEAD to {}", git_remote);
-        if !git::push(
-            &ws_meta.workspace_root,
-            git_remote,
-            ws_config.push_options(),
-            dry_run,
-        )? {
-            return Ok(106);
+            if ws_config.consolidate_pushes() {
+                shared_push = true;
+            } else {
+                log::info!("Pushing HEAD to {}", git_remote);
+                if !git::push(
+                    &ws_meta.workspace_root,
+                    git_remote,
+                    pkg.config.push_options(),
+                    dry_run,
+                )? {
+                    return Ok(106);
+                }
+            }
+        }
+        if shared_push {
+            log::info!("Pushing HEAD to {}", git_remote);
+            if !git::push(
+                &ws_meta.workspace_root,
+                git_remote,
+                ws_config.push_options(),
+                dry_run,
+            )? {
+                return Ok(106);
+            }
         }
     }
 
