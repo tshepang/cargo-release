@@ -391,14 +391,6 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         release_config
     };
 
-    git::git_version()?;
-    if git::is_dirty(&ws_meta.workspace_root)? {
-        log::warn!("Uncommitted changes detected, please commit before release.");
-        if !args.dry_run {
-            return Ok(101);
-        }
-    }
-
     let pkg_ids = sort_workspace(&ws_meta);
 
     let (selected_pkgs, excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
@@ -481,6 +473,32 @@ fn release_packages<'m>(
     let dry_run = args.dry_run;
 
     // STEP 0: Help the user make the right decisions.
+    git::git_version()?;
+    let mut dirty = false;
+    if ws_config.consolidate_commits() {
+        if git::is_dirty(&ws_meta.workspace_root)? {
+            log::warn!("Uncommitted changes detected, please commit before release.");
+            dirty = true;
+        }
+    } else {
+        for pkg in pkgs {
+            let cwd = pkg.package_path;
+            if git::is_dirty(cwd)? {
+                let crate_name = pkg.meta.name.as_str();
+                log::warn!(
+                    "Uncommitted changes detected for {}, please commit before release.",
+                    crate_name
+                );
+                dirty = true;
+            }
+        }
+    }
+    if dirty {
+        if !args.dry_run {
+            return Ok(101);
+        }
+    }
+
     let lock_path = ws_meta.workspace_root.join("Cargo.lock");
     for pkg in pkgs {
         if let Some(version) = pkg.version.as_ref() {
