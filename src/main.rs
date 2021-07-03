@@ -844,9 +844,10 @@ fn release_packages<'m>(
     if !ws_config.disable_push() {
         let mut shared_push = false;
         for pkg in pkgs {
+            let cwd = pkg.package_path;
             if let Some(tag_name) = pkg.tag.as_ref() {
                 log::info!("Pushing {} to {}", tag_name, git_remote);
-                if !git::push_tag(&ws_meta.workspace_root, git_remote, tag_name, dry_run)? {
+                if !git::push_tag(cwd, git_remote, tag_name, dry_run)? {
                     return Ok(106);
                 }
             }
@@ -855,12 +856,7 @@ fn release_packages<'m>(
                 shared_push = true;
             } else {
                 log::info!("Pushing HEAD to {}", git_remote);
-                if !git::push(
-                    &ws_meta.workspace_root,
-                    git_remote,
-                    pkg.config.push_options(),
-                    dry_run,
-                )? {
+                if !git::push(cwd, git_remote, pkg.config.push_options(), dry_run)? {
                     return Ok(106);
                 }
             }
