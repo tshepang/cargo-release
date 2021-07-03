@@ -4,6 +4,10 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Changed
+
+* Prior sharing of pushes between workspace crates is now behind the flag `consolidate-pushes`
+
 ## [0.15.1] - 2021-06-24
 
 ### Fixed
