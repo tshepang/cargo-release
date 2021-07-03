@@ -22,20 +22,23 @@ quick_error! {
         FileNotFound(filename: PathBuf){
             display("Unable to find file {} to perform replace", filename.display())
         }
-        InvalidCargoFileFormat(err: TomlError) {
+        InvalidTomlFileFormat(err: TomlError) {
             display("Invalid TOML file format: {}", err)
             from()
             source(err)
         }
-        InvalidCargoFileFormat2(err: TomlEditError) {
+        InvalidTomlEditFileFormat(err: TomlEditError) {
             display("Invalid TOML file format: {}", err)
             from()
             source(err)
         }
-        InvalidCargoFileFormat3(err: CargoMetaError) {
-            display("Invalid TOML file format: {}", err)
+        InvalidCargoMetaFileFormat(err: CargoMetaError) {
+            display("Invalid Cargo file format: {}", err)
             from()
             source(err)
+        }
+        InvalidCargoFileFormat(msg: String) {
+            display("Invalid TOML file format: {}", msg)
         }
         InvalidCargoConfigKeys {
             display("Invalid cargo-release config item found")
