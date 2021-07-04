@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.16.1] - 2021-07-04
+
 ### Fixed 
 
 * Submodule operation dir issue
