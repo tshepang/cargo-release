@@ -4,9 +4,13 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+* Respect `disable_push` flag at package level.
+
 ## [0.16.1] - 2021-07-04
 
-### Fixed 
+### Fixed
 
 * Submodule operation dir issue
 
