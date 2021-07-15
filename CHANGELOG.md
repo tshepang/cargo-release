@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.16.2] - 2021-07-15
+
 ### Fixed
 
 * Respect `disable_push` flag at package level.
