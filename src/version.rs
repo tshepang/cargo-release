@@ -1,5 +1,7 @@
+use std::str::FromStr;
+
 use clap::arg_enum;
-use semver::{Identifier, Version};
+use semver::Version;
 
 use crate::error::FatalError;
 
@@ -40,7 +42,7 @@ impl BumpLevel {
                 if !version.is_prerelease() {
                     version.increment_patch();
                 } else {
-                    version.pre.clear();
+                    version.pre = semver::Prerelease::EMPTY.clone();
                 }
                 need_commit = true;
             }
@@ -58,7 +60,7 @@ impl BumpLevel {
             }
             BumpLevel::Release => {
                 if version.is_prerelease() {
-                    version.pre.clear();
+                    version.pre = semver::Prerelease::EMPTY.clone();
                     need_commit = true;
                 }
             }
@@ -72,33 +74,50 @@ impl BumpLevel {
     }
 }
 
-trait VersionExt {
+pub trait VersionExt {
+    fn increment_major(&mut self);
+    fn increment_minor(&mut self);
+    fn increment_patch(&mut self);
     fn increment_alpha(&mut self) -> Result<(), FatalError>;
     fn increment_beta(&mut self) -> Result<(), FatalError>;
     fn increment_rc(&mut self) -> Result<(), FatalError>;
     fn prerelease_id_version(&self) -> Result<Option<(String, Option<u64>)>, FatalError>;
     fn metadata(&mut self, metadata: &str) -> Result<(), FatalError>;
+    fn is_prerelease(&self) -> bool;
 }
 
 impl VersionExt for Version {
+    fn increment_major(&mut self) {
+        self.major += 1;
+        self.minor = 0;
+        self.patch = 0;
+        self.pre = semver::Prerelease::EMPTY.clone();
+        self.build = semver::BuildMetadata::EMPTY.clone();
+    }
+
+    fn increment_minor(&mut self) {
+        self.minor += 1;
+        self.patch = 0;
+        self.pre = semver::Prerelease::EMPTY.clone();
+        self.build = semver::BuildMetadata::EMPTY.clone();
+    }
+
+    fn increment_patch(&mut self) {
+        self.patch += 1;
+        self.pre = semver::Prerelease::EMPTY.clone();
+        self.build = semver::BuildMetadata::EMPTY.clone();
+    }
+
     fn prerelease_id_version(&self) -> Result<Option<(String, Option<u64>)>, FatalError> {
         if !self.pre.is_empty() {
-            let e = match self.pre[0] {
-                Identifier::AlphaNumeric(ref s) => s.to_owned(),
-                Identifier::Numeric(_) => {
-                    return Err(FatalError::UnsupportedPrereleaseVersionScheme);
-                }
-            };
-            let v = if let Some(v) = self.pre.get(1) {
-                if let Identifier::Numeric(v) = *v {
-                    Some(v)
-                } else {
-                    return Err(FatalError::UnsupportedPrereleaseVersionScheme);
-                }
+            if let Some((alpha, numeric)) = self.pre.as_str().split_once(".") {
+                let alpha = alpha.to_owned();
+                let numeric = u64::from_str(numeric)
+                    .map_err(|_| FatalError::UnsupportedPrereleaseVersionScheme)?;
+                Ok(Some((alpha, Some(numeric))))
             } else {
-                None
-            };
-            Ok(Some((e, v)))
+                Ok(Some((self.pre.as_str().to_owned(), None)))
+            }
         } else {
             Ok(None)
         }
@@ -114,18 +133,12 @@ impl VersionExt for Version {
                 } else {
                     1
                 };
-                self.pre = vec![
-                    Identifier::AlphaNumeric(VERSION_ALPHA.to_owned()),
-                    Identifier::Numeric(new_ext_ver),
-                ];
+                self.pre = semver::Prerelease::new(&format!("{}.{}", VERSION_ALPHA, new_ext_ver))?;
                 Ok(())
             }
         } else {
             self.increment_patch();
-            self.pre = vec![
-                Identifier::AlphaNumeric(VERSION_ALPHA.to_owned()),
-                Identifier::Numeric(1),
-            ];
+            self.pre = semver::Prerelease::new(&format!("{}.1", VERSION_ALPHA))?;
             Ok(())
         }
     }
@@ -140,18 +153,12 @@ impl VersionExt for Version {
                 } else {
                     1
                 };
-                self.pre = vec![
-                    Identifier::AlphaNumeric(VERSION_BETA.to_owned()),
-                    Identifier::Numeric(new_ext_ver),
-                ];
+                self.pre = semver::Prerelease::new(&format!("{}.{}", VERSION_BETA, new_ext_ver))?;
                 Ok(())
             }
         } else {
             self.increment_patch();
-            self.pre = vec![
-                Identifier::AlphaNumeric(VERSION_BETA.to_owned()),
-                Identifier::Numeric(1),
-            ];
+            self.pre = semver::Prerelease::new(&format!("{}.1", VERSION_BETA))?;
             Ok(())
         }
     }
@@ -163,24 +170,22 @@ impl VersionExt for Version {
             } else {
                 1
             };
-            self.pre = vec![
-                Identifier::AlphaNumeric(VERSION_RC.to_owned()),
-                Identifier::Numeric(new_ext_ver),
-            ];
+            self.pre = semver::Prerelease::new(&format!("{}.{}", VERSION_RC, new_ext_ver))?;
             Ok(())
         } else {
             self.increment_patch();
-            self.pre = vec![
-                Identifier::AlphaNumeric(VERSION_RC.to_owned()),
-                Identifier::Numeric(1),
-            ];
+            self.pre = semver::Prerelease::new(&format!("{}.1", VERSION_RC))?;
             Ok(())
         }
     }
 
     fn metadata(&mut self, build: &str) -> Result<(), FatalError> {
-        self.build = vec![Identifier::AlphaNumeric(build.to_owned())];
+        self.build = semver::BuildMetadata::new(build)?;
         Ok(())
+    }
+
+    fn is_prerelease(&self) -> bool {
+        !self.pre.is_empty()
     }
 }
 
@@ -189,26 +194,25 @@ pub fn set_requirement(
     version: &semver::Version,
 ) -> Result<Option<String>, FatalError> {
     let req_text = req.to_string();
-    let raw_req = semver_parser::range::parse(&req_text)
+    let raw_req = semver::VersionReq::parse(&req_text)
         .expect("semver to generate valid version requirements");
-    if raw_req.predicates.is_empty() {
+    if raw_req.comparators.is_empty() {
         // Empty matches everything, no-change.
         Ok(None)
     } else {
-        let predicates: Result<Vec<_>, _> = raw_req
-            .predicates
+        let comparators: Result<Vec<_>, _> = raw_req
+            .comparators
             .into_iter()
-            .map(|p| set_predicate(p, version))
+            .map(|p| set_comparator(p, version))
             .collect();
-        let predicates = predicates?;
-        let new_req = semver_parser::range::VersionReq { predicates };
-        let new_req_text = display::DisplayVersionReq::new(&new_req).to_string();
+        let comparators = comparators?;
+        let new_req = semver::VersionReq { comparators };
+        let new_req_text = new_req.to_string();
         // Validate contract
         #[cfg(debug_assert)]
         {
-            let req = semver::VersionReq::parse(new_req_text).unwrap();
             assert!(
-                req.matches(version),
+                new_req.matches(version),
                 "Invalid req created: {}",
                 new_req_text
             )
@@ -221,39 +225,40 @@ pub fn set_requirement(
     }
 }
 
-fn set_predicate(
-    mut pred: semver_parser::range::Predicate,
+fn set_comparator(
+    mut pred: semver::Comparator,
     version: &semver::Version,
-) -> Result<semver_parser::range::Predicate, FatalError> {
+) -> Result<semver::Comparator, FatalError> {
     match pred.op {
-        semver_parser::range::Op::Wildcard(semver_parser::range::WildcardVersion::Minor) => {
-            pred.major = version.major;
-            Ok(pred)
-        }
-        semver_parser::range::Op::Wildcard(semver_parser::range::WildcardVersion::Patch) => {
+        semver::Op::Wildcard => {
             pred.major = version.major;
             if pred.minor.is_some() {
                 pred.minor = Some(version.minor);
             }
+            if pred.patch.is_some() {
+                pred.patch = Some(version.patch);
+            }
             Ok(pred)
         }
-        semver_parser::range::Op::Ex => assign_partial_req(version, pred),
-        semver_parser::range::Op::Gt
-        | semver_parser::range::Op::GtEq
-        | semver_parser::range::Op::Lt
-        | semver_parser::range::Op::LtEq => {
-            let user_pred = display::DisplayPredicate::new(&pred).to_string();
+        semver::Op::Exact => assign_partial_req(version, pred),
+        semver::Op::Greater | semver::Op::GreaterEq | semver::Op::Less | semver::Op::LessEq => {
+            let user_pred = pred.to_string();
             Err(FatalError::UnsupportedVersionReq(user_pred))
         }
-        semver_parser::range::Op::Tilde => assign_partial_req(version, pred),
-        semver_parser::range::Op::Compatible => assign_partial_req(version, pred),
+        semver::Op::Tilde => assign_partial_req(version, pred),
+        semver::Op::Caret => assign_partial_req(version, pred),
+        _ => {
+            log::debug!("New predicate added");
+            let user_pred = pred.to_string();
+            Err(FatalError::UnsupportedVersionReq(user_pred))
+        }
     }
 }
 
 fn assign_partial_req(
     version: &semver::Version,
-    mut pred: semver_parser::range::Predicate,
-) -> Result<semver_parser::range::Predicate, FatalError> {
+    mut pred: semver::Comparator,
+) -> Result<semver::Comparator, FatalError> {
     pred.major = version.major;
     if pred.minor.is_some() {
         pred.minor = Some(version.minor);
@@ -261,117 +266,8 @@ fn assign_partial_req(
     if pred.patch.is_some() {
         pred.patch = Some(version.patch);
     }
-    pred.pre = version
-        .pre
-        .iter()
-        .map(|i| match i {
-            semver::Identifier::Numeric(n) => semver_parser::version::Identifier::Numeric(*n),
-            semver::Identifier::AlphaNumeric(s) => {
-                semver_parser::version::Identifier::AlphaNumeric(s.clone())
-            }
-        })
-        .collect();
+    pred.pre = version.pre.clone();
     Ok(pred)
-}
-
-// imo this should be moved to semver_parser, see
-// https://github.com/steveklabnik/semver-parser/issues/45
-mod display {
-    use std::fmt;
-
-    use semver_parser::range::Op::{Compatible, Ex, Gt, GtEq, Lt, LtEq, Tilde, Wildcard};
-    use semver_parser::range::WildcardVersion::{Minor, Patch};
-
-    pub(crate) struct DisplayVersionReq<'v>(&'v semver_parser::range::VersionReq);
-
-    impl<'v> DisplayVersionReq<'v> {
-        pub(crate) fn new(req: &'v semver_parser::range::VersionReq) -> Self {
-            Self(req)
-        }
-    }
-
-    impl<'v> fmt::Display for DisplayVersionReq<'v> {
-        fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-            if self.0.predicates.is_empty() {
-                write!(fmt, "*")?;
-            } else {
-                for (i, pred) in self.0.predicates.iter().enumerate() {
-                    if i == 0 {
-                        write!(fmt, "{}", DisplayPredicate(pred))?;
-                    } else {
-                        write!(fmt, ", {}", DisplayPredicate(pred))?;
-                    }
-                }
-            }
-
-            Ok(())
-        }
-    }
-
-    pub(crate) struct DisplayPredicate<'v>(&'v semver_parser::range::Predicate);
-
-    impl<'v> DisplayPredicate<'v> {
-        pub(crate) fn new(pred: &'v semver_parser::range::Predicate) -> Self {
-            Self(pred)
-        }
-    }
-
-    impl<'v> fmt::Display for DisplayPredicate<'v> {
-        fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-            match &self.0.op {
-                Wildcard(Minor) => write!(fmt, "{}.*", self.0.major)?,
-                Wildcard(Patch) => {
-                    if let Some(minor) = self.0.minor {
-                        write!(fmt, "{}.{}.*", self.0.major, minor)?
-                    } else {
-                        write!(fmt, "{}.*.*", self.0.major)?
-                    }
-                }
-                _ => {
-                    write!(fmt, "{}{}", DisplayOp(&self.0.op), self.0.major)?;
-
-                    if let Some(v) = self.0.minor {
-                        write!(fmt, ".{}", v)?;
-                    }
-
-                    if let Some(v) = self.0.patch {
-                        write!(fmt, ".{}", v)?;
-                    }
-
-                    if !self.0.pre.is_empty() {
-                        write!(fmt, "-")?;
-                        for (i, x) in self.0.pre.iter().enumerate() {
-                            if i != 0 {
-                                write!(fmt, ".")?
-                            }
-                            write!(fmt, "{}", x)?;
-                        }
-                    }
-                }
-            }
-
-            Ok(())
-        }
-    }
-
-    pub(crate) struct DisplayOp<'v>(&'v semver_parser::range::Op);
-
-    impl<'v> fmt::Display for DisplayOp<'v> {
-        fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-            match self.0 {
-                Ex => write!(fmt, "= ")?,
-                Gt => write!(fmt, "> ")?,
-                GtEq => write!(fmt, ">= ")?,
-                Lt => write!(fmt, "< ")?,
-                LtEq => write!(fmt, "<= ")?,
-                Tilde => write!(fmt, "~")?,
-                Compatible => write!(fmt, "^")?,
-                // gets handled specially in Predicate::fmt
-                Wildcard(_) => write!(fmt, "")?,
-            }
-            Ok(())
-        }
-    }
 }
 
 #[cfg(test)]
@@ -397,9 +293,6 @@ mod test {
 
             let mut v4 = Version::parse("1.0.1-beta.1").unwrap();
             assert!(v4.increment_alpha().is_err());
-
-            let mut v5 = Version::parse("1.0.1-1").unwrap();
-            assert!(v5.increment_alpha().is_err());
         }
 
         #[test]
@@ -422,9 +315,6 @@ mod test {
 
             let mut v4 = Version::parse("1.0.1-rc.1").unwrap();
             assert!(v4.increment_beta().is_err());
-
-            let mut v5 = Version::parse("1.0.1-1").unwrap();
-            assert!(v5.increment_beta().is_err());
         }
 
         #[test]
@@ -548,25 +438,25 @@ mod test {
 
         #[test]
         fn equal_major() {
-            assert_req_bump("1.0.0", "= 1", None);
-            assert_req_bump("1.1.0", "= 1", None);
-            assert_req_bump("2.0.0", "= 1", "= 2");
+            assert_req_bump("1.0.0", "=1", None);
+            assert_req_bump("1.1.0", "=1", None);
+            assert_req_bump("2.0.0", "=1", "=2");
         }
 
         #[test]
         fn equal_minor() {
-            assert_req_bump("1.0.0", "= 1.0", None);
-            assert_req_bump("1.1.0", "= 1.0", "= 1.1");
-            assert_req_bump("1.1.1", "= 1.0", "= 1.1");
-            assert_req_bump("2.0.0", "= 1.0", "= 2.0");
+            assert_req_bump("1.0.0", "=1.0", None);
+            assert_req_bump("1.1.0", "=1.0", "=1.1");
+            assert_req_bump("1.1.1", "=1.0", "=1.1");
+            assert_req_bump("2.0.0", "=1.0", "=2.0");
         }
 
         #[test]
         fn equal_patch() {
-            assert_req_bump("1.0.0", "= 1.0.0", None);
-            assert_req_bump("1.1.0", "= 1.0.0", "= 1.1.0");
-            assert_req_bump("1.1.1", "= 1.0.0", "= 1.1.1");
-            assert_req_bump("2.0.0", "= 1.0.0", "= 2.0.0");
+            assert_req_bump("1.0.0", "=1.0.0", None);
+            assert_req_bump("1.1.0", "=1.0.0", "=1.1.0");
+            assert_req_bump("1.1.1", "=1.0.0", "=1.1.1");
+            assert_req_bump("2.0.0", "=1.0.0", "=2.0.0");
         }
     }
 }

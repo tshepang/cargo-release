@@ -7,7 +7,7 @@ use std::string::FromUtf8Error;
 use cargo_metadata::Error as CargoMetaError;
 use quick_error::quick_error;
 use regex::Error as RegexError;
-use semver::SemVerError;
+use semver::Error as SemVerError;
 use toml::de::Error as TomlError;
 use toml_edit::TomlError as TomlEditError;
 
