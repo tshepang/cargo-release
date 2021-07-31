@@ -7,7 +7,6 @@ use std::process::exit;
 
 use boolinator::Boolinator;
 use chrono::prelude::Local;
-use semver::Identifier;
 use structopt::StructOpt;
 
 use crate::error::FatalError;
@@ -21,6 +20,8 @@ mod git;
 mod replace;
 mod shell;
 mod version;
+
+use version::VersionExt;
 
 static NOW: once_cell::sync::Lazy<String> =
     once_cell::sync::Lazy::new(|| Local::now().format("%Y-%m-%d").to_string());
@@ -47,12 +48,17 @@ fn exclude_paths<'m>(
 ) -> Vec<&'m Path> {
     let base_path = pkg_meta
         .manifest_path
+        .as_std_path()
         .parent()
         .unwrap_or_else(|| Path::new("/"));
     ws_pkgs
         .iter()
         .filter_map(|p| {
-            let cur_path = p.manifest_path.parent().unwrap_or_else(|| Path::new("/"));
+            let cur_path = p
+                .manifest_path
+                .as_std_path()
+                .parent()
+                .unwrap_or_else(|| Path::new("/"));
             if cur_path != base_path && cur_path.starts_with(base_path) {
                 Some(cur_path)
             } else {
@@ -110,14 +116,15 @@ impl<'m> PackageRelease<'m> {
         ws_pkgs: &[&'m cargo_metadata::Package],
         pkg_meta: &'m cargo_metadata::Package,
     ) -> Result<Option<Self>, error::FatalError> {
-        let manifest_path = pkg_meta.manifest_path.as_path();
+        let manifest_path = pkg_meta.manifest_path.as_std_path();
         let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
         let config = {
             let mut release_config = config::Config::default();
 
             if !args.isolated {
-                let cfg = config::resolve_config(&ws_meta.workspace_root, manifest_path)?;
+                let cfg =
+                    config::resolve_config(ws_meta.workspace_root.as_std_path(), manifest_path)?;
                 release_config.update(&cfg);
             }
 
@@ -219,9 +226,7 @@ impl<'m> PackageRelease<'m> {
         let post_version = if !is_pre_release && !config.no_dev_version() {
             let mut post = base.version.clone();
             post.increment_patch();
-            post.pre.push(Identifier::AlphaNumeric(
-                config.dev_version_ext().to_owned(),
-            ));
+            post.pre = semver::Prerelease::new(config.dev_version_ext())?;
             let post_string = post.to_string();
 
             Some(Version {
@@ -311,7 +316,7 @@ fn update_dependent_versions(
                         );
                         if !dry_run {
                             cargo::set_dependency_version(
-                                &dep.pkg.manifest_path,
+                                dep.pkg.manifest_path.as_std_path(),
                                 &pkg.meta.name,
                                 &new_req,
                             )?;
@@ -331,7 +336,7 @@ fn update_dependent_versions(
                     );
                     if !dry_run {
                         cargo::set_dependency_version(
-                            &dep.pkg.manifest_path,
+                            dep.pkg.manifest_path.as_std_path(),
                             &pkg.meta.name,
                             &new_req,
                         )?;
@@ -353,7 +358,7 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
         let mut release_config = config::Config::default();
 
         if !args.isolated {
-            let cfg = config::resolve_workspace_config(&ws_meta.workspace_root)?;
+            let cfg = config::resolve_workspace_config(ws_meta.workspace_root.as_std_path())?;
             release_config.update(&cfg);
         }
 
@@ -379,7 +384,7 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
     all_pkgs.extend(excluded_pkgs);
     let all_pkgs = all_pkgs;
 
-    let root = git::top_level(&ws_meta.workspace_root)?;
+    let root = git::top_level(ws_meta.workspace_root.as_std_path())?;
     let pkg_releases: Result<HashMap<_, _>, _> = selected_pkgs
         .iter()
         .filter_map(|p| PackageRelease::load(args, &root, &ws_meta, &all_pkgs, p).transpose())
@@ -453,7 +458,7 @@ fn release_packages<'m>(
     git::git_version()?;
     let mut dirty = false;
     if ws_config.consolidate_commits() {
-        if git::is_dirty(&ws_meta.workspace_root)? {
+        if git::is_dirty(ws_meta.workspace_root.as_std_path())? {
             log::warn!("Uncommitted changes detected, please commit before release.");
             dirty = true;
         }
@@ -540,12 +545,12 @@ fn release_packages<'m>(
     }
 
     let git_remote = ws_config.push_remote();
-    let branch = git::current_branch(&ws_meta.workspace_root)?;
+    let branch = git::current_branch(ws_meta.workspace_root.as_std_path())?;
     if branch == "HEAD" {
         log::warn!("Releasing from a detached HEAD");
     }
-    git::fetch(&ws_meta.workspace_root, git_remote, &branch)?;
-    if git::is_behind_remote(&ws_meta.workspace_root, git_remote, &branch)? {
+    git::fetch(ws_meta.workspace_root.as_std_path(), git_remote, &branch)?;
+    if git::is_behind_remote(ws_meta.workspace_root.as_std_path(), git_remote, &branch)? {
         log::warn!("{} is behind {}/{}", branch, git_remote, branch);
     }
 
@@ -665,7 +670,7 @@ fn release_packages<'m>(
             template.render(ws_config.pre_release_commit_message())
         };
         if !git::commit_all(
-            &ws_meta.workspace_root,
+            ws_meta.workspace_root.as_std_path(),
             &shared_commit_msg,
             ws_config.sign_commit(),
             dry_run,
@@ -807,7 +812,7 @@ fn release_packages<'m>(
             template.render(ws_config.post_release_commit_message())
         };
         if !git::commit_all(
-            &ws_meta.workspace_root,
+            ws_meta.workspace_root.as_std_path(),
             &shared_commit_msg,
             ws_config.sign_commit(),
             dry_run,
@@ -845,7 +850,7 @@ fn release_packages<'m>(
         if shared_push {
             log::info!("Pushing HEAD to {}", git_remote);
             if !git::push(
-                &ws_meta.workspace_root,
+                ws_meta.workspace_root.as_std_path(),
                 git_remote,
                 ws_config.push_options(),
                 dry_run,
