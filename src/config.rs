@@ -133,7 +133,7 @@ pub struct Config {
     pub consolidate_commits: Option<bool>,
     pub consolidate_pushes: Option<bool>,
     pub pre_release_commit_message: Option<String>,
-    // depreacted
+    // deprecated
     pub pro_release_commit_message: Option<String>,
     pub post_release_commit_message: Option<String>,
     pub pre_release_replacements: Option<Vec<Replace>>,

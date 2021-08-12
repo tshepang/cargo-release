@@ -1,6 +1,5 @@
 use std::env;
 use std::fs::{self, File};
-use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 
@@ -101,7 +100,7 @@ pub fn set_package_version(manifest_path: &Path, version: &str) -> Result<(), Fa
         .join("Cargo.toml.work");
 
     {
-        let manifest = load_from_file(manifest_path)?;
+        let manifest = std::fs::read_to_string(manifest_path)?;
         let mut manifest: toml_edit::Document = manifest.parse().map_err(FatalError::from)?;
         manifest["package"]["version"] = toml_edit::value(version);
 
@@ -126,7 +125,7 @@ pub fn set_dependency_version(
         .join("Cargo.toml.work");
 
     {
-        let manifest = load_from_file(manifest_path)?;
+        let manifest = std::fs::read_to_string(manifest_path)?;
         let mut manifest: toml_edit::Document = manifest.parse().map_err(FatalError::from)?;
 
         let dep_table_names = &["dependencies", "dev-dependencies", "build-dependencies"];
@@ -200,15 +199,58 @@ pub fn update_lock(manifest_path: &Path) -> Result<(), FatalError> {
 }
 
 pub fn parse_cargo_config(manifest_path: &Path) -> Result<Value, FatalError> {
-    let cargo_file_content = load_from_file(manifest_path).map_err(FatalError::from)?;
+    let cargo_file_content = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
     cargo_file_content.parse().map_err(FatalError::from)
 }
 
-fn load_from_file(path: &Path) -> io::Result<String> {
-    let mut file = File::open(path)?;
-    let mut s = String::new();
-    file.read_to_string(&mut s)?;
-    Ok(s)
+pub fn sort_workspace(ws_meta: &cargo_metadata::Metadata) -> Vec<&cargo_metadata::PackageId> {
+    let members: std::collections::HashSet<_> = ws_meta.workspace_members.iter().collect();
+    let dep_tree: std::collections::HashMap<_, _> = ws_meta
+        .resolve
+        .as_ref()
+        .expect("cargo-metadata resolved deps")
+        .nodes
+        .iter()
+        .filter_map(|n| {
+            if members.contains(&n.id) {
+                Some((&n.id, &n.dependencies))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let mut sorted = Vec::new();
+    let mut processed = std::collections::HashSet::new();
+    for pkg_id in ws_meta.workspace_members.iter() {
+        sort_workspace_inner(ws_meta, pkg_id, &dep_tree, &mut processed, &mut sorted);
+    }
+
+    sorted
+}
+
+fn sort_workspace_inner<'m>(
+    ws_meta: &'m cargo_metadata::Metadata,
+    pkg_id: &'m cargo_metadata::PackageId,
+    dep_tree: &std::collections::HashMap<
+        &'m cargo_metadata::PackageId,
+        &'m Vec<cargo_metadata::PackageId>,
+    >,
+    processed: &mut std::collections::HashSet<&'m cargo_metadata::PackageId>,
+    sorted: &mut Vec<&'m cargo_metadata::PackageId>,
+) {
+    if !processed.insert(pkg_id) {
+        return;
+    }
+
+    for dep_id in dep_tree[pkg_id]
+        .iter()
+        .filter(|dep_id| dep_tree.contains_key(dep_id))
+    {
+        sort_workspace_inner(ws_meta, dep_id, dep_tree, processed, sorted);
+    }
+
+    sorted.push(pkg_id);
 }
 
 #[cfg(test)]
