@@ -790,7 +790,13 @@ fn release_packages<'m>(
 
             if !shared_push {
                 log::info!("Pushing HEAD to {}", git_remote);
-                if !git::push(cwd, git_remote, pkg.config.push_options(), dry_run)? {
+                if !git::push(
+                    cwd,
+                    git_remote,
+                    Some(branch.as_str()),
+                    pkg.config.push_options(),
+                    dry_run,
+                )? {
                     return Ok(106);
                 }
             }
@@ -801,6 +807,7 @@ fn release_packages<'m>(
             if !git::push(
                 ws_meta.workspace_root.as_std_path(),
                 git_remote,
+                Some(branch.as_str()),
                 ws_config.push_options(),
                 dry_run,
             )? {
