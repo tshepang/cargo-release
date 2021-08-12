@@ -62,11 +62,6 @@ pub trait ConfigSource {
         None
     }
 
-    // depreacted
-    fn pro_release_commit_message(&self) -> Option<&str> {
-        None
-    }
-
     fn post_release_commit_message(&self) -> Option<&str> {
         None
     }
@@ -130,8 +125,6 @@ pub struct Config {
     pub consolidate_commits: Option<bool>,
     pub consolidate_pushes: Option<bool>,
     pub pre_release_commit_message: Option<String>,
-    // deprecated
-    pub pro_release_commit_message: Option<String>,
     pub post_release_commit_message: Option<String>,
     pub pre_release_replacements: Option<Vec<Replace>>,
     pub post_release_replacements: Option<Vec<Replace>>,
@@ -188,13 +181,6 @@ impl Config {
         }
         if let Some(pre_release_commit_message) = source.pre_release_commit_message() {
             self.pre_release_commit_message = Some(pre_release_commit_message.to_owned());
-        }
-        // depreacted
-        if let Some(pro_release_commit_message) = source.pro_release_commit_message() {
-            log::warn!(
-                "pro_release_commit_message is deprecated, use post-release-commit-message instead"
-            );
-            self.post_release_commit_message = Some(pro_release_commit_message.to_owned());
         }
         if let Some(post_release_commit_message) = source.post_release_commit_message() {
             self.post_release_commit_message = Some(post_release_commit_message.to_owned());
@@ -408,11 +394,6 @@ impl ConfigSource for Config {
 
     fn pre_release_commit_message(&self) -> Option<&str> {
         self.pre_release_commit_message.as_deref()
-    }
-
-    // deprecated
-    fn pro_release_commit_message(&self) -> Option<&str> {
-        self.pro_release_commit_message.as_deref()
     }
 
     fn post_release_commit_message(&self) -> Option<&str> {
