@@ -64,6 +64,10 @@ pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
         .output()
         .map_err(FatalError::from)?;
     let tracked_unclean = !output.status.success();
+    if tracked_unclean {
+        let tracked = String::from_utf8_lossy(&output.stdout);
+        log::debug!("Dirty because of:\n{}", tracked.trim());
+    }
 
     let output = Command::new("git")
         .arg("ls-files")
@@ -74,6 +78,9 @@ pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
         .map_err(FatalError::from)?;
     let untracked_files = String::from_utf8_lossy(&output.stdout);
     let untracked = !untracked_files.as_ref().trim().is_empty();
+    if untracked {
+        log::debug!("Dirty because of:\n{}", untracked_files.trim());
+    }
 
     Ok(tracked_unclean || untracked)
 }
