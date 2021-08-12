@@ -84,9 +84,6 @@ struct PackageRelease<'m> {
 
     dependents: Vec<Dependency<'m>>,
 
-    //dependent_version: config::DependentVersion,
-    //dependents: Vec<&'m Path>,
-    //failed_dependents: Vec<&'m Path>,
     features: Features,
 }
 
