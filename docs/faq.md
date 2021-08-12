@@ -123,3 +123,10 @@ shares the `release.toml` with the workspace.  If you'd like to customize the
 tag differently for the root crate vs the other crate's, you have two choices:
 - Put the common setting in the workspace's `release.toml` and override it for the root crate in `Cargo.toml`.
 - Modify each crate's `release.toml` with the setting relevant for that crate.
+
+
+## How do I do a release when there is dependency cycle in my workspace?
+
+If this is for dev-dependencies, just declare your dev-dependency with only a path, no version, and it should work out.
+
+If you have other cycles, open an issue, we'd love to hear about your use case and see how we can help!

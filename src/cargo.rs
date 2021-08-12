@@ -187,12 +187,20 @@ fn set_version(
             return Ok(());
         }
     };
-    if dep_item.is_table_like() {
-        dep_item["version"] = toml_edit::value(version);
-    } else {
+
+    let mut is_table = false;
+    let mut has_version = false;
+    if let Some(table_like) = dep_item.as_table_like() {
+        is_table = true;
+        has_version = table_like.get("version").is_some();
+    }
+
+    if !is_table {
         return Err(FatalError::InvalidCargoFileFormat(
             "Intra-workspace dependencies should use both version and path".into(),
         ));
+    } else if has_version {
+        dep_item["version"] = toml_edit::value(version);
     }
 
     Ok(())
@@ -571,6 +579,48 @@ mod test {
 
             let err = set_dependency_version(manifest_path.path(), "foo", "2.0");
             assert!(err.is_err());
+
+            temp.close().unwrap();
+        }
+
+        #[test]
+        fn no_version() {
+            let temp = assert_fs::TempDir::new().unwrap();
+            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
+            let manifest_path = temp.child("Cargo.toml");
+            manifest_path
+                .write_str(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [dependencies]
+    foo = { path = "../" }
+    "#,
+                )
+                .unwrap();
+
+            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+
+            manifest_path.assert(
+                predicate::str::similar(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [dependencies]
+    foo = { path = "../" }
+    "#,
+                )
+                .from_utf8()
+                .from_file_path(),
+            );
 
             temp.close().unwrap();
         }
