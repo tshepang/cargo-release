@@ -1,6 +1,3 @@
-use std::fs::File;
-use std::io;
-use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 use clap::arg_enum;
@@ -558,16 +555,9 @@ struct CargoMetadata {
     release: Option<Config>,
 }
 
-fn load_from_file(path: &Path) -> io::Result<String> {
-    let mut file = File::open(path)?;
-    let mut s = String::new();
-    file.read_to_string(&mut s)?;
-    Ok(s)
-}
-
 fn get_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
     if manifest_path.exists() {
-        let m = load_from_file(manifest_path).map_err(FatalError::from)?;
+        let m = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
         let c: CargoManifest = toml::from_str(&m).map_err(FatalError::from)?;
         Ok(c.into_config())
     } else {
@@ -577,7 +567,7 @@ fn get_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, Fata
 
 fn get_config_from_file(file_path: &Path) -> Result<Option<Config>, FatalError> {
     if file_path.exists() {
-        let c = load_from_file(file_path).map_err(FatalError::from)?;
+        let c = std::fs::read_to_string(file_path).map_err(FatalError::from)?;
         let config = toml::from_str(&c).map_err(FatalError::from)?;
         Ok(Some(config))
     } else {
