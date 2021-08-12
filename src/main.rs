@@ -131,7 +131,7 @@ impl<'m> PackageRelease<'m> {
                 release_config.update(&cfg);
             }
 
-            release_config.update(&args.config);
+            release_config.update(&args.config.to_config());
 
             // the publish flag in cargo file
             let cargo_file = cargo::parse_cargo_config(manifest_path)?;
@@ -365,7 +365,7 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
             release_config.update(&cfg);
         }
 
-        release_config.update(&args.config);
+        release_config.update(&args.config.to_config());
         release_config
     };
 
@@ -972,69 +972,31 @@ struct ConfigArgs {
     token: Option<String>,
 }
 
-impl config::ConfigSource for ConfigArgs {
-    fn sign_commit(&self) -> Option<bool> {
-        self.sign
-            .as_some(true)
-            .or_else(|| self.sign_commit.as_some(true))
-    }
-
-    fn sign_tag(&self) -> Option<bool> {
-        self.sign
-            .as_some(true)
-            .or_else(|| self.sign_tag.as_some(true))
-    }
-
-    fn push_remote(&self) -> Option<&str> {
-        self.push_remote.as_deref()
-    }
-
-    fn registry(&self) -> Option<&str> {
-        self.registry.as_deref()
-    }
-
-    fn disable_publish(&self) -> Option<bool> {
-        self.skip_publish.as_some(true)
-    }
-
-    fn disable_push(&self) -> Option<bool> {
-        self.skip_push.as_some(true)
-    }
-
-    fn dev_version_ext(&self) -> Option<&str> {
-        self.dev_version_ext.as_deref()
-    }
-
-    fn no_dev_version(&self) -> Option<bool> {
-        self.no_dev_version.as_some(true)
-    }
-
-    fn tag_prefix(&self) -> Option<&str> {
-        self.tag_prefix.as_deref()
-    }
-
-    fn tag_name(&self) -> Option<&str> {
-        self.tag_name.as_deref()
-    }
-
-    fn disable_tag(&self) -> Option<bool> {
-        self.skip_tag.as_some(true)
-    }
-
-    fn enable_features(&self) -> Option<&[String]> {
-        if !self.features.is_empty() {
-            Some(self.features.as_slice())
-        } else {
-            None
+impl ConfigArgs {
+    pub fn to_config(&self) -> config::Config {
+        config::Config {
+            sign_commit: self
+                .sign
+                .then(|| true)
+                .or_else(|| self.sign_commit.as_some(true)),
+            sign_tag: self
+                .sign
+                .then(|| true)
+                .or_else(|| self.sign_tag.as_some(true)),
+            push_remote: self.push_remote.clone(),
+            registry: self.registry.clone(),
+            disable_publish: self.skip_publish.then(|| true),
+            disable_push: self.skip_push.then(|| true),
+            dev_version_ext: self.dev_version_ext.clone(),
+            no_dev_version: self.no_dev_version.then(|| true),
+            tag_prefix: self.tag_prefix.clone(),
+            tag_name: self.tag_name.clone(),
+            disable_tag: self.skip_tag.then(|| true),
+            enable_features: (!self.features.is_empty()).then(|| self.features.clone()),
+            enable_all_features: self.all_features.then(|| true),
+            dependent_version: self.dependent_version.clone(),
+            ..Default::default()
         }
-    }
-
-    fn enable_all_features(&self) -> Option<bool> {
-        self.all_features.as_some(true)
-    }
-
-    fn dependent_version(&self) -> Option<config::DependentVersion> {
-        self.dependent_version
     }
 }
 
