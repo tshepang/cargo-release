@@ -1,6 +1,3 @@
-use std::fs::File;
-use std::io;
-use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 use clap::arg_enum;
@@ -513,12 +510,19 @@ impl Default for DependentVersion {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 struct CargoManifest {
+    workspace: Option<CargoWorkspace>,
     package: Option<CargoPackage>,
 }
 
-impl CargoManifest {
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+struct CargoWorkspace {
+    metadata: Option<CargoMetadata>,
+}
+
+impl CargoWorkspace {
     fn into_config(self) -> Option<Config> {
-        self.package.and_then(|p| p.into_config())
+        self.metadata?.release
     }
 }
 
@@ -558,18 +562,23 @@ struct CargoMetadata {
     release: Option<Config>,
 }
 
-fn load_from_file(path: &Path) -> io::Result<String> {
-    let mut file = File::open(path)?;
-    let mut s = String::new();
-    file.read_to_string(&mut s)?;
-    Ok(s)
+fn get_pkg_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
+    if manifest_path.exists() {
+        let m = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
+        let c: CargoManifest = toml::from_str(&m).map_err(FatalError::from)?;
+
+        Ok(c.package.and_then(|p| p.into_config()))
+    } else {
+        Ok(None)
+    }
 }
 
-fn get_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
+fn get_ws_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
     if manifest_path.exists() {
-        let m = load_from_file(manifest_path).map_err(FatalError::from)?;
+        let m = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
         let c: CargoManifest = toml::from_str(&m).map_err(FatalError::from)?;
-        Ok(c.into_config())
+
+        Ok(c.workspace.and_then(|p| p.into_config()))
     } else {
         Ok(None)
     }
@@ -577,7 +586,7 @@ fn get_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, Fata
 
 fn get_config_from_file(file_path: &Path) -> Result<Option<Config>, FatalError> {
     if file_path.exists() {
-        let c = load_from_file(file_path).map_err(FatalError::from)?;
+        let c = std::fs::read_to_string(file_path).map_err(FatalError::from)?;
         let config = toml::from_str(&c).map_err(FatalError::from)?;
         Ok(Some(config))
     } else {
@@ -608,6 +617,13 @@ pub fn resolve_workspace_config(workspace_root: &Path) -> Result<Config, FatalEr
 
     let default_config = workspace_root.join("release.toml");
     let current_dir_config = get_config_from_file(&default_config)?;
+    if let Some(cfg) = current_dir_config {
+        config.update(&cfg);
+    };
+
+    // Crate manifest.
+    let manifest_path = workspace_root.join("Cargo.toml");
+    let current_dir_config = get_ws_config_from_manifest(&manifest_path)?;
     if let Some(cfg) = current_dir_config {
         config.update(&cfg);
     };
@@ -655,7 +671,7 @@ pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Con
     };
 
     // Crate manifest.
-    let current_dir_config = get_config_from_manifest(manifest_path)?;
+    let current_dir_config = get_pkg_config_from_manifest(manifest_path)?;
     if let Some(cfg) = current_dir_config {
         config.update(&cfg);
     };
