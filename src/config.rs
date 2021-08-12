@@ -16,6 +16,7 @@ pub struct Config {
     pub registry: Option<String>,
     pub disable_release: Option<bool>,
     pub disable_publish: Option<bool>,
+    pub no_verify: Option<bool>,
     pub disable_push: Option<bool>,
     pub push_options: Option<Vec<String>>,
     pub dev_version_ext: Option<String>,
@@ -58,6 +59,9 @@ impl Config {
         }
         if let Some(disable_publish) = source.disable_publish {
             self.disable_publish = Some(disable_publish);
+        }
+        if let Some(no_verify) = source.no_verify {
+            self.no_verify = Some(no_verify);
         }
         if let Some(disable_push) = source.disable_push {
             self.disable_push = Some(disable_push);
@@ -141,6 +145,10 @@ impl Config {
 
     pub fn disable_publish(&self) -> bool {
         self.disable_publish.unwrap_or(false)
+    }
+
+    pub fn no_verify(&self) -> bool {
+        self.no_verify.unwrap_or(false)
     }
 
     pub fn disable_push(&self) -> bool {

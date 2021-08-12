@@ -640,6 +640,7 @@ fn release_packages<'m>(
             let features = &pkg.features;
             if !cargo::publish(
                 dry_run,
+                pkg.config.no_verify(),
                 pkg.manifest_path,
                 features,
                 pkg.config.registry(),
@@ -935,6 +936,10 @@ struct ConfigArgs {
     /// Do not create git tag
     skip_tag: bool,
 
+    #[structopt(long)]
+    /// Don't verify the contents by building them
+    no_verify: bool,
+
     #[structopt(
         long,
         possible_values(&config::DependentVersion::variants()),
@@ -986,6 +991,7 @@ impl ConfigArgs {
             push_remote: self.push_remote.clone(),
             registry: self.registry.clone(),
             disable_publish: self.skip_publish.then(|| true),
+            no_verify: self.no_verify.then(|| true),
             disable_push: self.skip_push.then(|| true),
             dev_version_ext: self.dev_version_ext.clone(),
             no_dev_version: self.no_dev_version.then(|| true),

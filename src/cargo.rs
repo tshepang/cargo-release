@@ -15,6 +15,7 @@ fn cargo() -> String {
 
 pub fn publish(
     dry_run: bool,
+    no_verify: bool,
     manifest_path: &Path,
     features: &Features,
     registry: Option<&str>,
@@ -39,6 +40,14 @@ pub fn publish(
         command.push(token);
     }
 
+    if dry_run {
+        command.push("--dry-run");
+    }
+
+    if no_verify {
+        command.push("--no-verify");
+    }
+
     let feature_arg;
     match features {
         Features::None => (),
@@ -52,7 +61,7 @@ pub fn publish(
         }
     };
 
-    call(command, dry_run)
+    call(command, false)
 }
 
 pub fn wait_for_publish(
