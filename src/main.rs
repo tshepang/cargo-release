@@ -193,13 +193,9 @@ impl<'m> PackageRelease<'m> {
             .as_ref()
             .map(Version::is_prerelease)
             .unwrap_or(false);
-        let dependents = if version.is_some() {
-            find_dependents(ws_meta, pkg_meta)
-                .map(|(pkg, dep)| Dependency { pkg, req: &dep.req })
-                .collect()
-        } else {
-            Vec::new()
-        };
+        let dependents = find_dependents(ws_meta, pkg_meta)
+            .map(|(pkg, dep)| Dependency { pkg, req: &dep.req })
+            .collect();
 
         let base = version.as_ref().unwrap_or(&prev_version);
 
