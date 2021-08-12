@@ -135,6 +135,7 @@ pub fn tag(
 pub fn push(
     dir: &Path,
     remote: &str,
+    branch: Option<&str>,
     options: &[String],
     dry_run: bool,
 ) -> Result<bool, FatalError> {
@@ -144,6 +145,9 @@ pub fn push(
         command.push(option.as_str());
     }
     command.push(remote);
+    if let Some(branch) = branch {
+        command.push(branch);
+    }
     call_on_path(command, dir, dry_run)
 }
 
