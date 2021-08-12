@@ -5,113 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::FatalError;
 
-pub trait ConfigSource {
-    fn exclude_paths(&self) -> Option<&[String]> {
-        None
-    }
-
-    fn sign_commit(&self) -> Option<bool> {
-        None
-    }
-
-    fn sign_tag(&self) -> Option<bool> {
-        None
-    }
-
-    fn push_remote(&self) -> Option<&str> {
-        None
-    }
-
-    fn registry(&self) -> Option<&str> {
-        None
-    }
-
-    fn disable_release(&self) -> Option<bool> {
-        None
-    }
-
-    fn disable_publish(&self) -> Option<bool> {
-        None
-    }
-
-    fn disable_push(&self) -> Option<bool> {
-        None
-    }
-
-    fn push_options(&self) -> Option<&[String]> {
-        None
-    }
-
-    fn dev_version_ext(&self) -> Option<&str> {
-        None
-    }
-
-    fn no_dev_version(&self) -> Option<bool> {
-        None
-    }
-
-    fn consolidate_commits(&self) -> Option<bool> {
-        None
-    }
-
-    fn consolidate_pushes(&self) -> Option<bool> {
-        None
-    }
-
-    fn pre_release_commit_message(&self) -> Option<&str> {
-        None
-    }
-
-    // depreacted
-    fn pro_release_commit_message(&self) -> Option<&str> {
-        None
-    }
-
-    fn post_release_commit_message(&self) -> Option<&str> {
-        None
-    }
-
-    fn pre_release_replacements(&self) -> Option<&[Replace]> {
-        None
-    }
-
-    fn post_release_replacements(&self) -> Option<&[Replace]> {
-        None
-    }
-
-    fn pre_release_hook(&self) -> Option<&Command> {
-        None
-    }
-
-    fn tag_message(&self) -> Option<&str> {
-        None
-    }
-
-    fn tag_prefix(&self) -> Option<&str> {
-        None
-    }
-
-    fn tag_name(&self) -> Option<&str> {
-        None
-    }
-
-    fn disable_tag(&self) -> Option<bool> {
-        None
-    }
-
-    fn enable_features(&self) -> Option<&[String]> {
-        None
-    }
-
-    fn enable_all_features(&self) -> Option<bool> {
-        None
-    }
-
-    fn dependent_version(&self) -> Option<DependentVersion> {
-        None
-    }
-}
-
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
 #[serde(rename_all = "kebab-case")]
@@ -123,6 +16,7 @@ pub struct Config {
     pub registry: Option<String>,
     pub disable_release: Option<bool>,
     pub disable_publish: Option<bool>,
+    pub no_verify: Option<bool>,
     pub disable_push: Option<bool>,
     pub push_options: Option<Vec<String>>,
     pub dev_version_ext: Option<String>,
@@ -130,8 +24,6 @@ pub struct Config {
     pub consolidate_commits: Option<bool>,
     pub consolidate_pushes: Option<bool>,
     pub pre_release_commit_message: Option<String>,
-    // deprecated
-    pub pro_release_commit_message: Option<String>,
     pub post_release_commit_message: Option<String>,
     pub pre_release_replacements: Option<Vec<Replace>>,
     pub post_release_replacements: Option<Vec<Replace>>,
@@ -146,87 +38,83 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn update(&mut self, source: &dyn ConfigSource) {
-        if let Some(exclude_paths) = source.exclude_paths() {
+    pub fn update(&mut self, source: &Config) {
+        if let Some(exclude_paths) = source.exclude_paths.as_deref() {
             self.exclude_paths = Some(exclude_paths.to_vec());
         }
-        if let Some(sign_commit) = source.sign_commit() {
+        if let Some(sign_commit) = source.sign_commit {
             self.sign_commit = Some(sign_commit);
         }
-        if let Some(sign_tag) = source.sign_tag() {
+        if let Some(sign_tag) = source.sign_tag {
             self.sign_tag = Some(sign_tag);
         }
-        if let Some(push_remote) = source.push_remote() {
+        if let Some(push_remote) = source.push_remote.as_deref() {
             self.push_remote = Some(push_remote.to_owned());
         }
-        if let Some(registry) = source.registry() {
+        if let Some(registry) = source.registry.as_deref() {
             self.registry = Some(registry.to_owned());
         }
-        if let Some(disable_release) = source.disable_release() {
+        if let Some(disable_release) = source.disable_release {
             self.disable_release = Some(disable_release);
         }
-        if let Some(disable_publish) = source.disable_publish() {
+        if let Some(disable_publish) = source.disable_publish {
             self.disable_publish = Some(disable_publish);
         }
-        if let Some(disable_push) = source.disable_push() {
+        if let Some(no_verify) = source.no_verify {
+            self.no_verify = Some(no_verify);
+        }
+        if let Some(disable_push) = source.disable_push {
             self.disable_push = Some(disable_push);
         }
-        if let Some(push_options) = source.push_options() {
+        if let Some(push_options) = source.push_options.as_deref() {
             self.push_options = Some(push_options.to_owned());
         }
-        if let Some(dev_version_ext) = source.dev_version_ext() {
+        if let Some(dev_version_ext) = source.dev_version_ext.as_deref() {
             self.dev_version_ext = Some(dev_version_ext.to_owned());
         }
-        if let Some(no_dev_version) = source.no_dev_version() {
+        if let Some(no_dev_version) = source.no_dev_version {
             self.no_dev_version = Some(no_dev_version);
         }
-        if let Some(consolidate_commits) = source.consolidate_commits() {
+        if let Some(consolidate_commits) = source.consolidate_commits {
             self.consolidate_commits = Some(consolidate_commits);
         }
-        if let Some(consolidate_pushes) = source.consolidate_pushes() {
+        if let Some(consolidate_pushes) = source.consolidate_pushes {
             self.consolidate_pushes = Some(consolidate_pushes);
         }
-        if let Some(pre_release_commit_message) = source.pre_release_commit_message() {
+        if let Some(pre_release_commit_message) = source.pre_release_commit_message.as_deref() {
             self.pre_release_commit_message = Some(pre_release_commit_message.to_owned());
         }
-        // depreacted
-        if let Some(pro_release_commit_message) = source.pro_release_commit_message() {
-            log::warn!(
-                "pro_release_commit_message is deprecated, use post-release-commit-message instead"
-            );
-            self.post_release_commit_message = Some(pro_release_commit_message.to_owned());
-        }
-        if let Some(post_release_commit_message) = source.post_release_commit_message() {
+        if let Some(post_release_commit_message) = source.post_release_commit_message.as_deref() {
             self.post_release_commit_message = Some(post_release_commit_message.to_owned());
         }
-        if let Some(pre_release_replacements) = source.pre_release_replacements() {
+        if let Some(pre_release_replacements) = source.pre_release_replacements.as_deref() {
             self.pre_release_replacements = Some(pre_release_replacements.to_owned());
         }
-        if let Some(post_release_replacements) = source.post_release_replacements() {
+        if let Some(post_release_replacements) = source.post_release_replacements.as_deref() {
             self.post_release_replacements = Some(post_release_replacements.to_owned());
         }
-        if let Some(pre_release_hook) = source.pre_release_hook() {
+        if let Some(pre_release_hook) = source.pre_release_hook.as_ref() {
             self.pre_release_hook = Some(pre_release_hook.to_owned());
         }
-        if let Some(tag_message) = source.tag_message() {
+        if let Some(tag_message) = source.tag_message.as_deref() {
             self.tag_message = Some(tag_message.to_owned());
         }
-        if let Some(tag_prefix) = source.tag_prefix() {
+        if let Some(tag_prefix) = source.tag_prefix.as_deref() {
             self.tag_prefix = Some(tag_prefix.to_owned());
         }
-        if let Some(tag_name) = source.tag_name() {
+        if let Some(tag_name) = source.tag_name.as_deref() {
             self.tag_name = Some(tag_name.to_owned());
         }
-        if let Some(disable_tag) = source.disable_tag() {
+        if let Some(disable_tag) = source.disable_tag {
             self.disable_tag = Some(disable_tag);
         }
-        if let Some(enable_features) = source.enable_features() {
+        if let Some(enable_features) = source.enable_features.as_deref() {
             self.enable_features = Some(enable_features.to_owned());
         }
-        if let Some(enable_all_features) = source.enable_all_features() {
+        if let Some(enable_all_features) = source.enable_all_features {
             self.enable_all_features = Some(enable_all_features);
         }
-        if let Some(dependent_version) = source.dependent_version() {
+        if let Some(dependent_version) = source.dependent_version {
             self.dependent_version = Some(dependent_version);
         }
     }
@@ -257,6 +145,10 @@ impl Config {
 
     pub fn disable_publish(&self) -> bool {
         self.disable_publish.unwrap_or(false)
+    }
+
+    pub fn no_verify(&self) -> bool {
+        self.no_verify.unwrap_or(false)
     }
 
     pub fn disable_push(&self) -> bool {
@@ -350,113 +242,6 @@ impl Config {
 
     pub fn dependent_version(&self) -> DependentVersion {
         self.dependent_version.unwrap_or_default()
-    }
-}
-
-impl ConfigSource for Config {
-    fn exclude_paths(&self) -> Option<&[String]> {
-        self.exclude_paths.as_ref().map(|v| v.as_ref())
-    }
-
-    fn sign_commit(&self) -> Option<bool> {
-        self.sign_commit
-    }
-
-    fn sign_tag(&self) -> Option<bool> {
-        self.sign_tag
-    }
-
-    fn push_remote(&self) -> Option<&str> {
-        self.push_remote.as_deref()
-    }
-
-    fn registry(&self) -> Option<&str> {
-        self.registry.as_deref()
-    }
-
-    fn disable_release(&self) -> Option<bool> {
-        self.disable_release
-    }
-
-    fn disable_publish(&self) -> Option<bool> {
-        self.disable_publish
-    }
-
-    fn disable_push(&self) -> Option<bool> {
-        self.disable_push
-    }
-
-    fn push_options(&self) -> Option<&[String]> {
-        self.push_options.as_ref().map(|v| v.as_ref())
-    }
-
-    fn dev_version_ext(&self) -> Option<&str> {
-        self.dev_version_ext.as_deref()
-    }
-
-    fn no_dev_version(&self) -> Option<bool> {
-        self.no_dev_version
-    }
-
-    fn consolidate_commits(&self) -> Option<bool> {
-        self.consolidate_commits
-    }
-
-    fn consolidate_pushes(&self) -> Option<bool> {
-        self.consolidate_pushes
-    }
-
-    fn pre_release_commit_message(&self) -> Option<&str> {
-        self.pre_release_commit_message.as_deref()
-    }
-
-    // deprecated
-    fn pro_release_commit_message(&self) -> Option<&str> {
-        self.pro_release_commit_message.as_deref()
-    }
-
-    fn post_release_commit_message(&self) -> Option<&str> {
-        self.post_release_commit_message.as_deref()
-    }
-
-    fn pre_release_replacements(&self) -> Option<&[Replace]> {
-        self.pre_release_replacements.as_ref().map(|v| v.as_ref())
-    }
-
-    fn post_release_replacements(&self) -> Option<&[Replace]> {
-        self.post_release_replacements.as_ref().map(|v| v.as_ref())
-    }
-
-    fn pre_release_hook(&self) -> Option<&Command> {
-        self.pre_release_hook.as_ref()
-    }
-
-    fn tag_message(&self) -> Option<&str> {
-        self.tag_message.as_deref()
-    }
-
-    fn tag_prefix(&self) -> Option<&str> {
-        self.tag_prefix.as_deref()
-    }
-
-    fn tag_name(&self) -> Option<&str> {
-        self.tag_name.as_deref()
-    }
-
-    fn disable_tag(&self) -> Option<bool> {
-        self.disable_tag
-    }
-
-    fn enable_features(&self) -> Option<&[String]> {
-        self.enable_features.as_ref().map(|v| v.as_ref())
-    }
-
-    fn enable_all_features(&self) -> Option<bool> {
-        self.enable_all_features
-    }
-
-    fn dependent_version(&self) -> Option<DependentVersion> {
-        self.dependent_version
     }
 }
 
