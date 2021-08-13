@@ -91,10 +91,6 @@ impl Version {
     }
 }
 
-static VERSION_ALPHA: &str = "alpha";
-static VERSION_BETA: &str = "beta";
-static VERSION_RC: &str = "rc";
-
 arg_enum! {
     #[derive(Debug, Clone, Copy)]
     pub enum BumpLevel {
@@ -274,6 +270,10 @@ impl VersionExt for semver::Version {
         !self.pre.is_empty()
     }
 }
+
+static VERSION_ALPHA: &str = "alpha";
+static VERSION_BETA: &str = "beta";
+static VERSION_RC: &str = "rc";
 
 pub fn set_requirement(
     req: &semver::VersionReq,

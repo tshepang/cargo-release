@@ -21,304 +21,18 @@ use crate::error::FatalError;
 use crate::replace::{do_file_replacements, Template};
 use crate::version::VersionExt;
 
-static NOW: once_cell::sync::Lazy<String> =
-    once_cell::sync::Lazy::new(|| Local::now().format("%Y-%m-%d").to_string());
+fn main() {
+    let args::Command::Release(ref release_matches) = args::Command::from_args();
 
-fn find_dependents<'w>(
-    ws_meta: &'w cargo_metadata::Metadata,
-    pkg_meta: &'w cargo_metadata::Package,
-) -> impl Iterator<Item = (&'w cargo_metadata::Package, &'w cargo_metadata::Dependency)> {
-    ws_meta.packages.iter().filter_map(move |p| {
-        if ws_meta.workspace_members.iter().any(|m| *m == p.id) {
-            p.dependencies
-                .iter()
-                .find(|d| d.name == pkg_meta.name)
-                .map(|d| (p, d))
-        } else {
-            None
+    let mut builder = get_logging(release_matches.logging.log_level());
+    builder.init();
+
+    match release_workspace(release_matches) {
+        Ok(code) => exit(code),
+        Err(e) => {
+            log::warn!("Fatal: {}", e);
+            exit(128);
         }
-    })
-}
-
-fn exclude_paths<'m>(
-    ws_pkgs: &[&'m cargo_metadata::Package],
-    pkg_meta: &'m cargo_metadata::Package,
-) -> Vec<&'m Path> {
-    let base_path = pkg_meta
-        .manifest_path
-        .as_std_path()
-        .parent()
-        .unwrap_or_else(|| Path::new("/"));
-    ws_pkgs
-        .iter()
-        .filter_map(|p| {
-            let cur_path = p
-                .manifest_path
-                .as_std_path()
-                .parent()
-                .unwrap_or_else(|| Path::new("/"));
-            if cur_path != base_path && cur_path.starts_with(base_path) {
-                Some(cur_path)
-            } else {
-                None
-            }
-        })
-        .collect()
-}
-
-struct PackageRelease<'m> {
-    meta: &'m cargo_metadata::Package,
-    manifest_path: &'m Path,
-    package_path: &'m Path,
-    config: config::Config,
-
-    crate_excludes: Vec<&'m Path>,
-    custom_ignore: ignore::gitignore::Gitignore,
-
-    prev_version: version::Version,
-    prev_tag: String,
-    version: Option<version::Version>,
-    tag: Option<String>,
-    post_version: Option<version::Version>,
-
-    dependents: Vec<Dependency<'m>>,
-
-    features: cargo::Features,
-}
-
-struct Dependency<'m> {
-    pkg: &'m cargo_metadata::Package,
-    req: &'m semver::VersionReq,
-}
-
-impl<'m> PackageRelease<'m> {
-    fn load(
-        args: &args::ReleaseOpt,
-        git_root: &Path,
-        ws_meta: &'m cargo_metadata::Metadata,
-        ws_pkgs: &[&'m cargo_metadata::Package],
-        pkg_meta: &'m cargo_metadata::Package,
-    ) -> Result<Option<Self>, error::FatalError> {
-        let manifest_path = pkg_meta.manifest_path.as_std_path();
-        let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
-
-        let config = {
-            let mut release_config = config::Config::default();
-
-            if !args.isolated {
-                let cfg =
-                    config::resolve_config(ws_meta.workspace_root.as_std_path(), manifest_path)?;
-                release_config.update(&cfg);
-            }
-
-            if let Some(custom_config_path) = args.custom_config.as_ref() {
-                // when calling with -c option
-                let cfg = config::resolve_custom_config(Path::new(custom_config_path))?
-                    .unwrap_or_default();
-                release_config.update(&cfg);
-            }
-
-            release_config.update(&args.config.to_config());
-
-            // the publish flag in cargo file
-            let cargo_file = cargo::parse_cargo_config(manifest_path)?;
-            if !cargo_file
-                .get("package")
-                .and_then(|f| f.as_table())
-                .and_then(|f| f.get("publish"))
-                .and_then(|f| f.as_bool())
-                .unwrap_or(true)
-            {
-                release_config.disable_publish = Some(true);
-            }
-
-            release_config
-        };
-        if config.disable_release() {
-            log::debug!("Disabled in config, skipping {}", manifest_path.display());
-            return Ok(None);
-        }
-
-        let is_root = git_root == cwd;
-
-        let prev_version = version::Version {
-            version: pkg_meta.version.clone(),
-            version_string: pkg_meta.version.to_string(),
-        };
-
-        let crate_excludes = exclude_paths(ws_pkgs, pkg_meta);
-        let mut custom_ignore = ignore::gitignore::GitignoreBuilder::new(cwd);
-        if let Some(globs) = config.exclude_paths() {
-            for glob in globs {
-                custom_ignore.add_line(None, glob)?;
-            }
-        }
-        let custom_ignore = custom_ignore.build()?;
-
-        let prev_tag = if let Some(prev_tag) = args.prev_tag_name.as_ref() {
-            // Trust the user that the tag passed in is the latest tag for the workspace and that
-            // they don't care about any changes from before this tag.
-            prev_tag.to_owned()
-        } else {
-            let mut template = Template {
-                prev_version: Some(&prev_version.version_string),
-                version: Some(&prev_version.version_string),
-                crate_name: Some(pkg_meta.name.as_str()),
-                ..Default::default()
-            };
-
-            let tag_prefix = config.tag_prefix(is_root);
-            let tag_prefix = template.render(tag_prefix);
-            template.prefix = Some(&tag_prefix);
-            template.render(config.tag_name())
-        };
-
-        let version = args
-            .level_or_version
-            .bump(&prev_version.version, args.metadata.as_deref())?;
-        let is_pre_release = version
-            .as_ref()
-            .map(version::Version::is_prerelease)
-            .unwrap_or(false);
-        let dependents = find_dependents(ws_meta, pkg_meta)
-            .map(|(pkg, dep)| Dependency { pkg, req: &dep.req })
-            .collect();
-
-        let base = version.as_ref().unwrap_or(&prev_version);
-
-        let tag = if config.disable_tag() {
-            None
-        } else {
-            let mut template = Template {
-                prev_version: Some(&prev_version.version_string),
-                version: Some(&base.version_string),
-                crate_name: Some(pkg_meta.name.as_str()),
-                ..Default::default()
-            };
-
-            let tag_prefix = config.tag_prefix(is_root);
-            let tag_prefix = template.render(tag_prefix);
-            template.prefix = Some(&tag_prefix);
-            Some(template.render(config.tag_name()))
-        };
-
-        let post_version = if !is_pre_release && !config.no_dev_version() {
-            let mut post = base.version.clone();
-            post.increment_patch();
-            post.pre = semver::Prerelease::new(config.dev_version_ext())?;
-            let post_string = post.to_string();
-
-            Some(version::Version {
-                version: post,
-                version_string: post_string,
-            })
-        } else {
-            None
-        };
-
-        let features = config.features();
-
-        let pkg = PackageRelease {
-            meta: pkg_meta,
-            manifest_path,
-            package_path: cwd,
-            config,
-
-            crate_excludes,
-            custom_ignore,
-
-            prev_version,
-            prev_tag,
-            version,
-            tag,
-            post_version,
-            dependents,
-
-            features,
-        };
-        Ok(Some(pkg))
-    }
-}
-
-fn update_dependent_versions(
-    pkg: &PackageRelease,
-    version: &version::Version,
-    dry_run: bool,
-) -> Result<(), error::FatalError> {
-    let new_version_string = version.version_string.as_str();
-    let mut dependents_failed = false;
-    for dep in pkg.dependents.iter() {
-        match pkg.config.dependent_version() {
-            config::DependentVersion::Ignore => (),
-            config::DependentVersion::Warn => {
-                if !dep.req.matches(&version.version) {
-                    log::warn!(
-                        "{}'s dependency on {} `{}` is incompatible with {}",
-                        dep.pkg.name,
-                        pkg.meta.name,
-                        dep.req,
-                        new_version_string
-                    );
-                }
-            }
-            config::DependentVersion::Error => {
-                if !dep.req.matches(&version.version) {
-                    log::warn!(
-                        "{}'s dependency on {} `{}` is incompatible with {}",
-                        dep.pkg.name,
-                        pkg.meta.name,
-                        dep.req,
-                        new_version_string
-                    );
-                    dependents_failed = true;
-                }
-            }
-            config::DependentVersion::Fix => {
-                if !dep.req.matches(&version.version) {
-                    let new_req = version::set_requirement(dep.req, &version.version)?;
-                    if let Some(new_req) = new_req {
-                        log::info!(
-                            "Fixing {}'s dependency on {} to `{}` (from `{}`)",
-                            dep.pkg.name,
-                            pkg.meta.name,
-                            new_req,
-                            dep.req
-                        );
-                        if !dry_run {
-                            cargo::set_dependency_version(
-                                dep.pkg.manifest_path.as_std_path(),
-                                &pkg.meta.name,
-                                &new_req,
-                            )?;
-                        }
-                    }
-                }
-            }
-            config::DependentVersion::Upgrade => {
-                let new_req = version::set_requirement(dep.req, &version.version)?;
-                if let Some(new_req) = new_req {
-                    log::info!(
-                        "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
-                        dep.pkg.name,
-                        pkg.meta.name,
-                        new_req,
-                        dep.req
-                    );
-                    if !dry_run {
-                        cargo::set_dependency_version(
-                            dep.pkg.manifest_path.as_std_path(),
-                            &pkg.meta.name,
-                            &new_req,
-                        )?;
-                    }
-                }
-            }
-        }
-    }
-    if dependents_failed {
-        Err(FatalError::DependencyVersionConflict)
-    } else {
-        Ok(())
     }
 }
 
@@ -804,17 +518,303 @@ pub fn get_logging(level: log::Level) -> env_logger::Builder {
     builder
 }
 
-fn main() {
-    let args::Command::Release(ref release_matches) = args::Command::from_args();
+static NOW: once_cell::sync::Lazy<String> =
+    once_cell::sync::Lazy::new(|| Local::now().format("%Y-%m-%d").to_string());
 
-    let mut builder = get_logging(release_matches.logging.log_level());
-    builder.init();
-
-    match release_workspace(release_matches) {
-        Ok(code) => exit(code),
-        Err(e) => {
-            log::warn!("Fatal: {}", e);
-            exit(128);
+fn find_dependents<'w>(
+    ws_meta: &'w cargo_metadata::Metadata,
+    pkg_meta: &'w cargo_metadata::Package,
+) -> impl Iterator<Item = (&'w cargo_metadata::Package, &'w cargo_metadata::Dependency)> {
+    ws_meta.packages.iter().filter_map(move |p| {
+        if ws_meta.workspace_members.iter().any(|m| *m == p.id) {
+            p.dependencies
+                .iter()
+                .find(|d| d.name == pkg_meta.name)
+                .map(|d| (p, d))
+        } else {
+            None
         }
+    })
+}
+
+fn exclude_paths<'m>(
+    ws_pkgs: &[&'m cargo_metadata::Package],
+    pkg_meta: &'m cargo_metadata::Package,
+) -> Vec<&'m Path> {
+    let base_path = pkg_meta
+        .manifest_path
+        .as_std_path()
+        .parent()
+        .unwrap_or_else(|| Path::new("/"));
+    ws_pkgs
+        .iter()
+        .filter_map(|p| {
+            let cur_path = p
+                .manifest_path
+                .as_std_path()
+                .parent()
+                .unwrap_or_else(|| Path::new("/"));
+            if cur_path != base_path && cur_path.starts_with(base_path) {
+                Some(cur_path)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+struct PackageRelease<'m> {
+    meta: &'m cargo_metadata::Package,
+    manifest_path: &'m Path,
+    package_path: &'m Path,
+    config: config::Config,
+
+    crate_excludes: Vec<&'m Path>,
+    custom_ignore: ignore::gitignore::Gitignore,
+
+    prev_version: version::Version,
+    prev_tag: String,
+    version: Option<version::Version>,
+    tag: Option<String>,
+    post_version: Option<version::Version>,
+
+    dependents: Vec<Dependency<'m>>,
+
+    features: cargo::Features,
+}
+
+impl<'m> PackageRelease<'m> {
+    fn load(
+        args: &args::ReleaseOpt,
+        git_root: &Path,
+        ws_meta: &'m cargo_metadata::Metadata,
+        ws_pkgs: &[&'m cargo_metadata::Package],
+        pkg_meta: &'m cargo_metadata::Package,
+    ) -> Result<Option<Self>, error::FatalError> {
+        let manifest_path = pkg_meta.manifest_path.as_std_path();
+        let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
+
+        let config = {
+            let mut release_config = config::Config::default();
+
+            if !args.isolated {
+                let cfg =
+                    config::resolve_config(ws_meta.workspace_root.as_std_path(), manifest_path)?;
+                release_config.update(&cfg);
+            }
+
+            if let Some(custom_config_path) = args.custom_config.as_ref() {
+                // when calling with -c option
+                let cfg = config::resolve_custom_config(Path::new(custom_config_path))?
+                    .unwrap_or_default();
+                release_config.update(&cfg);
+            }
+
+            release_config.update(&args.config.to_config());
+
+            // the publish flag in cargo file
+            let cargo_file = cargo::parse_cargo_config(manifest_path)?;
+            if !cargo_file
+                .get("package")
+                .and_then(|f| f.as_table())
+                .and_then(|f| f.get("publish"))
+                .and_then(|f| f.as_bool())
+                .unwrap_or(true)
+            {
+                release_config.disable_publish = Some(true);
+            }
+
+            release_config
+        };
+        if config.disable_release() {
+            log::debug!("Disabled in config, skipping {}", manifest_path.display());
+            return Ok(None);
+        }
+
+        let is_root = git_root == cwd;
+
+        let prev_version = version::Version {
+            version: pkg_meta.version.clone(),
+            version_string: pkg_meta.version.to_string(),
+        };
+
+        let crate_excludes = exclude_paths(ws_pkgs, pkg_meta);
+        let mut custom_ignore = ignore::gitignore::GitignoreBuilder::new(cwd);
+        if let Some(globs) = config.exclude_paths() {
+            for glob in globs {
+                custom_ignore.add_line(None, glob)?;
+            }
+        }
+        let custom_ignore = custom_ignore.build()?;
+
+        let prev_tag = if let Some(prev_tag) = args.prev_tag_name.as_ref() {
+            // Trust the user that the tag passed in is the latest tag for the workspace and that
+            // they don't care about any changes from before this tag.
+            prev_tag.to_owned()
+        } else {
+            let mut template = Template {
+                prev_version: Some(&prev_version.version_string),
+                version: Some(&prev_version.version_string),
+                crate_name: Some(pkg_meta.name.as_str()),
+                ..Default::default()
+            };
+
+            let tag_prefix = config.tag_prefix(is_root);
+            let tag_prefix = template.render(tag_prefix);
+            template.prefix = Some(&tag_prefix);
+            template.render(config.tag_name())
+        };
+
+        let version = args
+            .level_or_version
+            .bump(&prev_version.version, args.metadata.as_deref())?;
+        let is_pre_release = version
+            .as_ref()
+            .map(version::Version::is_prerelease)
+            .unwrap_or(false);
+        let dependents = find_dependents(ws_meta, pkg_meta)
+            .map(|(pkg, dep)| Dependency { pkg, req: &dep.req })
+            .collect();
+
+        let base = version.as_ref().unwrap_or(&prev_version);
+
+        let tag = if config.disable_tag() {
+            None
+        } else {
+            let mut template = Template {
+                prev_version: Some(&prev_version.version_string),
+                version: Some(&base.version_string),
+                crate_name: Some(pkg_meta.name.as_str()),
+                ..Default::default()
+            };
+
+            let tag_prefix = config.tag_prefix(is_root);
+            let tag_prefix = template.render(tag_prefix);
+            template.prefix = Some(&tag_prefix);
+            Some(template.render(config.tag_name()))
+        };
+
+        let post_version = if !is_pre_release && !config.no_dev_version() {
+            let mut post = base.version.clone();
+            post.increment_patch();
+            post.pre = semver::Prerelease::new(config.dev_version_ext())?;
+            let post_string = post.to_string();
+
+            Some(version::Version {
+                version: post,
+                version_string: post_string,
+            })
+        } else {
+            None
+        };
+
+        let features = config.features();
+
+        let pkg = PackageRelease {
+            meta: pkg_meta,
+            manifest_path,
+            package_path: cwd,
+            config,
+
+            crate_excludes,
+            custom_ignore,
+
+            prev_version,
+            prev_tag,
+            version,
+            tag,
+            post_version,
+            dependents,
+
+            features,
+        };
+        Ok(Some(pkg))
+    }
+}
+
+struct Dependency<'m> {
+    pkg: &'m cargo_metadata::Package,
+    req: &'m semver::VersionReq,
+}
+
+fn update_dependent_versions(
+    pkg: &PackageRelease,
+    version: &version::Version,
+    dry_run: bool,
+) -> Result<(), error::FatalError> {
+    let new_version_string = version.version_string.as_str();
+    let mut dependents_failed = false;
+    for dep in pkg.dependents.iter() {
+        match pkg.config.dependent_version() {
+            config::DependentVersion::Ignore => (),
+            config::DependentVersion::Warn => {
+                if !dep.req.matches(&version.version) {
+                    log::warn!(
+                        "{}'s dependency on {} `{}` is incompatible with {}",
+                        dep.pkg.name,
+                        pkg.meta.name,
+                        dep.req,
+                        new_version_string
+                    );
+                }
+            }
+            config::DependentVersion::Error => {
+                if !dep.req.matches(&version.version) {
+                    log::warn!(
+                        "{}'s dependency on {} `{}` is incompatible with {}",
+                        dep.pkg.name,
+                        pkg.meta.name,
+                        dep.req,
+                        new_version_string
+                    );
+                    dependents_failed = true;
+                }
+            }
+            config::DependentVersion::Fix => {
+                if !dep.req.matches(&version.version) {
+                    let new_req = version::set_requirement(dep.req, &version.version)?;
+                    if let Some(new_req) = new_req {
+                        log::info!(
+                            "Fixing {}'s dependency on {} to `{}` (from `{}`)",
+                            dep.pkg.name,
+                            pkg.meta.name,
+                            new_req,
+                            dep.req
+                        );
+                        if !dry_run {
+                            cargo::set_dependency_version(
+                                dep.pkg.manifest_path.as_std_path(),
+                                &pkg.meta.name,
+                                &new_req,
+                            )?;
+                        }
+                    }
+                }
+            }
+            config::DependentVersion::Upgrade => {
+                let new_req = version::set_requirement(dep.req, &version.version)?;
+                if let Some(new_req) = new_req {
+                    log::info!(
+                        "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
+                        dep.pkg.name,
+                        pkg.meta.name,
+                        new_req,
+                        dep.req
+                    );
+                    if !dry_run {
+                        cargo::set_dependency_version(
+                            dep.pkg.manifest_path.as_std_path(),
+                            &pkg.meta.name,
+                            &new_req,
+                        )?;
+                    }
+                }
+            }
+        }
+    }
+    if dependents_failed {
+        Err(FatalError::DependencyVersionConflict)
+    } else {
+        Ok(())
     }
 }
