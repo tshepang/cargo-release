@@ -1,13 +1,95 @@
 use std::str::FromStr;
 
 use clap::arg_enum;
-use semver::Version;
 
 use crate::error::FatalError;
 
-static VERSION_ALPHA: &str = "alpha";
-static VERSION_BETA: &str = "beta";
-static VERSION_RC: &str = "rc";
+#[derive(Clone, Debug)]
+pub enum TargetVersion {
+    Relative(BumpLevel),
+    Absolute(semver::Version),
+}
+
+impl TargetVersion {
+    pub fn bump(
+        &self,
+        current: &semver::Version,
+        metadata: Option<&str>,
+    ) -> Result<Option<Version>, FatalError> {
+        match self {
+            TargetVersion::Relative(bump_level) => {
+                let mut potential_version = current.to_owned();
+                if bump_level.bump_version(&mut potential_version, metadata)? {
+                    let version = potential_version;
+                    let version_string = version.to_string();
+                    Ok(Some(Version {
+                        version,
+                        version_string,
+                    }))
+                } else {
+                    Ok(None)
+                }
+            }
+            TargetVersion::Absolute(version) => {
+                if current < version {
+                    Ok(Some(Version {
+                        version: version.to_owned(),
+                        version_string: version.to_string(),
+                    }))
+                } else if current == version {
+                    Ok(None)
+                } else {
+                    return Err(crate::error::FatalError::UnsupportedVersionReq(
+                        "Cannot release version smaller than current one".to_owned(),
+                    ));
+                }
+            }
+        }
+    }
+}
+
+impl Default for TargetVersion {
+    fn default() -> Self {
+        TargetVersion::Relative(BumpLevel::Release)
+    }
+}
+
+impl std::fmt::Display for TargetVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            TargetVersion::Relative(bump_level) => {
+                write!(f, "{}", bump_level)
+            }
+            TargetVersion::Absolute(version) => {
+                write!(f, "{}", version)
+            }
+        }
+    }
+}
+
+impl std::str::FromStr for TargetVersion {
+    type Err = FatalError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(bump_level) = BumpLevel::from_str(s) {
+            Ok(TargetVersion::Relative(bump_level))
+        } else {
+            Ok(TargetVersion::Absolute(semver::Version::parse(s)?))
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Version {
+    pub version: semver::Version,
+    pub version_string: String,
+}
+
+impl Version {
+    pub fn is_prerelease(&self) -> bool {
+        self.version.is_prerelease()
+    }
+}
 
 arg_enum! {
     #[derive(Debug, Clone, Copy)]
@@ -25,7 +107,7 @@ arg_enum! {
 impl BumpLevel {
     pub fn bump_version(
         self,
-        version: &mut Version,
+        version: &mut semver::Version,
         metadata: Option<&str>,
     ) -> Result<bool, FatalError> {
         let mut need_commit = false;
@@ -86,7 +168,7 @@ pub trait VersionExt {
     fn is_prerelease(&self) -> bool;
 }
 
-impl VersionExt for Version {
+impl VersionExt for semver::Version {
     fn increment_major(&mut self) {
         self.major += 1;
         self.minor = 0;
@@ -189,6 +271,10 @@ impl VersionExt for Version {
     }
 }
 
+static VERSION_ALPHA: &str = "alpha";
+static VERSION_BETA: &str = "beta";
+static VERSION_RC: &str = "rc";
+
 pub fn set_requirement(
     req: &semver::VersionReq,
     version: &semver::Version,
@@ -279,64 +365,64 @@ mod test {
 
         #[test]
         fn alpha() {
-            let mut v = Version::parse("1.0.0").unwrap();
+            let mut v = semver::Version::parse("1.0.0").unwrap();
             let _ = v.increment_alpha();
-            assert_eq!(v, Version::parse("1.0.1-alpha.1").unwrap());
+            assert_eq!(v, semver::Version::parse("1.0.1-alpha.1").unwrap());
 
-            let mut v2 = Version::parse("1.0.1-dev").unwrap();
+            let mut v2 = semver::Version::parse("1.0.1-dev").unwrap();
             let _ = v2.increment_alpha();
-            assert_eq!(v2, Version::parse("1.0.1-alpha.1").unwrap());
+            assert_eq!(v2, semver::Version::parse("1.0.1-alpha.1").unwrap());
 
-            let mut v3 = Version::parse("1.0.1-alpha.1").unwrap();
+            let mut v3 = semver::Version::parse("1.0.1-alpha.1").unwrap();
             let _ = v3.increment_alpha();
-            assert_eq!(v3, Version::parse("1.0.1-alpha.2").unwrap());
+            assert_eq!(v3, semver::Version::parse("1.0.1-alpha.2").unwrap());
 
-            let mut v4 = Version::parse("1.0.1-beta.1").unwrap();
+            let mut v4 = semver::Version::parse("1.0.1-beta.1").unwrap();
             assert!(v4.increment_alpha().is_err());
         }
 
         #[test]
         fn beta() {
-            let mut v = Version::parse("1.0.0").unwrap();
+            let mut v = semver::Version::parse("1.0.0").unwrap();
             let _ = v.increment_beta();
-            assert_eq!(v, Version::parse("1.0.1-beta.1").unwrap());
+            assert_eq!(v, semver::Version::parse("1.0.1-beta.1").unwrap());
 
-            let mut v2 = Version::parse("1.0.1-dev").unwrap();
+            let mut v2 = semver::Version::parse("1.0.1-dev").unwrap();
             let _ = v2.increment_beta();
-            assert_eq!(v2, Version::parse("1.0.1-beta.1").unwrap());
+            assert_eq!(v2, semver::Version::parse("1.0.1-beta.1").unwrap());
 
-            let mut v2 = Version::parse("1.0.1-alpha.1").unwrap();
+            let mut v2 = semver::Version::parse("1.0.1-alpha.1").unwrap();
             let _ = v2.increment_beta();
-            assert_eq!(v2, Version::parse("1.0.1-beta.1").unwrap());
+            assert_eq!(v2, semver::Version::parse("1.0.1-beta.1").unwrap());
 
-            let mut v3 = Version::parse("1.0.1-beta.1").unwrap();
+            let mut v3 = semver::Version::parse("1.0.1-beta.1").unwrap();
             let _ = v3.increment_beta();
-            assert_eq!(v3, Version::parse("1.0.1-beta.2").unwrap());
+            assert_eq!(v3, semver::Version::parse("1.0.1-beta.2").unwrap());
 
-            let mut v4 = Version::parse("1.0.1-rc.1").unwrap();
+            let mut v4 = semver::Version::parse("1.0.1-rc.1").unwrap();
             assert!(v4.increment_beta().is_err());
         }
 
         #[test]
         fn rc() {
-            let mut v = Version::parse("1.0.0").unwrap();
+            let mut v = semver::Version::parse("1.0.0").unwrap();
             let _ = v.increment_rc();
-            assert_eq!(v, Version::parse("1.0.1-rc.1").unwrap());
+            assert_eq!(v, semver::Version::parse("1.0.1-rc.1").unwrap());
 
-            let mut v2 = Version::parse("1.0.1-dev").unwrap();
+            let mut v2 = semver::Version::parse("1.0.1-dev").unwrap();
             let _ = v2.increment_rc();
-            assert_eq!(v2, Version::parse("1.0.1-rc.1").unwrap());
+            assert_eq!(v2, semver::Version::parse("1.0.1-rc.1").unwrap());
 
-            let mut v3 = Version::parse("1.0.1-rc.1").unwrap();
+            let mut v3 = semver::Version::parse("1.0.1-rc.1").unwrap();
             let _ = v3.increment_rc();
-            assert_eq!(v3, Version::parse("1.0.1-rc.2").unwrap());
+            assert_eq!(v3, semver::Version::parse("1.0.1-rc.2").unwrap());
         }
 
         #[test]
         fn metadata() {
-            let mut v = Version::parse("1.0.0").unwrap();
+            let mut v = semver::Version::parse("1.0.0").unwrap();
             let _ = v.metadata("git.123456");
-            assert_eq!(v, Version::parse("1.0.0+git.123456").unwrap());
+            assert_eq!(v, semver::Version::parse("1.0.0+git.123456").unwrap());
         }
     }
 
@@ -344,7 +430,7 @@ mod test {
         use super::*;
 
         fn assert_req_bump<'a, O: Into<Option<&'a str>>>(version: &str, req: &str, expected: O) {
-            let version = Version::parse(version).unwrap();
+            let version = semver::Version::parse(version).unwrap();
             let req = semver::VersionReq::parse(req).unwrap();
             let actual = set_requirement(&req, &version).unwrap();
             let expected = expected.into();

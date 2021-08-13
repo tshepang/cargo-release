@@ -240,6 +240,19 @@ impl Config {
         self.enable_all_features.unwrap_or(false)
     }
 
+    pub fn features(&self) -> crate::cargo::Features {
+        if self.enable_all_features() {
+            crate::cargo::Features::All
+        } else {
+            let features = self.enable_features();
+            if features.is_empty() {
+                crate::cargo::Features::None
+            } else {
+                crate::cargo::Features::Selective(features.to_owned())
+            }
+        }
+    }
+
     pub fn dependent_version(&self) -> DependentVersion {
         self.dependent_version.unwrap_or_default()
     }
