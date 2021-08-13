@@ -130,3 +130,10 @@ tag differently for the root crate vs the other crate's, you have two choices:
 If this is for dev-dependencies, just declare your dev-dependency with only a path, no version, and it should work out.
 
 If you have other cycles, open an issue, we'd love to hear about your use case and see how we can help!
+
+## Why does `cargo-release` say a package has changes and needs to be released?
+
+If you run with extra logging, we'll call out which file changed that triggered the release.
+
+If that file shouldn't be included in the package, update your `Cargo.toml`'s
+[`include` and `exclude` fields](https://doc.rust-lang.org/cargo/reference/manifest.html#the-exclude-and-include-fields).

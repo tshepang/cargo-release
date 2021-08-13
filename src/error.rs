@@ -48,11 +48,6 @@ quick_error! {
             source(err)
             display("SemVerError {}", err)
         }
-        IgnoreError(err: ignore::Error) {
-            from()
-            source(err)
-            display("ignore-pattern {}", err)
-        }
         Utf8Error(err: Utf8Error) {
             from()
             source(err)
@@ -65,7 +60,9 @@ quick_error! {
         }
         NoPackage {
             display("No package in manifest file")
-
+        }
+        PackageListFailed(manifest: std::path::PathBuf, err: String) {
+            display("Failed to get package content for {}: {}", manifest.display(), err)
         }
         InvalidReleaseLevel(level: String) {
             display("Unsupported release level {}, only major, minor and patch are supported", level)
