@@ -4,13 +4,10 @@ use std::io::Write;
 use std::path::Path;
 use std::process::exit;
 
-use boolinator::Boolinator;
 use chrono::prelude::Local;
 use structopt::StructOpt;
 
-use crate::error::FatalError;
-use crate::replace::{do_file_replacements, Template};
-
+mod args;
 mod cargo;
 mod cmd;
 mod config;
@@ -20,7 +17,9 @@ mod replace;
 mod shell;
 mod version;
 
-use version::VersionExt;
+use crate::error::FatalError;
+use crate::replace::{do_file_replacements, Template};
+use crate::version::VersionExt;
 
 static NOW: once_cell::sync::Lazy<String> =
     once_cell::sync::Lazy::new(|| Local::now().format("%Y-%m-%d").to_string());
@@ -76,27 +75,15 @@ struct PackageRelease<'m> {
     crate_excludes: Vec<&'m Path>,
     custom_ignore: ignore::gitignore::Gitignore,
 
-    prev_version: Version,
+    prev_version: version::Version,
     prev_tag: String,
-    version: Option<Version>,
+    version: Option<version::Version>,
     tag: Option<String>,
-    post_version: Option<Version>,
+    post_version: Option<version::Version>,
 
     dependents: Vec<Dependency<'m>>,
 
-    features: Features,
-}
-
-#[derive(Debug)]
-struct Version {
-    version: semver::Version,
-    version_string: String,
-}
-
-impl Version {
-    fn is_prerelease(&self) -> bool {
-        self.version.is_prerelease()
-    }
+    features: cargo::Features,
 }
 
 struct Dependency<'m> {
@@ -106,7 +93,7 @@ struct Dependency<'m> {
 
 impl<'m> PackageRelease<'m> {
     fn load(
-        args: &ReleaseOpt,
+        args: &args::ReleaseOpt,
         git_root: &Path,
         ws_meta: &'m cargo_metadata::Metadata,
         ws_pkgs: &[&'m cargo_metadata::Package],
@@ -154,7 +141,7 @@ impl<'m> PackageRelease<'m> {
 
         let is_root = git_root == cwd;
 
-        let prev_version = Version {
+        let prev_version = version::Version {
             version: pkg_meta.version.clone(),
             version_string: pkg_meta.version.to_string(),
         };
@@ -191,7 +178,7 @@ impl<'m> PackageRelease<'m> {
             .bump(&prev_version.version, args.metadata.as_deref())?;
         let is_pre_release = version
             .as_ref()
-            .map(Version::is_prerelease)
+            .map(version::Version::is_prerelease)
             .unwrap_or(false);
         let dependents = find_dependents(ws_meta, pkg_meta)
             .map(|(pkg, dep)| Dependency { pkg, req: &dep.req })
@@ -221,7 +208,7 @@ impl<'m> PackageRelease<'m> {
             post.pre = semver::Prerelease::new(config.dev_version_ext())?;
             let post_string = post.to_string();
 
-            Some(Version {
+            Some(version::Version {
                 version: post,
                 version_string: post_string,
             })
@@ -229,16 +216,7 @@ impl<'m> PackageRelease<'m> {
             None
         };
 
-        let features = if config.enable_all_features() {
-            Features::All
-        } else {
-            let features = config.enable_features();
-            if features.is_empty() {
-                Features::None
-            } else {
-                Features::Selective(features.to_owned())
-            }
-        };
+        let features = config.features();
 
         let pkg = PackageRelease {
             meta: pkg_meta,
@@ -264,7 +242,7 @@ impl<'m> PackageRelease<'m> {
 
 fn update_dependent_versions(
     pkg: &PackageRelease,
-    version: &Version,
+    version: &version::Version,
     dry_run: bool,
 ) -> Result<(), error::FatalError> {
     let new_version_string = version.version_string.as_str();
@@ -344,7 +322,7 @@ fn update_dependent_versions(
     }
 }
 
-fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
+fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::FatalError> {
     let ws_meta = args.manifest.metadata().exec().map_err(FatalError::from)?;
     let ws_config = {
         let mut release_config = config::Config::default();
@@ -392,7 +370,7 @@ fn release_workspace(args: &ReleaseOpt) -> Result<i32, error::FatalError> {
 }
 
 fn release_packages<'m>(
-    args: &ReleaseOpt,
+    args: &args::ReleaseOpt,
     ws_meta: &cargo_metadata::Metadata,
     ws_config: &config::Config,
     pkgs: &'m [&'m PackageRelease<'m>],
@@ -816,284 +794,6 @@ fn release_packages<'m>(
     Ok(0)
 }
 
-/// Expresses what features flags should be used
-pub enum Features {
-    /// None - don't use special features
-    None,
-    /// Only use selected features
-    Selective(Vec<String>),
-    /// Use all features via `all-features`
-    All,
-}
-
-#[derive(Debug, StructOpt)]
-struct ReleaseOpt {
-    #[structopt(flatten)]
-    manifest: clap_cargo::Manifest,
-
-    #[structopt(flatten)]
-    workspace: clap_cargo::Workspace,
-
-    /// Release level or version: bumping specified version field or remove prerelease extensions by default. Possible level value: major, minor, patch, release, rc, beta, alpha or any valid semver version that is greater than current version
-    #[structopt(default_value)]
-    level_or_version: TargetVersion,
-
-    #[structopt(short = "m")]
-    /// Semver metadata
-    metadata: Option<String>,
-
-    #[structopt(short = "c", long = "config")]
-    /// Custom config file
-    custom_config: Option<String>,
-
-    #[structopt(long)]
-    /// Ignore implicit configuration files.
-    isolated: bool,
-
-    #[structopt(flatten)]
-    config: ConfigArgs,
-
-    #[structopt(short = "n", long)]
-    /// Do not actually change anything, just log what are going to do
-    dry_run: bool,
-
-    #[structopt(long)]
-    /// Skip release confirmation and version preview
-    no_confirm: bool,
-
-    #[structopt(long)]
-    /// The name of tag for the previous release.
-    prev_tag_name: Option<String>,
-
-    #[structopt(flatten)]
-    logging: Verbosity,
-}
-
-#[derive(StructOpt, Debug, Clone)]
-pub struct Verbosity {
-    /// Pass many times for less log output
-    #[structopt(long, short = "q", parse(from_occurrences))]
-    quiet: i8,
-
-    /// Pass many times for more log output
-    ///
-    /// By default, it'll report info. Passing `-v` one time also prints
-    /// warnings, `-vv` enables info logging, `-vvv` debug, and `-vvvv` trace.
-    #[structopt(long, short = "v", parse(from_occurrences))]
-    verbose: i8,
-}
-
-impl Verbosity {
-    /// Get the log level.
-    pub fn log_level(&self) -> log::Level {
-        let verbosity = 2 - self.quiet + self.verbose;
-
-        match verbosity {
-            std::i8::MIN..=0 => log::Level::Error,
-            1 => log::Level::Warn,
-            2 => log::Level::Info,
-            3 => log::Level::Debug,
-            4..=std::i8::MAX => log::Level::Trace,
-        }
-    }
-}
-
-#[derive(Debug, StructOpt)]
-struct ConfigArgs {
-    #[structopt(long)]
-    /// Sign both git commit and tag,
-    sign: bool,
-
-    #[structopt(long)]
-    /// Sign git commit
-    sign_commit: bool,
-
-    #[structopt(long)]
-    /// Sign git tag
-    sign_tag: bool,
-
-    #[structopt(long)]
-    /// Git remote to push
-    push_remote: Option<String>,
-
-    #[structopt(long)]
-    /// Cargo registry to upload to
-    registry: Option<String>,
-
-    #[structopt(long)]
-    /// Do not run cargo publish on release
-    skip_publish: bool,
-
-    #[structopt(long)]
-    /// Do not run git push in the last step
-    skip_push: bool,
-
-    #[structopt(long)]
-    /// Do not create git tag
-    skip_tag: bool,
-
-    #[structopt(long)]
-    /// Don't verify the contents by building them
-    no_verify: bool,
-
-    #[structopt(
-        long,
-        possible_values(&config::DependentVersion::variants()),
-        case_insensitive(true),
-    )]
-    /// Specify how workspace dependencies on this crate should be handed.
-    dependent_version: Option<config::DependentVersion>,
-
-    #[structopt(long)]
-    /// Prefix of git tag, note that this will override default prefix based on sub-directory
-    tag_prefix: Option<String>,
-
-    #[structopt(long)]
-    /// The name of the git tag.
-    tag_name: Option<String>,
-
-    #[structopt(long)]
-    /// Pre-release identifier(s) to append to the next development version after release
-    dev_version_ext: Option<String>,
-
-    #[structopt(long)]
-    /// Do not create dev version after release
-    no_dev_version: bool,
-
-    #[structopt(long)]
-    /// Provide a set of features that need to be enabled
-    features: Vec<String>,
-
-    #[structopt(long)]
-    /// Enable all features via `all-features`. Overrides `features`
-    all_features: bool,
-
-    #[structopt(long)]
-    /// Token to use when uploading
-    token: Option<String>,
-}
-
-impl ConfigArgs {
-    pub fn to_config(&self) -> config::Config {
-        config::Config {
-            sign_commit: self
-                .sign
-                .then(|| true)
-                .or_else(|| self.sign_commit.as_some(true)),
-            sign_tag: self
-                .sign
-                .then(|| true)
-                .or_else(|| self.sign_tag.as_some(true)),
-            push_remote: self.push_remote.clone(),
-            registry: self.registry.clone(),
-            disable_publish: self.skip_publish.then(|| true),
-            no_verify: self.no_verify.then(|| true),
-            disable_push: self.skip_push.then(|| true),
-            dev_version_ext: self.dev_version_ext.clone(),
-            no_dev_version: self.no_dev_version.then(|| true),
-            tag_prefix: self.tag_prefix.clone(),
-            tag_name: self.tag_name.clone(),
-            disable_tag: self.skip_tag.then(|| true),
-            enable_features: (!self.features.is_empty()).then(|| self.features.clone()),
-            enable_all_features: self.all_features.then(|| true),
-            dependent_version: self.dependent_version.clone(),
-            ..Default::default()
-        }
-    }
-}
-
-#[derive(Debug, StructOpt)]
-#[structopt(name = "cargo")]
-#[structopt(
-    setting = structopt::clap::AppSettings::UnifiedHelpMessage,
-    setting = structopt::clap::AppSettings::DeriveDisplayOrder,
-    setting = structopt::clap::AppSettings::DontCollapseArgsInUsage
-)]
-enum Command {
-    #[structopt(name = "release")]
-    #[structopt(
-        setting = structopt::clap::AppSettings::UnifiedHelpMessage,
-        setting = structopt::clap::AppSettings::DeriveDisplayOrder,
-        setting = structopt::clap::AppSettings::DontCollapseArgsInUsage
-    )]
-    Release(ReleaseOpt),
-}
-
-#[derive(Clone, Debug)]
-enum TargetVersion {
-    Relative(version::BumpLevel),
-    Absolute(semver::Version),
-}
-
-impl TargetVersion {
-    fn bump(
-        &self,
-        current: &semver::Version,
-        metadata: Option<&str>,
-    ) -> Result<Option<Version>, FatalError> {
-        match self {
-            TargetVersion::Relative(bump_level) => {
-                let mut potential_version = current.to_owned();
-                if bump_level.bump_version(&mut potential_version, metadata)? {
-                    let version = potential_version;
-                    let version_string = version.to_string();
-                    Ok(Some(Version {
-                        version,
-                        version_string,
-                    }))
-                } else {
-                    Ok(None)
-                }
-            }
-            TargetVersion::Absolute(version) => {
-                if current < version {
-                    Ok(Some(Version {
-                        version: version.to_owned(),
-                        version_string: version.to_string(),
-                    }))
-                } else if current == version {
-                    Ok(None)
-                } else {
-                    return Err(error::FatalError::UnsupportedVersionReq(
-                        "Cannot release version smaller than current one".to_owned(),
-                    ));
-                }
-            }
-        }
-    }
-}
-
-impl Default for TargetVersion {
-    fn default() -> Self {
-        TargetVersion::Relative(version::BumpLevel::Release)
-    }
-}
-
-impl std::fmt::Display for TargetVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            TargetVersion::Relative(bump_level) => {
-                write!(f, "{}", bump_level)
-            }
-            TargetVersion::Absolute(version) => {
-                write!(f, "{}", version)
-            }
-        }
-    }
-}
-
-impl std::str::FromStr for TargetVersion {
-    type Err = FatalError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Ok(bump_level) = version::BumpLevel::from_str(s) {
-            Ok(TargetVersion::Relative(bump_level))
-        } else {
-            Ok(TargetVersion::Absolute(semver::Version::parse(s)?))
-        }
-    }
-}
-
 pub fn get_logging(level: log::Level) -> env_logger::Builder {
     let mut builder = env_logger::Builder::new();
 
@@ -1105,7 +805,7 @@ pub fn get_logging(level: log::Level) -> env_logger::Builder {
 }
 
 fn main() {
-    let Command::Release(ref release_matches) = Command::from_args();
+    let args::Command::Release(ref release_matches) = args::Command::from_args();
 
     let mut builder = get_logging(release_matches.logging.log_level());
     builder.init();

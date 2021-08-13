@@ -7,7 +7,16 @@ use toml::Value;
 
 use crate::cmd::call;
 use crate::error::FatalError;
-use crate::Features;
+
+/// Expresses what features flags should be used
+pub enum Features {
+    /// None - don't use special features
+    None,
+    /// Only use selected features
+    Selective(Vec<String>),
+    /// Use all features via `all-features`
+    All,
+}
 
 fn cargo() -> String {
     env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned())
