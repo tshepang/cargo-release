@@ -9,7 +9,6 @@ use crate::error::FatalError;
 #[serde(deny_unknown_fields, default)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
-    pub exclude_paths: Option<Vec<String>>,
     pub sign_commit: Option<bool>,
     pub sign_tag: Option<bool>,
     pub push_remote: Option<String>,
@@ -39,9 +38,6 @@ pub struct Config {
 
 impl Config {
     pub fn update(&mut self, source: &Config) {
-        if let Some(exclude_paths) = source.exclude_paths.as_deref() {
-            self.exclude_paths = Some(exclude_paths.to_vec());
-        }
         if let Some(sign_commit) = source.sign_commit {
             self.sign_commit = Some(sign_commit);
         }
@@ -117,10 +113,6 @@ impl Config {
         if let Some(dependent_version) = source.dependent_version {
             self.dependent_version = Some(dependent_version);
         }
-    }
-
-    pub fn exclude_paths(&self) -> Option<&[String]> {
-        self.exclude_paths.as_ref().map(|v| v.as_ref())
     }
 
     pub fn sign_commit(&self) -> bool {
@@ -327,30 +319,12 @@ impl CargoWorkspace {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 struct CargoPackage {
-    include: Option<Vec<String>>,
-    exclude: Option<Vec<String>>,
     metadata: Option<CargoMetadata>,
 }
 
 impl CargoPackage {
     fn into_config(self) -> Option<Config> {
-        if self.include.is_none() && self.exclude.is_none() && self.metadata.is_none() {
-            return None;
-        }
-        let CargoPackage {
-            include,
-            exclude,
-            metadata,
-        } = self;
-        let mut config = metadata.and_then(|m| m.release).unwrap_or_default();
-        if config.exclude_paths.is_none() {
-            if let Some(_include) = include {
-                log::trace!("Ignoring `include` from Cargo.toml");
-            } else if let Some(exclude) = exclude {
-                config.exclude_paths = Some(exclude);
-            }
-        }
-        Some(config)
+        self.metadata?.release
     }
 }
 

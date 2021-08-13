@@ -3,6 +3,7 @@ use std::fs::{self, File};
 use std::io::prelude::*;
 use std::path::Path;
 
+use bstr::ByteSlice;
 use toml::Value;
 
 use crate::cmd::call;
@@ -20,6 +21,34 @@ pub enum Features {
 
 fn cargo() -> String {
     env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned())
+}
+
+pub fn package_content(manifest_path: &Path) -> Result<Vec<std::path::PathBuf>, FatalError> {
+    let mut cmd = std::process::Command::new(cargo());
+    cmd.arg("package");
+    cmd.arg("--manifest-path");
+    cmd.arg(manifest_path);
+    cmd.arg("--list");
+    // Not worth passing around allow_dirty to here since we are just getting a file list.
+    cmd.arg("--allow-dirty");
+    let output = cmd.output().map_err(FatalError::from)?;
+
+    let parent = manifest_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new(""));
+
+    if output.status.success() {
+        let paths = ByteSlice::lines(output.stdout.as_slice())
+            .map(|l| parent.join(l.to_path_lossy()))
+            .collect();
+        Ok(paths)
+    } else {
+        let error = String::from_utf8_lossy(&output.stderr);
+        Err(FatalError::PackageListFailed(
+            manifest_path.to_owned(),
+            error.to_string(),
+        ))
+    }
 }
 
 pub fn publish(

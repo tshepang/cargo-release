@@ -58,12 +58,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2da1976d75adbe5fbc88130ecd119529cf1cc6a93ae1546d8696ee66f0d21af1"
 
 [[package]]
-name = "boolinator"
-version = "2.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfa8873f51c92e232f9bac4065cddef41b714152812bfc5f7672ba16d6ef8cd9"
-
-[[package]]
 name = "bstr"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -103,7 +97,6 @@ name = "cargo-release"
 version = "0.16.4-alpha.0"
 dependencies = [
  "assert_fs",
- "boolinator",
  "bstr",
  "cargo_metadata",
  "chrono",
@@ -113,7 +106,6 @@ dependencies = [
  "difflib",
  "dirs-next",
  "env_logger",
- "ignore",
  "itertools 0.9.0",
  "log",
  "maplit",
