@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::io::Write;
 use std::path::Path;
@@ -116,6 +117,7 @@ fn release_packages<'m>(
     }
 
     let lock_path = ws_meta.workspace_root.join("Cargo.lock");
+    let mut changed_pkgs = HashSet::new();
     for pkg in pkgs {
         if let Some(version) = pkg.version.as_ref() {
             let cwd = pkg.package_path;
@@ -136,19 +138,28 @@ fn release_packages<'m>(
                     log::debug!("Lock file changed since {} but ignored since it could be as simple as a pre-release version bump.", prev_tag_name);
                     let _ = changed.swap_remove(lock_index);
                 }
-                if changed.is_empty() {
-                    log::warn!(
-                        "Updating {} to {} despite no changes made since tag {}",
-                        crate_name,
-                        version.version_string,
-                        prev_tag_name
-                    );
-                } else {
+                if !changed.is_empty() {
                     log::debug!(
                         "Files changed in {} since {}: {:#?}",
                         crate_name,
                         prev_tag_name,
                         changed
+                    );
+                    changed_pkgs.insert(&pkg.meta.id);
+                    changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
+                } else if changed_pkgs.contains(&pkg.meta.id) {
+                    log::debug!(
+                        "Dependency changed for {} since {}",
+                        crate_name,
+                        prev_tag_name,
+                    );
+                    changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
+                } else {
+                    log::warn!(
+                        "Updating {} to {} despite no changes made since tag {}",
+                        crate_name,
+                        version.version_string,
+                        prev_tag_name
                     );
                 }
             } else {
