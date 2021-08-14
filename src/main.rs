@@ -6,6 +6,7 @@ use std::path::Path;
 use std::process::exit;
 
 use chrono::prelude::Local;
+use itertools::Itertools;
 use structopt::StructOpt;
 
 mod args;
@@ -174,8 +175,22 @@ fn release_packages<'m>(
 
     let git_remote = ws_config.push_remote();
     let branch = git::current_branch(ws_meta.workspace_root.as_std_path())?;
-    if branch == "HEAD" {
-        log::warn!("Releasing from a detached HEAD");
+    let mut good_branches = ignore::gitignore::GitignoreBuilder::new(".");
+    for pattern in ws_config.allow_branch() {
+        good_branches.add_line(None, pattern)?;
+    }
+    let good_branches = good_branches.build()?;
+    let good_branch_match = good_branches.matched_path_or_any_parents(&branch, false);
+    if !good_branch_match.is_ignore() {
+        log::warn!(
+            "Cannot release from branch {:?}, instead switch to {:?}",
+            branch,
+            ws_config.allow_branch().join(", ")
+        );
+        log::trace!("Due to {:?}", good_branch_match);
+        if !args.dry_run {
+            return Ok(101);
+        }
     }
     git::fetch(ws_meta.workspace_root.as_std_path(), git_remote, &branch)?;
     if git::is_behind_remote(ws_meta.workspace_root.as_std_path(), git_remote, &branch)? {

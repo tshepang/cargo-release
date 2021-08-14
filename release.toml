@@ -1,3 +1,4 @@
+allow-branch = ["master"]
 sign-commit = true
 sign-tag = true
 #upload-doc = true
