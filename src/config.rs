@@ -9,6 +9,7 @@ use crate::error::FatalError;
 #[serde(deny_unknown_fields, default)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
+    pub allow_branch: Option<Vec<String>>,
     pub sign_commit: Option<bool>,
     pub sign_tag: Option<bool>,
     pub push_remote: Option<String>,
@@ -38,6 +39,9 @@ pub struct Config {
 
 impl Config {
     pub fn update(&mut self, source: &Config) {
+        if let Some(allow_branch) = source.allow_branch.as_deref() {
+            self.allow_branch = Some(allow_branch.to_owned());
+        }
         if let Some(sign_commit) = source.sign_commit {
             self.sign_commit = Some(sign_commit);
         }
@@ -113,6 +117,13 @@ impl Config {
         if let Some(dependent_version) = source.dependent_version {
             self.dependent_version = Some(dependent_version);
         }
+    }
+
+    pub fn allow_branch(&self) -> impl Iterator<Item = &str> {
+        self.allow_branch
+            .as_deref()
+            .map(|a| itertools::Either::Left(a.iter().map(|s| s.as_str())))
+            .unwrap_or_else(|| itertools::Either::Right(IntoIterator::into_iter(["!HEAD"])))
     }
 
     pub fn sign_commit(&self) -> bool {
