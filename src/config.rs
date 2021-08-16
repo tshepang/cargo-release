@@ -385,7 +385,9 @@ pub fn resolve_custom_config(file_path: &Path) -> Result<Option<Config>, FatalEr
 ///
 /// This tries the following sources in order, merging the results:
 /// 1. $HOME/.release.toml
-/// 2. $(workspace)/release.toml
+/// 2. $HOME/.config/cargo-release/release.toml
+/// 3. $(workspace)/release.toml
+/// 3. $(workspace)/Cargo.toml
 pub fn resolve_workspace_config(workspace_root: &Path) -> Result<Config, FatalError> {
     let mut config = Config::default();
 
@@ -413,7 +415,6 @@ pub fn resolve_workspace_config(workspace_root: &Path) -> Result<Config, FatalEr
         config.update(&cfg);
     };
 
-    // Crate manifest.
     let manifest_path = workspace_root.join("Cargo.toml");
     let current_dir_config = get_ws_config_from_manifest(&manifest_path)?;
     if let Some(cfg) = current_dir_config {
@@ -427,9 +428,11 @@ pub fn resolve_workspace_config(workspace_root: &Path) -> Result<Config, FatalEr
 ///
 /// This tries the following sources in order, merging the results:
 /// 1. $HOME/.release.toml
-/// 2. $(workspace)/release.toml
+/// 2. $HOME/.config/release.toml
+/// 3. $(workspace)/release.toml
+/// 3. $(workspace)/Cargo.toml `workspace.metadata.release`
 /// 4. $(crate)/release.toml
-/// 3. $(crate)/Cargo.toml `package.metadata.release`
+/// 5. $(crate)/Cargo.toml `package.metadata.release`
 ///
 /// `$(crate)/Cargo.toml` is a way to differentiate configuration for the root crate and the
 /// workspace.
@@ -476,7 +479,6 @@ pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Con
         config.update(&cfg);
     };
 
-    // Crate manifest.
     let current_dir_config = get_pkg_config_from_manifest(manifest_path)?;
     if let Some(cfg) = current_dir_config {
         config.update(&cfg);

@@ -37,7 +37,9 @@ Configuration is read from the following (in precedence order)
 - File specified via `--config PATH`
 - `$CRATE/Cargo.toml` (`[package.metadata.release]` table)
 - `$CRATE/release.toml`
+- `$WORKSPACE/Cargo.toml` (`[workspace.metadata.release]` table)
 - `$WORKSPACE/release.toml`
+- `$HOME/.config/cargo-release/release.toml`
 - `$HOME/.release.toml`
 
 ### Config Fields
@@ -73,7 +75,7 @@ Configuration is read from the following (in precedence order)
 
 ### Supported Environment Variables
 
-* `PUBLISH_GRACE_SLEEP`: sleep timeout between crates publish when releasing from workspace. This is a workaround to make previous crate discoveriable on crates.io.  
+* `PUBLISH_GRACE_SLEEP`: sleep timeout between crates publish when releasing from workspace. This is a workaround to make previous crate discoveriable on crates.io.
 
 ### {Pre,Post}-release Replacements
 
