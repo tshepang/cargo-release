@@ -398,6 +398,15 @@ pub fn resolve_workspace_config(workspace_root: &Path) -> Result<Config, FatalEr
         }
     };
 
+    let config_dir = dirs_next::config_dir();
+    if let Some(mut config_path) = config_dir {
+        config_path.push("cargo-release/release.toml");
+        if let Some(cfg) = get_config_from_file(&config_path)? {
+            config.update(&cfg);
+        }
+    };
+
+    // Workspace config
     let default_config = workspace_root.join("release.toml");
     let current_dir_config = get_config_from_file(&default_config)?;
     if let Some(cfg) = current_dir_config {
@@ -436,8 +445,17 @@ pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Con
         }
     };
 
+    let config_dir = dirs_next::config_dir();
+    if let Some(mut config_path) = config_dir {
+        config_path.push("cargo-release/release.toml");
+        if let Some(cfg) = get_config_from_file(&config_path)? {
+            config.update(&cfg);
+        }
+    };
+
     let crate_root = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
+    // Workspace config
     if crate_root != workspace_root {
         let default_config = workspace_root.join("release.toml");
         let current_dir_config = get_config_from_file(&default_config)?;
