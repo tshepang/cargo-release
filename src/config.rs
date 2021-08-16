@@ -123,7 +123,7 @@ impl Config {
         self.allow_branch
             .as_deref()
             .map(|a| itertools::Either::Left(a.iter().map(|s| s.as_str())))
-            .unwrap_or_else(|| itertools::Either::Right(IntoIterator::into_iter(["!HEAD"])))
+            .unwrap_or_else(|| itertools::Either::Right(IntoIterator::into_iter(["*", "!HEAD"])))
     }
 
     pub fn sign_commit(&self) -> bool {
