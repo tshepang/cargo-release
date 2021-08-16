@@ -80,6 +80,7 @@ pub fn publish(
 
     if dry_run {
         command.push("--dry-run");
+        command.push("--allow-dirty");
     }
 
     if no_verify {
