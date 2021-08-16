@@ -32,7 +32,7 @@ fn main() {
     match release_workspace(release_matches) {
         Ok(code) => exit(code),
         Err(e) => {
-            log::warn!("Fatal: {}", e);
+            log::error!("Fatal: {}", e);
             exit(128);
         }
     }
@@ -95,7 +95,7 @@ fn release_packages<'m>(
     let mut dirty = false;
     if ws_config.consolidate_commits() {
         if git::is_dirty(ws_meta.workspace_root.as_std_path())? {
-            log::warn!("Uncommitted changes detected, please commit before release.");
+            log::error!("Uncommitted changes detected, please commit before release.");
             dirty = true;
         }
     } else {
@@ -103,7 +103,7 @@ fn release_packages<'m>(
             let cwd = pkg.package_path;
             if git::is_dirty(cwd)? {
                 let crate_name = pkg.meta.name.as_str();
-                log::warn!(
+                log::error!(
                     "Uncommitted changes detected for {}, please commit before release.",
                     crate_name
                 );
@@ -182,7 +182,7 @@ fn release_packages<'m>(
     let good_branches = good_branches.build()?;
     let good_branch_match = good_branches.matched_path_or_any_parents(&branch, false);
     if !good_branch_match.is_ignore() {
-        log::warn!(
+        log::error!(
             "Cannot release from branch {:?}, instead switch to {:?}",
             branch,
             ws_config.allow_branch().join(", ")
@@ -277,7 +277,7 @@ fn release_packages<'m>(
                 // we use dry_run environmental variable to run the script
                 // so here we set dry_run=false and always execute the command.
                 if !cmd::call_with_env(pre_rel_hook, envs, cwd, false)? {
-                    log::warn!(
+                    log::error!(
                         "Release of {} aborted by non-zero return of prerelease hook.",
                         crate_name
                     );
