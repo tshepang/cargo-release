@@ -385,7 +385,9 @@ pub fn resolve_custom_config(file_path: &Path) -> Result<Option<Config>, FatalEr
 ///
 /// This tries the following sources in order, merging the results:
 /// 1. $HOME/.release.toml
-/// 2. $(workspace)/release.toml
+/// 2. $HOME/.config/cargo-release/release.toml
+/// 3. $(workspace)/release.toml
+/// 3. $(workspace)/Cargo.toml
 pub fn resolve_workspace_config(workspace_root: &Path) -> Result<Config, FatalError> {
     let mut config = Config::default();
 
@@ -398,13 +400,21 @@ pub fn resolve_workspace_config(workspace_root: &Path) -> Result<Config, FatalEr
         }
     };
 
+    let config_dir = dirs_next::config_dir();
+    if let Some(mut config_path) = config_dir {
+        config_path.push("cargo-release/release.toml");
+        if let Some(cfg) = get_config_from_file(&config_path)? {
+            config.update(&cfg);
+        }
+    };
+
+    // Workspace config
     let default_config = workspace_root.join("release.toml");
     let current_dir_config = get_config_from_file(&default_config)?;
     if let Some(cfg) = current_dir_config {
         config.update(&cfg);
     };
 
-    // Crate manifest.
     let manifest_path = workspace_root.join("Cargo.toml");
     let current_dir_config = get_ws_config_from_manifest(&manifest_path)?;
     if let Some(cfg) = current_dir_config {
@@ -418,9 +428,11 @@ pub fn resolve_workspace_config(workspace_root: &Path) -> Result<Config, FatalEr
 ///
 /// This tries the following sources in order, merging the results:
 /// 1. $HOME/.release.toml
-/// 2. $(workspace)/release.toml
+/// 2. $HOME/.config/release.toml
+/// 3. $(workspace)/release.toml
+/// 3. $(workspace)/Cargo.toml `workspace.metadata.release`
 /// 4. $(crate)/release.toml
-/// 3. $(crate)/Cargo.toml `package.metadata.release`
+/// 5. $(crate)/Cargo.toml `package.metadata.release`
 ///
 /// `$(crate)/Cargo.toml` is a way to differentiate configuration for the root crate and the
 /// workspace.
@@ -436,8 +448,17 @@ pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Con
         }
     };
 
+    let config_dir = dirs_next::config_dir();
+    if let Some(mut config_path) = config_dir {
+        config_path.push("cargo-release/release.toml");
+        if let Some(cfg) = get_config_from_file(&config_path)? {
+            config.update(&cfg);
+        }
+    };
+
     let crate_root = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
+    // Workspace config
     if crate_root != workspace_root {
         let default_config = workspace_root.join("release.toml");
         let current_dir_config = get_config_from_file(&default_config)?;
@@ -446,14 +467,18 @@ pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Con
         };
     }
 
-    // Project release file.
+    let current_dir_config = get_ws_config_from_manifest(manifest_path)?;
+    if let Some(cfg) = current_dir_config {
+        config.update(&cfg);
+    };
+
+    // Crate config
     let default_config = crate_root.join("release.toml");
     let current_dir_config = get_config_from_file(&default_config)?;
     if let Some(cfg) = current_dir_config {
         config.update(&cfg);
     };
 
-    // Crate manifest.
     let current_dir_config = get_pkg_config_from_manifest(manifest_path)?;
     if let Some(cfg) = current_dir_config {
         config.update(&cfg);
