@@ -121,14 +121,20 @@ fn release_packages<'m>(
     let mut changed_pkgs = HashSet::new();
     for pkg in pkgs {
         if let Some(version) = pkg.version.as_ref() {
-            let cwd = pkg.package_path;
+            let changed_root = if pkg.bin {
+                ws_meta.workspace_root.as_std_path()
+            } else {
+                // Limit our lookup since we don't need to check for `Cargo.lock`
+                pkg.package_path
+            };
             let crate_name = pkg.meta.name.as_str();
             let prev_tag_name = &pkg.prev_tag;
-            if let Some(changed) = git::changed_files(cwd, prev_tag_name)? {
+            if let Some(changed) = git::changed_files(changed_root, prev_tag_name)? {
                 let mut changed: Vec<_> = changed
                     .into_iter()
                     .filter(|p| pkg.package_content.contains(p))
                     .collect();
+                let mut lock_changed = false;
                 if let Some(lock_index) = changed.iter().enumerate().find_map(|(idx, path)| {
                     if path == &lock_path {
                         Some(idx)
@@ -136,8 +142,18 @@ fn release_packages<'m>(
                         None
                     }
                 }) {
-                    log::debug!("Lock file changed since {} but ignored since it could be as simple as a pre-release version bump.", prev_tag_name);
                     let _ = changed.swap_remove(lock_index);
+                    if !pkg.bin {
+                        log::trace!(
+                            "Ignoring lock file change since {}; {} has no [[bin]]",
+                            prev_tag_name,
+                            crate_name
+                        );
+                    } else if !pkg.config.no_dev_version() {
+                        log::debug!("Ignoring lock file change since {}; could be a pre-release version bump.", prev_tag_name);
+                    } else {
+                        lock_changed = true;
+                    }
                 }
                 if !changed.is_empty() {
                     log::debug!(
@@ -154,7 +170,17 @@ fn release_packages<'m>(
                         crate_name,
                         prev_tag_name,
                     );
+                    changed_pkgs.insert(&pkg.meta.id);
                     changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
+                } else if lock_changed && pkg.bin && !pkg.config.no_dev_version() {
+                    log::debug!(
+                        "Lock file changed for {} since {}, assuming its relevant",
+                        crate_name,
+                        prev_tag_name
+                    );
+                    changed_pkgs.insert(&pkg.meta.id);
+                    // Lock file changes don't invalidate dependents, which is why this check is
+                    // after the transitive check, so that can invalidate dependents
                 } else {
                     log::warn!(
                         "Updating {} to {} despite no changes made since tag {}",
@@ -549,6 +575,8 @@ struct PackageRelease<'m> {
     package_path: &'m Path,
     config: config::Config,
 
+    bin: bool,
+
     package_content: Vec<std::path::PathBuf>,
 
     prev_version: version::Version,
@@ -679,6 +707,12 @@ impl<'m> PackageRelease<'m> {
             None
         };
 
+        let bin = pkg_meta
+            .targets
+            .iter()
+            .flat_map(|t| t.kind.iter())
+            .any(|k| k == "bin");
+
         let features = config.features();
 
         let pkg = PackageRelease {
@@ -686,6 +720,8 @@ impl<'m> PackageRelease<'m> {
             manifest_path,
             package_path: cwd,
             config,
+
+            bin,
 
             package_content,
 
