@@ -89,7 +89,7 @@ This field is an array of tables with the following
 * `exactly` (optional): Number of occurrences of `search`.
 * `prerelease` (default is `false`): Run the replacement when bumping to a pre-release level.
 
-See [release.toml](https://github.com/sunng87/cargo-release/blob/master/release.toml) for example.
+See [release.toml](https://github.com/crate-ci/cargo-release/blob/master/release.toml) for example.
 
 ### Placeholders
 

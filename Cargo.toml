@@ -1,12 +1,12 @@
 [package]
 name = "cargo-release"
 version = "0.16.4-alpha.0"
-authors = ["Ning Sun <sunng@pm.me>"]
+authors = ["Ning Sun <sunng@pm.me>", "Ed Page <eopage@gmail.com>"]
 license = "MIT/Apache-2.0"
 description = "Cargo subcommand for you to smooth your release process."
 keywords = ["cargo"]
 categories = ["development-tools::cargo-plugins"]
-repository = "https://github.com/sunng87/cargo-release"
+repository = "https://github.com/crate-ci/cargo-release"
 readme = "README.md"
 edition = "2018"
 exclude = [
@@ -45,6 +45,3 @@ env_logger = "0.8"
 [dev-dependencies]
 assert_fs = "1.0"
 predicates = "1.0"
-
-[badges]
-travis-ci = { repository = "sunng87/cargo-release", branch="0.16.3" }

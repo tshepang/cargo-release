@@ -81,8 +81,8 @@ current release version and date.
 ## How do I apply a setting only to one crate in my workspace?
 
 Example problems:
-- Release fails because `cargo-release` was trying to update a non-existent `CHANGELOG.md` ([#157](https://github.com/sunng87/cargo-release/issues/157))
-- Only create one tag for the entire workspace ([#162](https://github.com/sunng87/cargo-release/issues/162))
+- Release fails because `cargo-release` was trying to update a non-existent `CHANGELOG.md` ([#157](https://github.com/crate-ci/cargo-release/issues/157))
+- Only create one tag for the entire workspace ([#162](https://github.com/crate-ci/cargo-release/issues/162))
 
 Somethings only need to be done on for a release, like updating the
 `CHANGELOG.md`, no matter how many crates are being released.  Usually these
@@ -99,7 +99,7 @@ have two choices:
 ## How do I customize my tagging in a workspace?
 
 Example problems:
-- Customizing tags while needing the root workspace to follow a specific convention ([#172](https://github.com/sunng87/cargo-release/issues/172))
+- Customizing tags while needing the root workspace to follow a specific convention ([#172](https://github.com/crate-ci/cargo-release/issues/172))
 
 By default, your tag will look like:
 - `v{{version}}` if the crate is in the repo root.
