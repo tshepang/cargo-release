@@ -39,9 +39,9 @@ impl TargetVersion {
                 } else if current == version {
                     Ok(None)
                 } else {
-                    return Err(crate::error::FatalError::UnsupportedVersionReq(
+                    Err(crate::error::FatalError::UnsupportedVersionReq(
                         "Cannot release version smaller than current one".to_owned(),
-                    ));
+                    ))
                 }
             }
         }
@@ -124,7 +124,7 @@ impl BumpLevel {
                 if !version.is_prerelease() {
                     version.increment_patch();
                 } else {
-                    version.pre = semver::Prerelease::EMPTY.clone();
+                    version.pre = semver::Prerelease::EMPTY;
                 }
                 need_commit = true;
             }
@@ -142,7 +142,7 @@ impl BumpLevel {
             }
             BumpLevel::Release => {
                 if version.is_prerelease() {
-                    version.pre = semver::Prerelease::EMPTY.clone();
+                    version.pre = semver::Prerelease::EMPTY;
                     need_commit = true;
                 }
             }
@@ -173,21 +173,21 @@ impl VersionExt for semver::Version {
         self.major += 1;
         self.minor = 0;
         self.patch = 0;
-        self.pre = semver::Prerelease::EMPTY.clone();
-        self.build = semver::BuildMetadata::EMPTY.clone();
+        self.pre = semver::Prerelease::EMPTY;
+        self.build = semver::BuildMetadata::EMPTY;
     }
 
     fn increment_minor(&mut self) {
         self.minor += 1;
         self.patch = 0;
-        self.pre = semver::Prerelease::EMPTY.clone();
-        self.build = semver::BuildMetadata::EMPTY.clone();
+        self.pre = semver::Prerelease::EMPTY;
+        self.build = semver::BuildMetadata::EMPTY;
     }
 
     fn increment_patch(&mut self) {
         self.patch += 1;
-        self.pre = semver::Prerelease::EMPTY.clone();
-        self.build = semver::BuildMetadata::EMPTY.clone();
+        self.pre = semver::Prerelease::EMPTY;
+        self.build = semver::BuildMetadata::EMPTY;
     }
 
     fn prerelease_id_version(&self) -> Result<Option<(String, Option<u64>)>, FatalError> {
