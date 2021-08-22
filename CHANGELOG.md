@@ -1,7 +1,6 @@
 # Change Log
 
 <!-- next-header -->
-
 ## [Unreleased] - ReleaseDate
 
 ## [0.16.3] - 2021-08-01
@@ -204,3 +203,6 @@
 * Using `v` as default version tag prefix #127
 * Improved cargo binary detection #88 #89
 * Doc update
+
+<!-- next-url -->
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.16.3...HEAD
