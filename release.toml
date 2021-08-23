@@ -1,12 +1,7 @@
-allow-branch = ["master"]
-sign-commit = true
-sign-tag = true
-#upload-doc = true
+pre-release-commit-message = "chore: Release"
+tag-message = "{{tag_name}}"
+tag-name = "{{prefix}}v{{version}}"
 pre-release-hook = ["./hook.sh", "一", "два", "Three", "4"]
-pre-release-replacements = [
-  {file="README.md", search="Current release: [a-z0-9\\.-]+", replace="Current release: {{version}}"} ,
-  {file ="Cargo.toml", search="branch=\"[a-z0-9\\.-]+\"", replace="branch=\"{{version}}\""},
-  {file="CHANGELOG.md", search="Unreleased", replace="{{version}}"},
-  {file="CHANGELOG.md", search="ReleaseDate", replace="{{date}}"},
-  {file="CHANGELOG.md", search="<!-- next-header -->", replace="<!-- next-header -->\n\n## [Unreleased] - ReleaseDate"},
-]
+consolidate-commits = true
+consolidate-pushes = true
+allow-branch = ["master"]

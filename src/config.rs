@@ -497,7 +497,7 @@ mod test {
         #[test]
         fn doesnt_panic() {
             let release_config = resolve_config(Path::new("."), Path::new("Cargo.toml")).unwrap();
-            assert!(release_config.sign_commit());
+            assert!(!release_config.sign_commit());
         }
     }
 }

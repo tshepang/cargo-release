@@ -1,3 +1,6 @@
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::comparison_chain)]
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ffi::OsStr;

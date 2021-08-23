@@ -158,7 +158,7 @@ impl ConfigArgs {
             disable_tag: self.skip_tag.then(|| true),
             enable_features: (!self.features.is_empty()).then(|| self.features.clone()),
             enable_all_features: self.all_features.then(|| true),
-            dependent_version: self.dependent_version.clone(),
+            dependent_version: self.dependent_version,
             ..Default::default()
         }
     }
