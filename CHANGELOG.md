@@ -3,6 +3,29 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+- Support `~/.config/cargo-release/release.toml`
+- Run `cargo publish` during dry-runs to help catch publish-specific errors
+- Add `allow-branch` config setting to limit what branches a release can happen from
+- Support `Cargo.toml`s `workspace.metadata`
+
+### Fixed
+
+- Don't warn a user about releasing a crate without changes if a dependency changed
+- Notify for all `[[bin]]` crates on `Cargo.lock` change, rather than just the root crate
+- Made clearer what are fatal errors during dry-run (since dry-run doesn't stop for them)
+- Gracefully handle path-only dependencies which are especially important for cycles.
+- Correctly update dependents on post-release version bump.
+- Log what was dirty about a repo to make it easier for people to report problems
+- Allow pushing even when there isn't a tracking branch
+- Specifying `--package` should switch us to opt-in
+
+### Breaking Changes
+
+- `--dry-run` is now the default.   Pass `--execute` to perform the release.
+- `exclude-paths` config setting was removed; we now rely on `cargo package --list` to know which files to check for changes.
+
 ## [0.16.3] - 2021-08-01
 
 ## [0.16.2] - 2021-07-15
