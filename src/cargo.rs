@@ -381,7 +381,7 @@ mod test {
             set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
 
             manifest_path.assert(
-                predicate::str::similar(
+                predicate::str::diff(
                     r#"
     [package]
     name = "t"
@@ -427,7 +427,7 @@ mod test {
             set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
 
             manifest_path.assert(
-                predicate::str::similar(
+                predicate::str::diff(
                     r#"
     [package]
     name = "t"
@@ -473,7 +473,7 @@ mod test {
             set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
 
             manifest_path.assert(
-                predicate::str::similar(
+                predicate::str::diff(
                     r#"
     [package]
     name = "t"
@@ -519,7 +519,7 @@ mod test {
             set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
 
             manifest_path.assert(
-                predicate::str::similar(
+                predicate::str::diff(
                     r#"
     [package]
     name = "t"
@@ -569,7 +569,7 @@ mod test {
             set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
 
             manifest_path.assert(
-                predicate::str::similar(
+                predicate::str::diff(
                     r#"
     [package]
     name = "t"
@@ -645,7 +645,7 @@ mod test {
             set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
 
             manifest_path.assert(
-                predicate::str::similar(
+                predicate::str::diff(
                     r#"
     [package]
     name = "t"
@@ -690,7 +690,7 @@ mod test {
             set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
 
             manifest_path.assert(
-                predicate::str::similar(
+                predicate::str::diff(
                     r#"
     [package]
     name = "t"
