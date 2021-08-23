@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.16.5] - 2021-08-23
+
 ## [0.16.4] - 2021-08-23
 
 ### Features
@@ -231,5 +233,6 @@
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.16.4...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.16.5...HEAD
+[0.16.5]: https://github.com/crate-ci/cargo-release/compare/v0.16.4...v0.16.5
 [0.16.4]: https://github.com/crate-ci/cargo-release/compare/v0.16.3...v0.16.4
