@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.17.0] - 2021-08-23
+
 ### Features
 
 - Support `~/.config/cargo-release/release.toml`
@@ -229,7 +231,8 @@
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.16.6...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/crate-ci/cargo-release/compare/v0.16.6...v0.17.0
 [0.16.6]: https://github.com/crate-ci/cargo-release/compare/v0.16.5...v0.16.6
 [0.16.5]: https://github.com/crate-ci/cargo-release/compare/v0.16.4...v0.16.5
 [0.16.4]: https://github.com/crate-ci/cargo-release/compare/v0.16.3...v0.16.4
