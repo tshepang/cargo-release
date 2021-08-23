@@ -3,12 +3,6 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
-## [0.16.6] - 2021-08-23
-
-## [0.16.5] - 2021-08-23
-
-## [0.16.4] - 2021-08-23
-
 ### Features
 
 - Support `~/.config/cargo-release/release.toml`
