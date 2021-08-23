@@ -44,9 +44,9 @@ pub struct ReleaseOpt {
     #[structopt(flatten)]
     pub config: ConfigArgs,
 
-    #[structopt(short = "n", long)]
-    /// Do not actually change anything, just log what are going to do
-    pub dry_run: bool,
+    /// Actually perform a release. Dry-run mode is the default
+    #[structopt(short = "x", long)]
+    pub execute: bool,
 
     #[structopt(long)]
     /// Skip release confirmation and version preview
@@ -58,6 +58,12 @@ pub struct ReleaseOpt {
 
     #[structopt(flatten)]
     pub logging: Verbosity,
+}
+
+impl ReleaseOpt {
+    pub fn dry_run(&self) -> bool {
+        !self.execute
+    }
 }
 
 #[derive(Debug, StructOpt)]

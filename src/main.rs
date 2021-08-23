@@ -91,7 +91,7 @@ fn release_packages<'m>(
     ws_config: &config::Config,
     pkgs: &'m [&'m PackageRelease<'m>],
 ) -> Result<i32, error::FatalError> {
-    let dry_run = args.dry_run;
+    let dry_run = args.dry_run();
 
     // STEP 0: Help the user make the right decisions.
     git::git_version()?;
@@ -115,7 +115,7 @@ fn release_packages<'m>(
         }
     }
     if dirty {
-        if !args.dry_run {
+        if !dry_run {
             return Ok(101);
         }
     }
@@ -217,7 +217,7 @@ fn release_packages<'m>(
             ws_config.allow_branch().join(", ")
         );
         log::trace!("Due to {:?}", good_branch_match);
-        if !args.dry_run {
+        if !dry_run {
             return Ok(101);
         }
     }
@@ -254,7 +254,6 @@ fn release_packages<'m>(
     // STEP 2: update current version, save and commit
     let mut shared_commit = false;
     for pkg in pkgs {
-        let dry_run = args.dry_run;
         let cwd = pkg.package_path;
         let crate_name = pkg.meta.name.as_str();
 
@@ -538,6 +537,10 @@ fn release_packages<'m>(
                 return Ok(106);
             }
         }
+    }
+
+    if dry_run {
+        log::warn!("Ran a `dry-run`, re-run with `--execute` if all looked good.");
     }
 
     Ok(0)
