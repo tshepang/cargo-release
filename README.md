@@ -9,6 +9,18 @@ Features
   - Updates depednent crates in workspace when changing version
   - Change detection to help guide in what crates might not need a release
   - Optionally share commits
+- Handles `cargo publish`, tagging, and pushing
+- Pre-release search and replace for custom version updates, including
+  - Updating changelogs
+  - Update tags in `Dockerfile`s
+- Pre-release hook for extra customization, including
+  - [CHANGELOG generation](https://github.com/orhun/git-cliff)
+
+## Install
+
+Current release: 0.16.4
+
+`cargo install cargo-release`
 
 ## Usage
 
