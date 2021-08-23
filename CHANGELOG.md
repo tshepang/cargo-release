@@ -14,6 +14,7 @@
 
 ### Fixed
 
+- In theory, finally fixed it so we properly wait between publishing of crates in a workspace
 - Don't warn a user about releasing a crate without changes if a dependency changed
 - Notify for all `[[bin]]` crates on `Cargo.lock` change, rather than just the root crate
 - Made clearer what are fatal errors during dry-run (since dry-run doesn't stop for them)

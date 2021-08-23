@@ -4,7 +4,7 @@
 
 | Argument        | Format | Description |
 |-----------------|--------|-------------|
-| `--dry-run`     | bool   | Do nothing; report what would happen |
+| `--execute`     | bool   | Actually perform the release |
 | `--no-confirm`  | bool   | Release the crate without the user verifying what will happen. |
 | `--isolated`    | bool   | Do not search for config files |
 | `--config`      | string | Load a config file from disk |

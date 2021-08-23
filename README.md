@@ -1,24 +1,14 @@
 # cargo release
 
-Performs release best-practices, including:
-
-1. Ensure the git working directory is clean.
-2. Bump the version in Cargo.toml
-3. Create a git tag for this version
-4. Run `cargo publish` ([if not disabled](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional))
-5. Bump version for next development cycle
-6. `git push`
-
-Features for workspaces include:
-- Report which crates might be able to be skipped
-- Update version ranges in dependent crates
-- Optionally using a single commit for all version bumps
-
-## Install
-
-Current release: 0.16.4
-
-`cargo install cargo-release`
+Features
+- Ensure you are in a good state for release, including:
+  - Right branch
+  - Up-to-date with remote
+  - Clean tree
+- Supports workspaces using cargo's native flags, like `--workspace`, `--exclude` and `--package`
+  - Updates depednent crates in workspace when changing version
+  - Change detection to help guide in what crates might not need a release
+  - Optionally share commits
 
 ## Usage
 
@@ -35,9 +25,12 @@ Current release: 0.16.4
 
 ### Dry run
 
-We recommend calling `cargo release --dry-run -vv` with your custom options before
-actually executing it. The dry-run mode with verbose output will print all commands to
-execute during the release process. And you will get an overview of what's going on.
+By default, `cargo-release` runs in dry-run mode so you can safely run it and
+verify what it will do.
+- Increase the logging level with each additional `-v` to get more details
+- Speed up dry-run by skipping `cargo-publish`s verify step with `--no-verify`
+
+Once you are ready, pass the `--execute` flag.
 
 ## License
 
