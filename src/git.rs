@@ -86,6 +86,8 @@ pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
 }
 
 pub fn changed_files(dir: &Path, tag: &str) -> Result<Option<Vec<PathBuf>>, FatalError> {
+    let root = top_level(dir)?;
+
     let output = Command::new("git")
         .arg("diff")
         .arg(&format!("{}..HEAD", tag))
@@ -101,7 +103,7 @@ pub fn changed_files(dir: &Path, tag: &str) -> Result<Option<Vec<PathBuf>>, Fata
             let paths = output
                 .stdout
                 .lines()
-                .map(|l| dir.join(l.to_path_lossy()))
+                .map(|l| root.join(l.to_path_lossy()))
                 .collect();
             Ok(Some(paths))
         }
