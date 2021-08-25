@@ -188,7 +188,7 @@ fn release_packages<'m>(
                     log::warn!(
                         "Updating {} to {} despite no changes made since tag {}",
                         crate_name,
-                        version.version_string,
+                        version.full_version_string,
                         prev_tag_name
                     );
                 }
@@ -232,14 +232,14 @@ fn release_packages<'m>(
             let pkg = pkgs[0];
             let crate_name = pkg.meta.name.as_str();
             let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-            format!("Release {} {}?", crate_name, base.version_string)
+            format!("Release {} {}?", crate_name, base.full_version_string)
         } else {
             let mut buffer: Vec<u8> = vec![];
             writeln!(&mut buffer, "Release").unwrap();
             for pkg in pkgs {
                 let crate_name = pkg.meta.name.as_str();
                 let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-                writeln!(&mut buffer, "  {} {}", crate_name, base.version_string).unwrap();
+                writeln!(&mut buffer, "  {} {}", crate_name, base.full_version_string).unwrap();
             }
             write!(&mut buffer, "?").unwrap();
             String::from_utf8(buffer).expect("Only valid UTF-8 has been written")
@@ -258,7 +258,8 @@ fn release_packages<'m>(
         let crate_name = pkg.meta.name.as_str();
 
         if let Some(version) = pkg.version.as_ref() {
-            let new_version_string = version.version_string.as_str();
+            let prev_version_string = pkg.prev_version.full_version_string.as_str();
+            let new_version_string = version.full_version_string.as_str();
             log::info!("Update {} to version {}", crate_name, new_version_string);
             if !dry_run {
                 cargo::set_package_version(pkg.manifest_path, new_version_string)?;
@@ -273,14 +274,14 @@ fn release_packages<'m>(
             if !pkg.config.pre_release_replacements().is_empty() {
                 // try replacing text in configured files
                 let template = Template {
-                    prev_version: Some(&pkg.prev_version.version_string),
+                    prev_version: Some(&prev_version_string),
                     version: Some(new_version_string),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
                     tag_name: pkg.tag.as_deref(),
                     ..Default::default()
                 };
-                let prerelease = !version.version.pre.is_empty();
+                let prerelease = version.is_prerelease();
                 do_file_replacements(
                     pkg.config.pre_release_replacements(),
                     &template,
@@ -295,7 +296,7 @@ fn release_packages<'m>(
                 let pre_rel_hook = pre_rel_hook.args();
                 log::debug!("Calling pre-release hook: {:?}", pre_rel_hook);
                 let envs = maplit::btreemap! {
-                    OsStr::new("PREV_VERSION") => pkg.prev_version.version_string.as_ref(),
+                    OsStr::new("PREV_VERSION") => prev_version_string.as_ref(),
                     OsStr::new("NEW_VERSION") => new_version_string.as_ref(),
                     OsStr::new("DRY_RUN") => OsStr::new(if dry_run { "true" } else { "false" }),
                     OsStr::new("CRATE_NAME") => OsStr::new(crate_name),
@@ -317,7 +318,7 @@ fn release_packages<'m>(
                 shared_commit = true;
             } else {
                 let template = Template {
-                    prev_version: Some(&pkg.prev_version.version_string),
+                    prev_version: Some(prev_version_string),
                     version: Some(new_version_string),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
@@ -373,7 +374,7 @@ fn release_packages<'m>(
             let timeout = std::time::Duration::from_secs(300);
 
             if pkg.config.registry().is_none() {
-                cargo::wait_for_publish(crate_name, &base.version_string, timeout, dry_run)?;
+                cargo::wait_for_publish(crate_name, &base.full_version_string, timeout, dry_run)?;
                 // HACK: Even once the index is updated, there seems to be another step before the publish is fully ready.
                 // We don't have a way yet to check for that, so waiting for now in hopes everything is ready
                 if !dry_run {
@@ -410,8 +411,8 @@ fn release_packages<'m>(
 
             let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
             let template = Template {
-                prev_version: Some(&pkg.prev_version.version_string),
-                version: Some(&base.version_string),
+                prev_version: Some(&pkg.prev_version.full_version_string),
+                version: Some(&base.full_version_string),
                 crate_name: Some(crate_name),
                 tag_name: Some(tag_name),
                 date: Some(NOW.as_str()),
@@ -434,7 +435,7 @@ fn release_packages<'m>(
             let cwd = pkg.package_path;
             let crate_name = pkg.meta.name.as_str();
 
-            let updated_version_string = version.version_string.as_ref();
+            let updated_version_string = version.full_version_string.as_ref();
             log::info!(
                 "Starting {}'s next development iteration {}",
                 crate_name,
@@ -447,8 +448,8 @@ fn release_packages<'m>(
             }
             let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
             let template = Template {
-                prev_version: Some(&pkg.prev_version.version_string),
-                version: Some(&base.version_string),
+                prev_version: Some(&pkg.prev_version.full_version_string),
+                version: Some(&base.full_version_string),
                 crate_name: Some(crate_name),
                 date: Some(NOW.as_str()),
                 tag_name: pkg.tag.as_deref(),
@@ -648,10 +649,7 @@ impl<'m> PackageRelease<'m> {
 
         let is_root = git_root == cwd;
 
-        let prev_version = version::Version {
-            version: pkg_meta.version.clone(),
-            version_string: pkg_meta.version.to_string(),
-        };
+        let prev_version = version::Version::from(pkg_meta.version.clone());
 
         let package_content = cargo::package_content(manifest_path)?;
 
@@ -661,8 +659,8 @@ impl<'m> PackageRelease<'m> {
             prev_tag.to_owned()
         } else {
             let mut template = Template {
-                prev_version: Some(&prev_version.version_string),
-                version: Some(&prev_version.version_string),
+                prev_version: Some(&prev_version.full_version_string),
+                version: Some(&prev_version.full_version_string),
                 crate_name: Some(pkg_meta.name.as_str()),
                 ..Default::default()
             };
@@ -675,7 +673,7 @@ impl<'m> PackageRelease<'m> {
 
         let version = args
             .level_or_version
-            .bump(&prev_version.version, args.metadata.as_deref())?;
+            .bump(&prev_version.full_version, args.metadata.as_deref())?;
         let is_pre_release = version
             .as_ref()
             .map(version::Version::is_prerelease)
@@ -690,8 +688,8 @@ impl<'m> PackageRelease<'m> {
             None
         } else {
             let mut template = Template {
-                prev_version: Some(&prev_version.version_string),
-                version: Some(&base.version_string),
+                prev_version: Some(&prev_version.full_version_string),
+                version: Some(&base.full_version_string),
                 crate_name: Some(pkg_meta.name.as_str()),
                 ..Default::default()
             };
@@ -703,15 +701,11 @@ impl<'m> PackageRelease<'m> {
         };
 
         let post_version = if !is_pre_release && !config.no_dev_version() {
-            let mut post = base.version.clone();
+            let mut post = base.full_version.clone();
             post.increment_patch();
             post.pre = semver::Prerelease::new(config.dev_version_ext())?;
-            let post_string = post.to_string();
 
-            Some(version::Version {
-                version: post,
-                version_string: post_string,
-            })
+            Some(version::Version::from(post))
         } else {
             None
         };
@@ -757,13 +751,13 @@ fn update_dependent_versions(
     version: &version::Version,
     dry_run: bool,
 ) -> Result<(), error::FatalError> {
-    let new_version_string = version.version_string.as_str();
+    let new_version_string = version.bare_version_string.as_str();
     let mut dependents_failed = false;
     for dep in pkg.dependents.iter() {
         match pkg.config.dependent_version() {
             config::DependentVersion::Ignore => (),
             config::DependentVersion::Warn => {
-                if !dep.req.matches(&version.version) {
+                if !dep.req.matches(&version.bare_version) {
                     log::warn!(
                         "{}'s dependency on {} `{}` is incompatible with {}",
                         dep.pkg.name,
@@ -774,7 +768,7 @@ fn update_dependent_versions(
                 }
             }
             config::DependentVersion::Error => {
-                if !dep.req.matches(&version.version) {
+                if !dep.req.matches(&version.bare_version) {
                     log::warn!(
                         "{}'s dependency on {} `{}` is incompatible with {}",
                         dep.pkg.name,
@@ -786,8 +780,8 @@ fn update_dependent_versions(
                 }
             }
             config::DependentVersion::Fix => {
-                if !dep.req.matches(&version.version) {
-                    let new_req = version::set_requirement(dep.req, &version.version)?;
+                if !dep.req.matches(&version.bare_version) {
+                    let new_req = version::set_requirement(dep.req, &version.bare_version)?;
                     if let Some(new_req) = new_req {
                         log::info!(
                             "Fixing {}'s dependency on {} to `{}` (from `{}`)",
@@ -807,7 +801,7 @@ fn update_dependent_versions(
                 }
             }
             config::DependentVersion::Upgrade => {
-                let new_req = version::set_requirement(dep.req, &version.version)?;
+                let new_req = version::set_requirement(dep.req, &version.bare_version)?;
                 if let Some(new_req) = new_req {
                     log::info!(
                         "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
