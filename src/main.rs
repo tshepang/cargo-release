@@ -463,12 +463,13 @@ fn release_packages<'m>(
                     dry_run,
                 )?;
             }
-            let commit_msg = template.render(pkg.config.post_release_commit_message());
 
             if ws_config.consolidate_commits() {
                 shared_commit = true;
             } else {
                 let sign = pkg.config.sign_commit();
+
+                let commit_msg = template.render(pkg.config.post_release_commit_message());
                 if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
                     return Ok(105);
                 }
