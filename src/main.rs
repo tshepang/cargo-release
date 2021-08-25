@@ -226,6 +226,32 @@ fn release_packages<'m>(
         log::warn!("{} is behind {}/{}", branch, git_remote, branch);
     }
 
+    let mut is_shared = true;
+    let mut shared_version = None;
+    for pkg in pkgs {
+        if let Some(version) = pkg.version.as_ref() {
+            if pkg.config.shared_version() && pkg.version.is_some() {
+                if let Some(shared_version) = shared_version.as_ref() {
+                    if *shared_version != version.bare_version {
+                        is_shared = false;
+                        log::error!(
+                            "{} has version {}, should be {}",
+                            pkg.meta.name,
+                            version.bare_version,
+                            shared_version
+                        );
+                    }
+                } else {
+                    shared_version = Some(version.bare_version.clone());
+                }
+            }
+        }
+    }
+    if !is_shared {
+        log::error!("Crate versions deviated, aborting");
+        return Ok(110);
+    }
+
     // STEP 1: Release Confirmation
     if !dry_run && !args.no_confirm {
         let prompt = if pkgs.len() == 1 {

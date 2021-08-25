@@ -21,6 +21,7 @@ pub struct Config {
     pub push_options: Option<Vec<String>>,
     pub dev_version_ext: Option<String>,
     pub no_dev_version: Option<bool>,
+    pub shared_version: Option<bool>,
     pub consolidate_commits: Option<bool>,
     pub consolidate_pushes: Option<bool>,
     pub pre_release_commit_message: Option<String>,
@@ -74,6 +75,9 @@ impl Config {
         }
         if let Some(no_dev_version) = source.no_dev_version {
             self.no_dev_version = Some(no_dev_version);
+        }
+        if let Some(shared_version) = source.shared_version {
+            self.shared_version = Some(shared_version);
         }
         if let Some(consolidate_commits) = source.consolidate_commits {
             self.consolidate_commits = Some(consolidate_commits);
@@ -171,6 +175,10 @@ impl Config {
 
     pub fn no_dev_version(&self) -> bool {
         self.no_dev_version.unwrap_or(false)
+    }
+
+    pub fn shared_version(&self) -> bool {
+        self.shared_version.unwrap_or(false)
     }
 
     pub fn consolidate_commits(&self) -> bool {
