@@ -378,14 +378,16 @@ fn release_packages<'m>(
                 // We don't have a way yet to check for that, so waiting for now in hopes everything is ready
                 if !dry_run {
                     let publish_grace_sleep = std::env::var("PUBLISH_GRACE_SLEEP")
-                        .unwrap_or_else(|_| String::from("5"))
+                        .unwrap_or_else(|_| Default::default())
                         .parse()
-                        .unwrap_or(5);
-                    log::info!(
-                        "Waiting an additional {} seconds for crates.io to update its indices...",
-                        publish_grace_sleep
-                    );
-                    std::thread::sleep(std::time::Duration::from_secs(publish_grace_sleep));
+                        .unwrap_or(0);
+                    if 0 < publish_grace_sleep {
+                        log::info!(
+                            "Waiting an additional {} seconds for crates.io to update its indices...",
+                            publish_grace_sleep
+                        );
+                        std::thread::sleep(std::time::Duration::from_secs(publish_grace_sleep));
+                    }
                 }
             } else {
                 log::debug!("Not waiting for publish because the registry is not crates.io and doesn't get updated automatically");
