@@ -226,6 +226,32 @@ fn release_packages<'m>(
         log::warn!("{} is behind {}/{}", branch, git_remote, branch);
     }
 
+    let mut is_shared = true;
+    let mut shared_version: Option<version::Version> = None;
+    for pkg in pkgs {
+        if let Some(version) = pkg.version.as_ref() {
+            if pkg.config.shared_version() && pkg.version.is_some() {
+                if let Some(shared_version) = shared_version.as_ref() {
+                    if shared_version.bare_version != version.bare_version {
+                        is_shared = false;
+                        log::error!(
+                            "{} has version {}, should be {}",
+                            pkg.meta.name,
+                            version.bare_version,
+                            shared_version.bare_version_string
+                        );
+                    }
+                } else {
+                    shared_version = Some(version.clone());
+                }
+            }
+        }
+    }
+    if !is_shared {
+        log::error!("Crate versions deviated, aborting");
+        return Ok(110);
+    }
+
     // STEP 1: Release Confirmation
     if !dry_run && !args.no_confirm {
         let prompt = if pkgs.len() == 1 {
@@ -314,7 +340,7 @@ fn release_packages<'m>(
                 }
             }
 
-            if ws_config.consolidate_commits() {
+            if pkg.config.consolidate_commits() {
                 shared_commit = true;
             } else {
                 let template = Template {
@@ -336,6 +362,9 @@ fn release_packages<'m>(
     if shared_commit {
         let shared_commit_msg = {
             let template = Template {
+                version: shared_version
+                    .as_ref()
+                    .map(|v| v.full_version_string.as_str()),
                 date: Some(NOW.as_str()),
                 ..Default::default()
             };
@@ -430,6 +459,7 @@ fn release_packages<'m>(
 
     // STEP 6: bump version
     let mut shared_commit = false;
+    let mut shared_post_version: Option<version::Version> = None;
     for pkg in pkgs {
         if let Some(version) = pkg.post_version.as_ref() {
             let cwd = pkg.package_path;
@@ -467,7 +497,10 @@ fn release_packages<'m>(
                 )?;
             }
 
-            if ws_config.consolidate_commits() {
+            if pkg.config.shared_version() && shared_post_version.is_none() {
+                shared_post_version = Some(version.clone());
+            }
+            if pkg.config.consolidate_commits() {
                 shared_commit = true;
             } else {
                 let sign = pkg.config.sign_commit();
@@ -482,7 +515,13 @@ fn release_packages<'m>(
     if shared_commit {
         let shared_commit_msg = {
             let template = Template {
+                version: shared_version
+                    .as_ref()
+                    .map(|v| v.full_version_string.as_str()),
                 date: Some(NOW.as_str()),
+                next_version: shared_post_version
+                    .as_ref()
+                    .map(|v| v.full_version_string.as_str()),
                 ..Default::default()
             };
             template.render(ws_config.post_release_commit_message())
@@ -500,8 +539,7 @@ fn release_packages<'m>(
 
     // STEP 7: git push
     if !ws_config.disable_push() {
-        let shared_push = ws_config.consolidate_pushes();
-
+        let mut shared_push = false;
         for pkg in pkgs {
             if pkg.config.disable_push() {
                 continue;
@@ -515,7 +553,9 @@ fn release_packages<'m>(
                 }
             }
 
-            if !shared_push {
+            if pkg.config.consolidate_pushes() {
+                shared_push = true
+            } else if !shared_push {
                 log::info!("Pushing HEAD to {}", git_remote);
                 if !git::push(
                     cwd,
@@ -528,7 +568,6 @@ fn release_packages<'m>(
                 }
             }
         }
-
         if shared_push {
             log::info!("Pushing HEAD to {}", git_remote);
             if !git::push(
