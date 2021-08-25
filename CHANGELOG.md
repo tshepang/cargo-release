@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.17.1] - 2021-08-24
+
 ### Fixed
 
 - Correctly detect changes for crates outside of the root
@@ -235,7 +237,8 @@
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.17.1...HEAD
+[0.17.1]: https://github.com/crate-ci/cargo-release/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/crate-ci/cargo-release/compare/v0.16.6...v0.17.0
 [0.16.6]: https://github.com/crate-ci/cargo-release/compare/v0.16.5...v0.16.6
 [0.16.5]: https://github.com/crate-ci/cargo-release/compare/v0.16.4...v0.16.5
