@@ -314,7 +314,7 @@ fn release_packages<'m>(
                 }
             }
 
-            if ws_config.consolidate_commits() {
+            if pkg.config.consolidate_commits() {
                 shared_commit = true;
             } else {
                 let template = Template {
@@ -467,7 +467,7 @@ fn release_packages<'m>(
                 )?;
             }
 
-            if ws_config.consolidate_commits() {
+            if pkg.config.consolidate_commits() {
                 shared_commit = true;
             } else {
                 let sign = pkg.config.sign_commit();
@@ -500,8 +500,7 @@ fn release_packages<'m>(
 
     // STEP 7: git push
     if !ws_config.disable_push() {
-        let shared_push = ws_config.consolidate_pushes();
-
+        let mut shared_push = false;
         for pkg in pkgs {
             if pkg.config.disable_push() {
                 continue;
@@ -515,7 +514,9 @@ fn release_packages<'m>(
                 }
             }
 
-            if !shared_push {
+            if pkg.config.consolidate_pushes() {
+                shared_push = true
+            } else if !shared_push {
                 log::info!("Pushing HEAD to {}", git_remote);
                 if !git::push(
                     cwd,
@@ -528,7 +529,6 @@ fn release_packages<'m>(
                 }
             }
         }
-
         if shared_push {
             log::info!("Pushing HEAD to {}", git_remote);
             if !git::push(
