@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Correctly detect changes for crates outside of the root
+
 ## [0.17.0] - 2021-08-23
 
 ### Features
