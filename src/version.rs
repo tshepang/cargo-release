@@ -20,22 +20,16 @@ impl TargetVersion {
             TargetVersion::Relative(bump_level) => {
                 let mut potential_version = current.to_owned();
                 if bump_level.bump_version(&mut potential_version, metadata)? {
-                    let version = potential_version;
-                    let version_string = version.to_string();
-                    Ok(Some(Version {
-                        version,
-                        version_string,
-                    }))
+                    let full_version = potential_version;
+                    Ok(Some(Version::from(full_version)))
                 } else {
                     Ok(None)
                 }
             }
             TargetVersion::Absolute(version) => {
                 if current < version {
-                    Ok(Some(Version {
-                        version: version.to_owned(),
-                        version_string: version.to_string(),
-                    }))
+                    let full_version = version.to_owned();
+                    Ok(Some(Version::from(full_version)))
                 } else if current == version {
                     Ok(None)
                 } else {
@@ -81,13 +75,30 @@ impl std::str::FromStr for TargetVersion {
 
 #[derive(Debug)]
 pub struct Version {
-    pub version: semver::Version,
-    pub version_string: String,
+    pub full_version: semver::Version,
+    pub full_version_string: String,
+    pub bare_version: semver::Version,
+    pub bare_version_string: String,
 }
 
 impl Version {
     pub fn is_prerelease(&self) -> bool {
-        self.version.is_prerelease()
+        self.full_version.is_prerelease()
+    }
+}
+
+impl From<semver::Version> for Version {
+    fn from(full_version: semver::Version) -> Self {
+        let full_version_string = full_version.to_string();
+        let mut bare_version = full_version.clone();
+        bare_version.build = semver::BuildMetadata::EMPTY;
+        let bare_version_string = bare_version.to_string();
+        Self {
+            full_version,
+            full_version_string,
+            bare_version,
+            bare_version_string,
+        }
     }
 }
 
