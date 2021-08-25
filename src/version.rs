@@ -73,7 +73,7 @@ impl std::str::FromStr for TargetVersion {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Version {
     pub full_version: semver::Version,
     pub full_version_string: String,
