@@ -4,7 +4,6 @@ use std::io::prelude::*;
 use std::path::Path;
 
 use bstr::ByteSlice;
-use toml::Value;
 
 use crate::cmd::call;
 use crate::error::FatalError;
@@ -154,7 +153,7 @@ pub fn set_package_version(manifest_path: &Path, version: &str) -> Result<(), Fa
 
         let mut file_out = File::create(&temp_manifest_path).map_err(FatalError::from)?;
         file_out
-            .write(manifest.to_string_in_original_order().as_bytes())
+            .write(manifest.to_string().as_bytes())
             .map_err(FatalError::from)?;
     }
     fs::rename(temp_manifest_path, manifest_path)?;
@@ -207,7 +206,7 @@ pub fn set_dependency_version(
 
         let mut file_out = File::create(&temp_manifest_path).map_err(FatalError::from)?;
         file_out
-            .write(manifest.to_string_in_original_order().as_bytes())
+            .write(manifest.to_string().as_bytes())
             .map_err(FatalError::from)?;
     }
     fs::rename(temp_manifest_path, manifest_path)?;
@@ -254,7 +253,7 @@ pub fn update_lock(manifest_path: &Path) -> Result<(), FatalError> {
     Ok(())
 }
 
-pub fn parse_cargo_config(manifest_path: &Path) -> Result<Value, FatalError> {
+pub fn parse_cargo_config(manifest_path: &Path) -> Result<toml_edit::easy::Value, FatalError> {
     let cargo_file_content = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
     cargo_file_content.parse().map_err(FatalError::from)
 }
