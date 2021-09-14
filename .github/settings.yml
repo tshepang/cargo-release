@@ -1,7 +1,7 @@
 # These settings are synced to GitHub by https://probot.github.io/apps/settings/
 
 repository:
-  description:  Cargo subcommand "release": everything about releasing a rust crate. 
+  description:  "Cargo subcommand `release`: everything about releasing a rust crate."
   topics: rust cargo cargo-subcommand
   has_issues: true
   has_projects: false
