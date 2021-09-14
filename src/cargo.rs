@@ -175,32 +175,9 @@ pub fn set_dependency_version(
         let manifest = std::fs::read_to_string(manifest_path)?;
         let mut manifest: toml_edit::Document = manifest.parse().map_err(FatalError::from)?;
 
-        let dep_table_names = &["dependencies", "dev-dependencies", "build-dependencies"];
-        for key in dep_table_names {
-            if let Some(deps_table) = manifest
-                .as_table_mut()
-                .get_mut(key)
-                .and_then(|i| i.as_table_mut())
-            {
-                set_version(deps_table, name, version)?;
-            }
-        }
-
-        if let Some(target_table) = manifest
-            .as_table_mut()
-            .get_mut("target")
-            .and_then(|i| i.as_table_mut())
-        {
-            for (_target_name, target_specific_item) in target_table.iter_mut() {
-                for key in dep_table_names {
-                    if let Some(deps_table) = target_specific_item
-                        .as_table_mut()
-                        .and_then(|t| t.get_mut(key))
-                        .and_then(|i| i.as_table_mut())
-                    {
-                        set_version(deps_table, name, version)?;
-                    }
-                }
+        for deps_table in find_dependency_tables(manifest.as_table_mut()) {
+            if let Some(dep_item) = deps_table.get_mut(name) {
+                set_version(dep_item, name, version);
             }
         }
 
@@ -214,34 +191,49 @@ pub fn set_dependency_version(
     Ok(())
 }
 
-fn set_version(
-    deps_table: &mut toml_edit::Table,
-    name: &str,
-    version: &str,
-) -> Result<(), FatalError> {
-    let dep_item = match deps_table.get_mut(name) {
-        Some(item) => item,
-        None => {
-            return Ok(());
+fn find_dependency_tables<'r>(
+    root: &'r mut toml_edit::Table,
+) -> impl Iterator<Item = &mut dyn toml_edit::TableLike> + 'r {
+    const DEP_TABLES: &[&str] = &["dependencies", "dev-dependencies", "build-dependencies"];
+
+    root.iter_mut().flat_map(|(k, v)| {
+        if DEP_TABLES.contains(&k) {
+            v.as_table_like_mut().into_iter().collect::<Vec<_>>()
+        } else if k == "target" {
+            v.as_table_like_mut()
+                .unwrap()
+                .iter_mut()
+                .flat_map(|(_, v)| {
+                    v.as_table_like_mut().into_iter().flat_map(|v| {
+                        v.iter_mut().filter_map(|(k, v)| {
+                            if DEP_TABLES.contains(&k) {
+                                v.as_table_like_mut()
+                            } else {
+                                None
+                            }
+                        })
+                    })
+                })
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
         }
-    };
+    })
+}
 
-    let mut is_table = false;
-    let mut has_version = false;
-    if let Some(table_like) = dep_item.as_table_like() {
-        is_table = true;
-        has_version = table_like.get("version").is_some();
+fn set_version(dep_item: &mut toml_edit::Item, name: &str, version: &str) -> bool {
+    if let Some(table_like) = dep_item.as_table_like_mut() {
+        if let Some(version_value) = table_like.get_mut("version") {
+            *version_value = toml_edit::value(version);
+            true
+        } else {
+            log::debug!("Not updating path-only dependency on {}", name);
+            false
+        }
+    } else {
+        log::debug!("Not updating version-only dependency on {}", name);
+        false
     }
-
-    if !is_table {
-        return Err(FatalError::InvalidCargoFileFormat(
-            "Intra-workspace dependencies should use both version and path".into(),
-        ));
-    } else if has_version {
-        dep_item["version"] = toml_edit::value(version);
-    }
-
-    Ok(())
 }
 
 pub fn update_lock(manifest_path: &Path) -> Result<(), FatalError> {
@@ -615,8 +607,26 @@ mod test {
                 )
                 .unwrap();
 
-            let err = set_dependency_version(manifest_path.path(), "foo", "2.0");
-            assert!(err.is_err());
+            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+
+            manifest_path.assert(
+                predicate::str::diff(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [build-dependencies]
+
+    [dependencies]
+    foo = "1.0"
+    "#,
+                )
+                .from_utf8()
+                .from_file_path(),
+            );
 
             temp.close().unwrap();
         }
