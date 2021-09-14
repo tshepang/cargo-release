@@ -8,7 +8,7 @@ use cargo_metadata::Error as CargoMetaError;
 use quick_error::quick_error;
 use regex::Error as RegexError;
 use semver::Error as SemVerError;
-use toml::de::Error as TomlError;
+use toml_edit::easy::de::Error as TomlError;
 use toml_edit::TomlError as TomlEditError;
 
 quick_error! {

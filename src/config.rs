@@ -356,7 +356,7 @@ struct CargoMetadata {
 fn get_pkg_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
     if manifest_path.exists() {
         let m = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
-        let c: CargoManifest = toml::from_str(&m).map_err(FatalError::from)?;
+        let c: CargoManifest = toml_edit::easy::from_str(&m).map_err(FatalError::from)?;
 
         Ok(c.package.and_then(|p| p.into_config()))
     } else {
@@ -367,7 +367,7 @@ fn get_pkg_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, 
 fn get_ws_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
     if manifest_path.exists() {
         let m = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
-        let c: CargoManifest = toml::from_str(&m).map_err(FatalError::from)?;
+        let c: CargoManifest = toml_edit::easy::from_str(&m).map_err(FatalError::from)?;
 
         Ok(c.workspace.and_then(|p| p.into_config()))
     } else {
@@ -378,7 +378,7 @@ fn get_ws_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, F
 fn get_config_from_file(file_path: &Path) -> Result<Option<Config>, FatalError> {
     if file_path.exists() {
         let c = std::fs::read_to_string(file_path).map_err(FatalError::from)?;
-        let config = toml::from_str(&c).map_err(FatalError::from)?;
+        let config = toml_edit::easy::from_str(&c).map_err(FatalError::from)?;
         Ok(Some(config))
     } else {
         Ok(None)
