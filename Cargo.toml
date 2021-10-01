@@ -30,7 +30,7 @@ pre-release-replacements = [
 [dependencies]
 cargo_metadata = "0.14"
 crates-index = "0.17"
-toml_edit = { version = "0.3.0", features = ["easy"] }
+toml_edit = { version = "0.5.0", features = ["easy"] }
 serde = { version = "1.0", features = ["derive"] }
 semver = "1.0"
 quick-error = "2.0"
