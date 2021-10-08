@@ -52,7 +52,7 @@ pub fn package_content(manifest_path: &Path) -> Result<Vec<std::path::PathBuf>, 
 
 pub fn publish(
     dry_run: bool,
-    no_verify: bool,
+    verify: bool,
     manifest_path: &Path,
     features: &Features,
     registry: Option<&str>,
@@ -82,7 +82,7 @@ pub fn publish(
         command.push("--allow-dirty");
     }
 
-    if no_verify {
+    if !verify {
         command.push("--no-verify");
     }
 
