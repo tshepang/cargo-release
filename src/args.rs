@@ -88,17 +88,17 @@ pub struct ConfigArgs {
     /// Cargo registry to upload to
     pub registry: Option<String>,
 
-    #[structopt(long)]
+    #[structopt(long, visible_alias = "skip-publish")]
     /// Do not run cargo publish on release
-    pub skip_publish: bool,
+    pub no_publish: bool,
 
-    #[structopt(long)]
+    #[structopt(long, visible_alias = "skip-push")]
     /// Do not run git push in the last step
-    pub skip_push: bool,
+    pub no_push: bool,
 
-    #[structopt(long)]
+    #[structopt(long, visible_alias = "skip-tag")]
     /// Do not create git tag
-    pub skip_tag: bool,
+    pub no_tag: bool,
 
     #[structopt(long)]
     /// Don't verify the contents by building them
@@ -154,14 +154,14 @@ impl ConfigArgs {
                 .or_else(|| self.sign_tag.then(|| true)),
             push_remote: self.push_remote.clone(),
             registry: self.registry.clone(),
-            disable_publish: self.skip_publish.then(|| true),
+            disable_publish: self.no_publish.then(|| true),
             no_verify: self.no_verify.then(|| true),
-            disable_push: self.skip_push.then(|| true),
+            disable_push: self.no_push.then(|| true),
             dev_version_ext: self.dev_version_ext.clone(),
             no_dev_version: self.no_dev_version.then(|| true),
             tag_prefix: self.tag_prefix.clone(),
             tag_name: self.tag_name.clone(),
-            disable_tag: self.skip_tag.then(|| true),
+            disable_tag: self.no_tag.then(|| true),
             enable_features: (!self.features.is_empty()).then(|| self.features.clone()),
             enable_all_features: self.all_features.then(|| true),
             dependent_version: self.dependent_version,
