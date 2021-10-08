@@ -396,7 +396,7 @@ fn release_packages<'m>(
                 pkg.manifest_path,
                 features,
                 pkg.config.registry(),
-                args.config.token.as_ref().map(AsRef::as_ref),
+                args.token.as_ref().map(AsRef::as_ref),
             )? {
                 return Ok(103);
             }
