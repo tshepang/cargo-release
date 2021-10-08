@@ -146,20 +146,20 @@ impl Config {
         self.registry.as_deref()
     }
 
-    pub fn disable_release(&self) -> bool {
-        self.disable_release.unwrap_or(false)
+    pub fn release(&self) -> bool {
+        !self.disable_release.unwrap_or(false)
     }
 
-    pub fn disable_publish(&self) -> bool {
-        self.disable_publish.unwrap_or(false)
+    pub fn publish(&self) -> bool {
+        !self.disable_publish.unwrap_or(false)
     }
 
-    pub fn no_verify(&self) -> bool {
-        self.no_verify.unwrap_or(false)
+    pub fn verify(&self) -> bool {
+        !self.no_verify.unwrap_or(false)
     }
 
-    pub fn disable_push(&self) -> bool {
-        self.disable_push.unwrap_or(false)
+    pub fn push(&self) -> bool {
+        !self.disable_push.unwrap_or(false)
     }
 
     pub fn push_options(&self) -> &[String] {
@@ -173,8 +173,8 @@ impl Config {
         self.dev_version_ext.as_deref().unwrap_or("alpha.0")
     }
 
-    pub fn no_dev_version(&self) -> bool {
-        self.no_dev_version.unwrap_or(false)
+    pub fn dev_version(&self) -> bool {
+        !self.no_dev_version.unwrap_or(false)
     }
 
     pub fn shared_version(&self) -> bool {
@@ -236,8 +236,8 @@ impl Config {
         self.tag_name.as_deref().unwrap_or("{{prefix}}v{{version}}")
     }
 
-    pub fn disable_tag(&self) -> bool {
-        self.disable_tag.unwrap_or(false)
+    pub fn tag(&self) -> bool {
+        !self.disable_tag.unwrap_or(false)
     }
 
     pub fn enable_features(&self) -> &[String] {

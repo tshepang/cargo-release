@@ -152,7 +152,7 @@ fn release_packages<'m>(
                             prev_tag_name,
                             crate_name
                         );
-                    } else if !pkg.config.no_dev_version() {
+                    } else if pkg.config.dev_version() {
                         log::debug!("Ignoring lock file change since {}; could be a pre-release version bump.", prev_tag_name);
                     } else {
                         lock_changed = true;
@@ -175,7 +175,7 @@ fn release_packages<'m>(
                     );
                     changed_pkgs.insert(&pkg.meta.id);
                     changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
-                } else if lock_changed && pkg.bin && !pkg.config.no_dev_version() {
+                } else if lock_changed && pkg.bin && pkg.config.dev_version() {
                     log::debug!(
                         "Lock file changed for {} since {}, assuming its relevant",
                         crate_name,
@@ -383,7 +383,7 @@ fn release_packages<'m>(
 
     // STEP 3: cargo publish
     for pkg in pkgs {
-        if !pkg.config.disable_publish() {
+        if pkg.config.publish() {
             let crate_name = pkg.meta.name.as_str();
             let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
 
@@ -392,7 +392,7 @@ fn release_packages<'m>(
             let features = &pkg.features;
             if !cargo::publish(
                 dry_run,
-                pkg.config.no_verify(),
+                pkg.config.verify(),
                 pkg.manifest_path,
                 features,
                 pkg.config.registry(),
@@ -538,10 +538,10 @@ fn release_packages<'m>(
     }
 
     // STEP 7: git push
-    if !ws_config.disable_push() {
+    if ws_config.push() {
         let mut shared_push = false;
         for pkg in pkgs {
-            if pkg.config.disable_push() {
+            if !pkg.config.push() {
                 continue;
             }
 
@@ -681,7 +681,7 @@ impl<'m> PackageRelease<'m> {
 
             release_config
         };
-        if config.disable_release() {
+        if !config.release() {
             log::debug!("Disabled in config, skipping {}", manifest_path.display());
             return Ok(None);
         }
@@ -723,9 +723,7 @@ impl<'m> PackageRelease<'m> {
 
         let base = version.as_ref().unwrap_or(&prev_version);
 
-        let tag = if config.disable_tag() {
-            None
-        } else {
+        let tag = if config.tag() {
             let mut template = Template {
                 prev_version: Some(&prev_version.full_version_string),
                 version: Some(&base.full_version_string),
@@ -737,9 +735,11 @@ impl<'m> PackageRelease<'m> {
             let tag_prefix = template.render(tag_prefix);
             template.prefix = Some(&tag_prefix);
             Some(template.render(config.tag_name()))
+        } else {
+            None
         };
 
-        let post_version = if !is_pre_release && !config.no_dev_version() {
+        let post_version = if !is_pre_release && config.dev_version() {
             let mut post = base.full_version.clone();
             post.increment_patch();
             post.pre = semver::Prerelease::new(config.dev_version_ext())?;
