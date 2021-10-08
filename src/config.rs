@@ -186,7 +186,7 @@ impl Config {
     }
 
     pub fn dev_version(&self) -> bool {
-        resolve_bool_arg(self.dev_version, self.no_dev_version).unwrap_or(true)
+        resolve_bool_arg(self.dev_version, self.no_dev_version).unwrap_or(false)
     }
 
     pub fn shared_version(&self) -> bool {

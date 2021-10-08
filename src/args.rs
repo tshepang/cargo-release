@@ -142,10 +142,10 @@ pub struct ConfigArgs {
     #[structopt(long)]
     dev_version_ext: Option<String>,
 
-    #[structopt(long, overrides_with("no-dev-version"), hidden(true))]
+    /// Create dev version after release
+    #[structopt(long, overrides_with("no-dev-version"))]
     dev_version: bool,
-    /// Do not create dev version after release
-    #[structopt(long, overrides_with("dev-version"))]
+    #[structopt(long, overrides_with("dev-version"), hidden(true))]
     no_dev_version: bool,
 
     /// Provide a set of features that need to be enabled
