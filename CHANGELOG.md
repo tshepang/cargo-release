@@ -5,6 +5,28 @@
 
 ## [0.18.0] - 2021-10-08
 
+### Breaking Changes
+
+`dev-version` is now disabled by default.  This to encourage people to not use
+it as it makes it harder for dependent crates to `[patch]` in a version from
+git.
+
+### Features
+
+- Opt-in shared crate version.  For now, it just errors on mismatch.  This lets you reference the version in consolidated commits.
+
+### Fixed
+
+- In dev-version commit, render `{{next_version}}`
+- Disable always-sleep after publish.  We believe the underlying problem
+  preventing us from detecting the crate from being released is fixed.  If you
+  run into problems, you can set the env variable `PUBLISH_GRACE_SLEEP`.
+- Let packages override consolidated actions
+- Switched command-line to more common `no-` prefixes
+- Added positive and negative version of each command-line flag to allow overriding the config, and not just defaults.
+- Added positive versions of each negative (`disable_`, `no_`) config field
+- **Deprecated** all negative (`disable_`, `no_`) config fields
+
 ## [0.17.1] - 2021-08-24
 
 ### Fixed
