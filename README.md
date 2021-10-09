@@ -6,7 +6,7 @@ Features
   - Up-to-date with remote
   - Clean tree
 - Supports workspaces using cargo's native flags, like `--workspace`, `--exclude` and `--package`
-  - Updates depednent crates in workspace when changing version
+  - Updates dependent crates in workspace when changing version
   - Change detection to help guide in what crates might not need a release
   - Optionally share commits
 - Handles `cargo publish`, tagging, and pushing
