@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Introduced `cargo publish` fix for workspaces that was meant to be in before 0.18
+
 ## [0.18.0] - 2021-10-08
 
 ### Breaking Changes
