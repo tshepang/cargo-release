@@ -63,6 +63,11 @@ quick_error! {
             source(err)
             display("FromUtf8Error {}", err)
         }
+        IndexError(err: crates_index::Error) {
+            from()
+            source(err)
+            display("{}", err)
+        }
         NoPackage {
             display("No package in manifest file")
         }
