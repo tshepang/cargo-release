@@ -676,7 +676,8 @@ impl<'m> PackageRelease<'m> {
                 .and_then(|f| f.as_bool())
                 .unwrap_or(true)
             {
-                release_config.disable_publish = Some(true);
+                release_config.publish = Some(false);
+                release_config.disable_publish = None;
             }
 
             release_config
