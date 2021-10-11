@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Crash when setting `publish = false` in `Cargo.toml` **and**` in a config file / commandline
+
 ## [0.18.1] - 2021-10-09
 
 ### Fixed
