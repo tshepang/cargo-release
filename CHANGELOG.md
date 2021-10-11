@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.18.2] - 2021-10-11
+
 ### Fixed
 
 - Crash when setting `publish = false` in `Cargo.toml` **and**` in a config file / commandline
@@ -271,7 +273,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.1...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.2...HEAD
+[0.18.2]: https://github.com/crate-ci/cargo-release/compare/v0.18.1...v0.18.2
 [0.18.1]: https://github.com/crate-ci/cargo-release/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/crate-ci/cargo-release/compare/v0.17.1...v0.18.0
 [0.17.1]: https://github.com/crate-ci/cargo-release/compare/v0.17.0...v0.17.1
