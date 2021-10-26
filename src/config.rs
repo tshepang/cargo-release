@@ -171,7 +171,7 @@ impl Config {
     }
 
     pub fn push(&self) -> bool {
-        resolve_bool_arg(self.publish, self.disable_publish).unwrap_or(true)
+        resolve_bool_arg(self.push, self.disable_push).unwrap_or(true)
     }
 
     pub fn push_options(&self) -> &[String] {
