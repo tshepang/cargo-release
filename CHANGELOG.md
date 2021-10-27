@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.18.3] - 2021-10-26
+
 ### Fixed
 
 - Fix bug where we ignored `push` config
@@ -277,7 +279,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.2...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.3...HEAD
+[0.18.3]: https://github.com/crate-ci/cargo-release/compare/v0.18.2...v0.18.3
 [0.18.2]: https://github.com/crate-ci/cargo-release/compare/v0.18.1...v0.18.2
 [0.18.1]: https://github.com/crate-ci/cargo-release/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/crate-ci/cargo-release/compare/v0.17.1...v0.18.0

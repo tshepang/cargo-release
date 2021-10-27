@@ -18,7 +18,7 @@ Features
 
 ## Install
 
-Current release: 0.18.2
+Current release: 0.18.3
 
 `cargo install cargo-release`
 
