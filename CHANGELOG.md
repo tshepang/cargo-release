@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Fix bug where we ignored `push` config
+
 ## [0.18.2] - 2021-10-11
 
 ### Fixed
