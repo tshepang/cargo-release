@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.18.4] - 2021-10-30
+
 ### Fixed
 
 - Vendor libgit2 for a more consistent experience
@@ -283,7 +285,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.3...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.4...HEAD
+[0.18.4]: https://github.com/crate-ci/cargo-release/compare/v0.18.3...v0.18.4
 [0.18.3]: https://github.com/crate-ci/cargo-release/compare/v0.18.2...v0.18.3
 [0.18.2]: https://github.com/crate-ci/cargo-release/compare/v0.18.1...v0.18.2
 [0.18.1]: https://github.com/crate-ci/cargo-release/compare/v0.18.0...v0.18.1
