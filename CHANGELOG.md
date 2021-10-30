@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Vendor libgit2 for a more consistent experience
+
 ## [0.18.3] - 2021-10-26
 
 ### Fixed
