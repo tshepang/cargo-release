@@ -111,11 +111,10 @@ pub fn wait_for_publish(
     if !dry_run {
         let now = std::time::Instant::now();
         let sleep_time = std::time::Duration::from_secs(1);
-        let index = crates_index::BareIndex::new_cargo_default();
-        let mut index = index.open_or_clone()?;
+        let mut index = crates_index::Index::new_cargo_default()?;
         let mut logged = false;
         loop {
-            if let Err(e) = index.retrieve() {
+            if let Err(e) = index.update() {
                 log::debug!("Crate index update failed with {}", e);
             }
             let crate_data = index.crate_(name);
