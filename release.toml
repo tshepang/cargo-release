@@ -1,4 +1,5 @@
 pre-release-commit-message = "chore: Release"
+dev-version = false
 tag-message = "{{tag_name}}"
 tag-name = "{{prefix}}v{{version}}"
 pre-release-hook = ["./hook.sh", "一", "два", "Three", "4"]
