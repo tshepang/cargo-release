@@ -64,7 +64,7 @@ fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::FatalError> 
 
     let pkg_ids = cargo::sort_workspace(&ws_meta);
 
-    let (selected_pkgs, _excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
+    let (selected_pkgs, excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
     if selected_pkgs.is_empty() {
         log::info!("No packages selected.");
         return Ok(0);
@@ -78,9 +78,46 @@ fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::FatalError> 
         .collect();
     let pkg_releases = pkg_releases?;
     let pkg_releases: Vec<_> = pkg_ids
-        .into_iter()
+        .iter()
         .filter_map(|id| pkg_releases.get(id))
         .collect();
+
+    let excluded_pkgs: Result<Vec<_>, _> = excluded_pkgs
+        .iter()
+        .filter(|p| pkg_ids.contains(&&p.id))
+        .filter_map(|p| PackageRelease::load(args, &root, &ws_meta, p).transpose())
+        .collect();
+    let excluded_pkgs = excluded_pkgs?;
+    for pkg in excluded_pkgs {
+        if pkg.version.is_some() {
+            let crate_name = pkg.meta.name.as_str();
+            let prev_tag_name = &pkg.prev_tag;
+            if let Some((changed, lock_changed)) = changed_since(&ws_meta, &pkg, prev_tag_name) {
+                if !changed.is_empty() {
+                    log::warn!(
+                        "Excluded {} which has files changed since {}: {:#?}",
+                        crate_name,
+                        prev_tag_name,
+                        changed
+                    );
+                } else if lock_changed {
+                    log::warn!(
+                        "Excluded {} despite lock file being changed since {}",
+                        crate_name,
+                        prev_tag_name
+                    );
+                } else {
+                    log::trace!("{} has no changes since {}", crate_name, prev_tag_name);
+                }
+            } else {
+                log::debug!(
+                    "Cannot detect changes for excluded {} because tag {} is missing. Try setting `--prev-tag-name <TAG>`.",
+                    crate_name,
+                    prev_tag_name
+                );
+            }
+        }
+    }
 
     release_packages(args, &ws_meta, &ws_config, pkg_releases.as_slice())
 }
@@ -143,7 +180,7 @@ fn release_packages<'m>(
                     );
                     changed_pkgs.insert(&pkg.meta.id);
                     changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
-                } else if lock_changed && pkg.bin && pkg.config.dev_version() {
+                } else if lock_changed {
                     log::debug!(
                         "Lock file changed for {} since {}, assuming its relevant",
                         crate_name,
