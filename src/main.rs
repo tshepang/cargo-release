@@ -95,27 +95,27 @@ fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::FatalError> 
             if let Some((changed, lock_changed)) = changed_since(&ws_meta, &pkg, prev_tag_name) {
                 if !changed.is_empty() {
                     log::warn!(
-                        "Excluded {} which has files changed since {}: {:#?}",
+                        "Disabled by user, skipping {} which has files changed since {}: {:#?}",
                         crate_name,
                         prev_tag_name,
                         changed
                     );
                 } else if lock_changed {
                     log::warn!(
-                        "Excluded {} despite lock file being changed since {}",
+                        "Disabled by user, skipping {} despite lock file being changed since {}",
                         crate_name,
                         prev_tag_name
                     );
                 } else {
                     log::trace!(
-                        "Excluded {} has no changes since {}",
+                        "Disabled by user, skipping {} (no changes since {})",
                         crate_name,
                         prev_tag_name
                     );
                 }
             } else {
                 log::debug!(
-                    "Cannot detect changes for excluded {} because tag {} is missing. Try setting `--prev-tag-name <TAG>`.",
+                    "Disabled by user, skipping {} (no {} tag)",
                     crate_name,
                     prev_tag_name
                 );
