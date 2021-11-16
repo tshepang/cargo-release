@@ -120,44 +120,12 @@ fn release_packages<'m>(
         }
     }
 
-    let lock_path = ws_meta.workspace_root.join("Cargo.lock");
     let mut changed_pkgs = HashSet::new();
     for pkg in pkgs {
         if let Some(version) = pkg.version.as_ref() {
-            let changed_root = if pkg.bin {
-                ws_meta.workspace_root.as_std_path()
-            } else {
-                // Limit our lookup since we don't need to check for `Cargo.lock`
-                pkg.package_path
-            };
             let crate_name = pkg.meta.name.as_str();
             let prev_tag_name = &pkg.prev_tag;
-            if let Some(changed) = git::changed_files(changed_root, prev_tag_name)? {
-                let mut changed: Vec<_> = changed
-                    .into_iter()
-                    .filter(|p| pkg.package_content.contains(p))
-                    .collect();
-                let mut lock_changed = false;
-                if let Some(lock_index) = changed.iter().enumerate().find_map(|(idx, path)| {
-                    if path == &lock_path {
-                        Some(idx)
-                    } else {
-                        None
-                    }
-                }) {
-                    let _ = changed.swap_remove(lock_index);
-                    if !pkg.bin {
-                        log::trace!(
-                            "Ignoring lock file change since {}; {} has no [[bin]]",
-                            prev_tag_name,
-                            crate_name
-                        );
-                    } else if pkg.config.dev_version() {
-                        log::debug!("Ignoring lock file change since {}; could be a pre-release version bump.", prev_tag_name);
-                    } else {
-                        lock_changed = true;
-                    }
-                }
+            if let Some((changed, lock_changed)) = changed_since(ws_meta, pkg, prev_tag_name) {
                 if !changed.is_empty() {
                     log::debug!(
                         "Files changed in {} since {}: {:#?}",
@@ -779,6 +747,57 @@ impl<'m> PackageRelease<'m> {
         };
         Ok(Some(pkg))
     }
+}
+
+fn changed_since<'m>(
+    ws_meta: &cargo_metadata::Metadata,
+    pkg: &'m PackageRelease<'m>,
+    since_ref: &str,
+) -> Option<(Vec<std::path::PathBuf>, bool)> {
+    let lock_path = ws_meta.workspace_root.join("Cargo.lock");
+    let changed_root = if pkg.bin {
+        ws_meta.workspace_root.as_std_path()
+    } else {
+        // Limit our lookup since we don't need to check for `Cargo.lock`
+        pkg.package_path
+    };
+    let changed = git::changed_files(changed_root, since_ref).ok().flatten()?;
+    let mut changed: Vec<_> = changed
+        .into_iter()
+        .filter(|p| pkg.package_content.contains(p))
+        .collect();
+
+    let mut lock_changed = false;
+    if let Some(lock_index) =
+        changed.iter().enumerate().find_map(
+            |(idx, path)| {
+                if path == &lock_path {
+                    Some(idx)
+                } else {
+                    None
+                }
+            },
+        )
+    {
+        let _ = changed.swap_remove(lock_index);
+        if !pkg.bin {
+            let crate_name = pkg.meta.name.as_str();
+            log::trace!(
+                "Ignoring lock file change since {}; {} has no [[bin]]",
+                since_ref,
+                crate_name
+            );
+        } else if pkg.config.dev_version() {
+            log::debug!(
+                "Ignoring lock file change since {}; could be a pre-release version bump.",
+                since_ref
+            );
+        } else {
+            lock_changed = true;
+        }
+    }
+
+    Some((changed, lock_changed))
 }
 
 struct Dependency<'m> {
