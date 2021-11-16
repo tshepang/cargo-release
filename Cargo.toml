@@ -47,7 +47,7 @@ itertools = "0.10"
 once_cell = "1.2.0"
 structopt = {version = "0.3.25", default-features = false}
 clap = { version = "2", default-features = false }
-clap-cargo = { version = "0.6", features = ["cargo_metadata"] }
+clap-cargo = { version = "0.7", features = ["cargo_metadata"] }
 log = "0.4"
 env_logger = "0.9"
 
