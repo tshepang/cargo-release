@@ -94,7 +94,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-release"
-version = "0.18.4"
+version = "0.18.5"
 dependencies = [
  "assert_fs",
  "bstr",

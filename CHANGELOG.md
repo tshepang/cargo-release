@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.18.5] - 2021-11-16
+
 ### Features
 
 - Warn users when skipping crates in a workspace that have no changes
@@ -294,7 +296,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.4...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.5...HEAD
+[0.18.5]: https://github.com/crate-ci/cargo-release/compare/v0.18.4...v0.18.5
 [0.18.4]: https://github.com/crate-ci/cargo-release/compare/v0.18.3...v0.18.4
 [0.18.3]: https://github.com/crate-ci/cargo-release/compare/v0.18.2...v0.18.3
 [0.18.2]: https://github.com/crate-ci/cargo-release/compare/v0.18.1...v0.18.2
