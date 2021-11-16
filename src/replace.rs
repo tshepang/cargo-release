@@ -116,7 +116,7 @@ pub fn do_file_replacements(
                     "replaced",
                     0,
                 );
-                log::trace!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+                log::debug!("Change:\n{}", itertools::join(diff.into_iter(), ""));
             } else {
                 std::fs::write(&file, replaced)?;
             }

@@ -107,7 +107,11 @@ fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::FatalError> 
                         prev_tag_name
                     );
                 } else {
-                    log::trace!("{} has no changes since {}", crate_name, prev_tag_name);
+                    log::trace!(
+                        "Excluded {} has no changes since {}",
+                        crate_name,
+                        prev_tag_name
+                    );
                 }
             } else {
                 log::debug!(
@@ -688,7 +692,7 @@ impl<'m> PackageRelease<'m> {
             release_config
         };
         if !config.release() {
-            log::debug!("Disabled in config, skipping {}", manifest_path.display());
+            log::trace!("Disabled in config, skipping {}", manifest_path.display());
             return Ok(None);
         }
 
