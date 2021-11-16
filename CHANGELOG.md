@@ -3,6 +3,15 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+- Warn users when skipping crates in a workspace that have no changes
+
+### Fixed
+
+- Use static crt on Windows
+- Tweak log levels to avoid needing to show all traces to see whats happening
+
 ## [0.18.4] - 2021-10-30
 
 ### Fixed
