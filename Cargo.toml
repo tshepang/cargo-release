@@ -53,4 +53,4 @@ env_logger = "0.9"
 
 [dev-dependencies]
 assert_fs = "1.0"
-predicates = "2.0"
+predicates = "2.1"
