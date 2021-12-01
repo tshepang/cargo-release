@@ -197,7 +197,7 @@ fn find_dependency_tables<'r>(
     const DEP_TABLES: &[&str] = &["dependencies", "dev-dependencies", "build-dependencies"];
 
     root.iter_mut().flat_map(|(k, v)| {
-        if DEP_TABLES.contains(&k) {
+        if DEP_TABLES.contains(&k.get()) {
             v.as_table_like_mut().into_iter().collect::<Vec<_>>()
         } else if k == "target" {
             v.as_table_like_mut()
@@ -206,7 +206,7 @@ fn find_dependency_tables<'r>(
                 .flat_map(|(_, v)| {
                     v.as_table_like_mut().into_iter().flat_map(|v| {
                         v.iter_mut().filter_map(|(k, v)| {
-                            if DEP_TABLES.contains(&k) {
+                            if DEP_TABLES.contains(&k.get()) {
                                 v.as_table_like_mut()
                             } else {
                                 None
