@@ -42,7 +42,13 @@ fn main() {
 }
 
 fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::FatalError> {
-    let ws_meta = args.manifest.metadata().exec().map_err(FatalError::from)?;
+    let ws_meta = args
+        .manifest
+        .metadata()
+        // When evaluating dependency ordering, we need to consider optional depednencies
+        .features(cargo_metadata::CargoOpt::AllFeatures)
+        .exec()
+        .map_err(FatalError::from)?;
     let ws_config = {
         let mut release_config = config::Config::default();
 
