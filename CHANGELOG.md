@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Consider optional dependencies when evaluating release order
+
 ## [0.18.5] - 2021-11-16
 
 ### Features
