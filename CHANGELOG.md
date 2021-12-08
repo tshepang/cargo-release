@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.18.6] - 2021-12-08
+
 ### Fixed
 
 - Consider optional dependencies when evaluating release order
@@ -300,7 +302,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.5...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.6...HEAD
+[0.18.6]: https://github.com/crate-ci/cargo-release/compare/v0.18.5...v0.18.6
 [0.18.5]: https://github.com/crate-ci/cargo-release/compare/v0.18.4...v0.18.5
 [0.18.4]: https://github.com/crate-ci/cargo-release/compare/v0.18.3...v0.18.4
 [0.18.3]: https://github.com/crate-ci/cargo-release/compare/v0.18.2...v0.18.3
