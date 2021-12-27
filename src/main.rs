@@ -88,13 +88,19 @@ fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::FatalError> 
         .filter_map(|id| pkg_releases.get(id))
         .collect();
 
-    let excluded_pkgs: Result<Vec<_>, _> = excluded_pkgs
+    let excluded_pkgs: Vec<_> = excluded_pkgs
         .iter()
         .filter(|p| pkg_ids.contains(&&p.id))
         .filter_map(|p| PackageRelease::load(args, &root, &ws_meta, p).transpose())
         .collect();
-    let excluded_pkgs = excluded_pkgs?;
     for pkg in excluded_pkgs {
+        let pkg = match pkg {
+            Ok(pkg) => pkg,
+            Err(err) => {
+                log::debug!("Could not analyze skipped package: {}", err);
+                continue;
+            }
+        };
         if pkg.version.is_some() {
             let crate_name = pkg.meta.name.as_str();
             let prev_tag_name = &pkg.prev_tag;
