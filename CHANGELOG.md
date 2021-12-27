@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.18.7] - 2021-12-27
+
 ### Fixed
 
 - Don't error out when excluding workspace packages that would be downgraded by the current run
@@ -306,7 +308,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.6...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.7...HEAD
+[0.18.7]: https://github.com/crate-ci/cargo-release/compare/v0.18.6...v0.18.7
 [0.18.6]: https://github.com/crate-ci/cargo-release/compare/v0.18.5...v0.18.6
 [0.18.5]: https://github.com/crate-ci/cargo-release/compare/v0.18.4...v0.18.5
 [0.18.4]: https://github.com/crate-ci/cargo-release/compare/v0.18.3...v0.18.4
