@@ -17,7 +17,7 @@ pub enum Command {
     Release(ReleaseOpt),
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Clone, StructOpt)]
 pub struct ReleaseOpt {
     #[structopt(flatten)]
     pub manifest: clap_cargo::Manifest,
@@ -70,7 +70,7 @@ impl ReleaseOpt {
     }
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Clone, StructOpt)]
 pub struct ConfigArgs {
     /// Sign both git commit and tag,
     #[structopt(long, overrides_with("no-sign"))]
