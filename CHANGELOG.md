@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Don't error out when excluding workspace packages that would be downgraded by the current run
+
 ## [0.18.6] - 2021-12-08
 
 ### Fixed
