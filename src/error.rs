@@ -8,7 +8,8 @@ use cargo_metadata::Error as CargoMetaError;
 use quick_error::quick_error;
 use regex::Error as RegexError;
 use semver::Error as SemVerError;
-use toml_edit::easy::de::Error as TomlError;
+use toml_edit::easy::de::Error as TomlDeError;
+use toml_edit::easy::ser::Error as TomlSerError;
 use toml_edit::TomlError as TomlEditError;
 
 quick_error! {
@@ -22,7 +23,12 @@ quick_error! {
         FileNotFound(filename: PathBuf){
             display("Unable to find file {} to perform replace", filename.display())
         }
-        InvalidTomlFileFormat(err: TomlError) {
+        InvalidTomlData(err: TomlDeError) {
+            display("Invalid TOML file format: {}", err)
+            from()
+            source(err)
+        }
+        InvalidTomlFileFormat(err: TomlSerError) {
             display("Invalid TOML file format: {}", err)
             from()
             source(err)

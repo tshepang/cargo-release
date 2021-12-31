@@ -60,6 +60,10 @@ pub struct ReleaseOpt {
     #[structopt(long)]
     pub prev_tag_name: Option<String>,
 
+    /// Write the current configuration to file with `-` for stdout
+    #[structopt(long)]
+    pub dump_config: Option<std::path::PathBuf>,
+
     #[structopt(flatten)]
     pub logging: Verbosity,
 }
