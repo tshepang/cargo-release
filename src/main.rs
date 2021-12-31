@@ -3,7 +3,7 @@
 
 use std::process::exit;
 
-use structopt::StructOpt;
+use clap::Parser;
 
 mod args;
 mod cargo;
@@ -17,7 +17,7 @@ mod shell;
 mod version;
 
 fn main() {
-    let args::Command::Release(ref release_matches) = args::Command::from_args();
+    let args::Command::Release(ref release_matches) = args::Command::parse();
 
     let mut builder = get_logging(release_matches.logging.log_level());
     builder.init();
