@@ -1,70 +1,70 @@
-use structopt::StructOpt;
+use clap::Parser;
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "cargo")]
-#[structopt(
-    setting = structopt::clap::AppSettings::UnifiedHelpMessage,
-    setting = structopt::clap::AppSettings::DeriveDisplayOrder,
-    setting = structopt::clap::AppSettings::DontCollapseArgsInUsage
+#[derive(Debug, Parser)]
+#[clap(name = "cargo")]
+#[clap(bin_name = "cargo")]
+#[clap(
+    setting = clap::AppSettings::DeriveDisplayOrder,
+    setting = clap::AppSettings::DontCollapseArgsInUsage
 )]
 pub enum Command {
-    #[structopt(name = "release")]
-    #[structopt(
-        setting = structopt::clap::AppSettings::UnifiedHelpMessage,
-        setting = structopt::clap::AppSettings::DeriveDisplayOrder,
-        setting = structopt::clap::AppSettings::DontCollapseArgsInUsage
+    #[clap(name = "release")]
+    #[clap(about, author, version)]
+    #[clap(
+        setting = clap::AppSettings::DeriveDisplayOrder,
+        setting = clap::AppSettings::DontCollapseArgsInUsage
     )]
     Release(ReleaseOpt),
 }
 
-#[derive(Debug, Clone, StructOpt)]
+#[derive(Debug, Clone, clap::Args)]
 pub struct ReleaseOpt {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub manifest: clap_cargo::Manifest,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub workspace: clap_cargo::Workspace,
 
     /// Release level or version: bumping specified version field or remove prerelease extensions by default. Possible level value: major, minor, patch, release, rc, beta, alpha or any valid semver version that is greater than current version
-    #[structopt(default_value)]
+    #[clap(default_value_t)]
     pub level_or_version: crate::version::TargetVersion,
 
     /// Semver metadata
-    #[structopt(short = "m")]
+    #[clap(short)]
     pub metadata: Option<String>,
 
     /// Custom config file
-    #[structopt(short = "c", long = "config")]
+    #[clap(short, long = "config")]
     pub custom_config: Option<String>,
 
     /// Ignore implicit configuration files.
-    #[structopt(long)]
+    #[clap(long)]
     pub isolated: bool,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub config: ConfigArgs,
 
     /// Token to use when uploading
-    #[structopt(long)]
+    #[clap(long)]
     pub token: Option<String>,
 
     /// Actually perform a release. Dry-run mode is the default
-    #[structopt(short = "x", long)]
+    #[clap(short = 'x', long)]
     pub execute: bool,
 
     /// Skip release confirmation and version preview
-    #[structopt(long)]
+    #[clap(long)]
     pub no_confirm: bool,
 
     /// The name of tag for the previous release.
-    #[structopt(long)]
+    #[clap(long)]
     pub prev_tag_name: Option<String>,
 
     /// Write the current configuration to file with `-` for stdout
-    #[structopt(long)]
+    #[clap(long)]
     pub dump_config: Option<std::path::PathBuf>,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub logging: Verbosity,
 }
 
@@ -74,90 +74,86 @@ impl ReleaseOpt {
     }
 }
 
-#[derive(Debug, Clone, StructOpt)]
+#[derive(Debug, Clone, clap::Args)]
 pub struct ConfigArgs {
     /// Sign both git commit and tag,
-    #[structopt(long, overrides_with("no-sign"))]
+    #[clap(long, overrides_with("no-sign"))]
     sign: bool,
-    #[structopt(long, overrides_with("sign"), hidden(true))]
+    #[clap(long, overrides_with("sign"), hide(true))]
     no_sign: bool,
 
     /// Sign git commit
-    #[structopt(long, overrides_with("no-sign-commit"))]
+    #[clap(long, overrides_with("no-sign-commit"))]
     sign_commit: bool,
-    #[structopt(long, overrides_with("sign-commit"), hidden(true))]
+    #[clap(long, overrides_with("sign-commit"), hide(true))]
     no_sign_commit: bool,
 
     /// Sign git tag
-    #[structopt(long, overrides_with("no-sign-tag"))]
+    #[clap(long, overrides_with("no-sign-tag"))]
     sign_tag: bool,
-    #[structopt(long, overrides_with("sign-tag"), hidden(true))]
+    #[clap(long, overrides_with("sign-tag"), hide(true))]
     no_sign_tag: bool,
 
     /// Git remote to push
-    #[structopt(long)]
+    #[clap(long)]
     push_remote: Option<String>,
 
     /// Cargo registry to upload to
-    #[structopt(long)]
+    #[clap(long)]
     registry: Option<String>,
 
-    #[structopt(long, overrides_with("no-publish"), hidden(true))]
+    #[clap(long, overrides_with("no-publish"), hide(true))]
     publish: bool,
     /// Do not run cargo publish on release
-    #[structopt(long, overrides_with("publish"), visible_alias = "skip-publish")]
+    #[clap(long, overrides_with("publish"), visible_alias = "skip-publish")]
     no_publish: bool,
 
-    #[structopt(long, overrides_with("no-push"), hidden(true))]
+    #[clap(long, overrides_with("no-push"), hide(true))]
     push: bool,
     /// Do not run git push in the last step
-    #[structopt(long, overrides_with("push"), visible_alias = "skip-push")]
+    #[clap(long, overrides_with("push"), visible_alias = "skip-push")]
     no_push: bool,
 
-    #[structopt(long, overrides_with("no-tag"), hidden(true))]
+    #[clap(long, overrides_with("no-tag"), hide(true))]
     tag: bool,
     /// Do not create git tag
-    #[structopt(long, overrides_with("tag"), visible_alias = "skip-tag")]
+    #[clap(long, overrides_with("tag"), visible_alias = "skip-tag")]
     no_tag: bool,
 
-    #[structopt(long, overrides_with("no-verify"), hidden(true))]
+    #[clap(long, overrides_with("no-verify"), hide(true))]
     verify: bool,
     /// Don't verify the contents by building them
-    #[structopt(long, overrides_with("verify"))]
+    #[clap(long, overrides_with("verify"))]
     no_verify: bool,
 
     /// Specify how workspace dependencies on this crate should be handed.
-    #[structopt(
-        long,
-        possible_values(&crate::config::DependentVersion::variants()),
-        case_insensitive(true),
-    )]
+    #[clap(long, arg_enum)]
     dependent_version: Option<crate::config::DependentVersion>,
 
     /// Prefix of git tag, note that this will override default prefix based on sub-directory
-    #[structopt(long)]
+    #[clap(long)]
     tag_prefix: Option<String>,
 
     /// The name of the git tag.
-    #[structopt(long)]
+    #[clap(long)]
     tag_name: Option<String>,
 
     /// Pre-release identifier(s) to append to the next development version after release
-    #[structopt(long)]
+    #[clap(long)]
     dev_version_ext: Option<String>,
 
     /// Create dev version after release
-    #[structopt(long, overrides_with("no-dev-version"))]
+    #[clap(long, overrides_with("no-dev-version"))]
     dev_version: bool,
-    #[structopt(long, overrides_with("dev-version"), hidden(true))]
+    #[clap(long, overrides_with("dev-version"), hide(true))]
     no_dev_version: bool,
 
     /// Provide a set of features that need to be enabled
-    #[structopt(long)]
+    #[clap(long)]
     features: Vec<String>,
 
     /// Enable all features via `all-features`. Overrides `features`
-    #[structopt(long)]
+    #[clap(long)]
     all_features: bool,
 }
 
@@ -189,17 +185,17 @@ impl ConfigArgs {
     }
 }
 
-#[derive(StructOpt, Debug, Clone)]
+#[derive(clap::Args, Debug, Clone)]
 pub struct Verbosity {
     /// Pass many times for less log output
-    #[structopt(long, short = "q", parse(from_occurrences))]
+    #[clap(long, short, parse(from_occurrences))]
     quiet: i8,
 
     /// Pass many times for more log output
     ///
     /// By default, it'll report info. Passing `-v` one time also prints
     /// warnings, `-vv` enables info logging, `-vvv` debug, and `-vvvv` trace.
-    #[structopt(long, short = "v", parse(from_occurrences))]
+    #[clap(long, short, parse(from_occurrences))]
     verbose: i8,
 }
 
@@ -223,6 +219,12 @@ fn resolve_bool_arg(yes: bool, no: bool) -> Option<bool> {
         (true, false) => Some(true),
         (false, true) => Some(false),
         (false, false) => None,
-        (_, _) => unreachable!("StructOpt should make this impossible"),
+        (_, _) => unreachable!("clap should make this impossible"),
     }
+}
+
+#[test]
+fn verify_app() {
+    use clap::IntoApp;
+    Command::into_app().debug_assert()
 }

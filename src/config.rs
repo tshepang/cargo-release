@@ -1,7 +1,6 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use clap::arg_enum;
 use serde::{Deserialize, Serialize};
 
 use crate::error::FatalError;
@@ -311,16 +310,15 @@ impl Command {
     }
 }
 
-arg_enum! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-    #[serde(rename_all = "kebab-case")]
-    pub enum DependentVersion {
-        Upgrade,
-        Fix,
-        Error,
-        Warn,
-        Ignore,
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ArgEnum)]
+#[serde(rename_all = "kebab-case")]
+#[clap(rename_all = "kebab-case")]
+pub enum DependentVersion {
+    Upgrade,
+    Fix,
+    Error,
+    Warn,
+    Ignore,
 }
 
 impl Default for DependentVersion {

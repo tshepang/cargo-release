@@ -1,7 +1,5 @@
 use std::str::FromStr;
 
-use clap::arg_enum;
-
 use crate::error::FatalError;
 
 #[derive(Clone, Debug)]
@@ -102,16 +100,41 @@ impl From<semver::Version> for Version {
     }
 }
 
-arg_enum! {
-    #[derive(Debug, Clone, Copy)]
-    pub enum BumpLevel {
-        Major,
-        Minor,
-        Patch,
-        Rc,
-        Beta,
-        Alpha,
-        Release,
+#[derive(Debug, Clone, Copy, clap::ArgEnum)]
+#[clap(rename_all = "kebab-case")]
+pub enum BumpLevel {
+    Major,
+    Minor,
+    Patch,
+    Rc,
+    Beta,
+    Alpha,
+    Release,
+}
+
+impl std::fmt::Display for BumpLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use clap::ArgEnum;
+
+        self.to_possible_value()
+            .expect("no values are skipped")
+            .get_name()
+            .fmt(f)
+    }
+}
+
+impl std::str::FromStr for BumpLevel {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use clap::ArgEnum;
+
+        for variant in Self::value_variants() {
+            if variant.to_possible_value().unwrap().matches(s, false) {
+                return Ok(*variant);
+            }
+        }
+        Err(format!("Invalid variant: {}", s))
     }
 }
 
