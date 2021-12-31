@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.18.8] - 2021-12-31
+
 ### Features
 
 - `--dump-config` flag to see defaults and debug config layering
@@ -312,7 +314,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.7...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.8...HEAD
+[0.18.8]: https://github.com/crate-ci/cargo-release/compare/v0.18.7...v0.18.8
 [0.18.7]: https://github.com/crate-ci/cargo-release/compare/v0.18.6...v0.18.7
 [0.18.6]: https://github.com/crate-ci/cargo-release/compare/v0.18.5...v0.18.6
 [0.18.5]: https://github.com/crate-ci/cargo-release/compare/v0.18.4...v0.18.5
