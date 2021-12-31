@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use clap::arg_enum;
@@ -363,6 +364,86 @@ impl CargoPackage {
 #[serde(default)]
 struct CargoMetadata {
     release: Option<Config>,
+}
+
+pub fn dump_config(
+    args: &crate::args::ReleaseOpt,
+    output_path: &std::path::Path,
+) -> Result<i32, FatalError> {
+    log::trace!("Initializing");
+    let ws_meta = args
+        .manifest
+        .metadata()
+        // When evaluating dependency ordering, we need to consider optional depednencies
+        .features(cargo_metadata::CargoOpt::AllFeatures)
+        .exec()
+        .map_err(FatalError::from)?;
+
+    let release_config =
+        if let Some(root_id) = ws_meta.resolve.as_ref().and_then(|r| r.root.as_ref()) {
+            let pkg = ws_meta
+                .packages
+                .iter()
+                .find(|p| p.id == *root_id)
+                .expect("root should always be present");
+            let manifest_path = pkg.manifest_path.as_std_path();
+
+            let mut release_config = Config::default();
+
+            if !args.isolated {
+                let cfg = resolve_config(ws_meta.workspace_root.as_std_path(), manifest_path)?;
+                release_config.update(&cfg);
+            }
+
+            if let Some(custom_config_path) = args.custom_config.as_ref() {
+                // when calling with -c option
+                let cfg = resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
+                release_config.update(&cfg);
+            }
+
+            release_config.update(&args.config.to_config());
+
+            // the publish flag in cargo file
+            let cargo_file = crate::cargo::parse_cargo_config(manifest_path)?;
+            if !cargo_file
+                .get("package")
+                .and_then(|f| f.as_table())
+                .and_then(|f| f.get("publish"))
+                .and_then(|f| f.as_bool())
+                .unwrap_or(true)
+            {
+                release_config.publish = Some(false);
+                release_config.disable_publish = None;
+            }
+
+            release_config
+        } else {
+            let mut release_config = Config::default();
+
+            if !args.isolated {
+                let cfg = resolve_workspace_config(ws_meta.workspace_root.as_std_path())?;
+                release_config.update(&cfg);
+            }
+
+            if let Some(custom_config_path) = args.custom_config.as_ref() {
+                // when calling with -c option
+                let cfg = resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
+                release_config.update(&cfg);
+            }
+
+            release_config.update(&args.config.to_config());
+            release_config
+        };
+
+    let output = toml_edit::easy::to_string_pretty(&release_config)?;
+
+    if output_path == std::path::Path::new("-") {
+        std::io::stdout().write_all(output.as_bytes())?;
+    } else {
+        std::fs::write(output_path, &output)?;
+    }
+
+    Ok(0)
 }
 
 fn get_pkg_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {

@@ -22,7 +22,13 @@ fn main() {
     let mut builder = get_logging(release_matches.logging.log_level());
     builder.init();
 
-    match release::release_workspace(release_matches) {
+    let res = if let Some(dump_config) = release_matches.dump_config.as_deref() {
+        config::dump_config(release_matches, dump_config)
+    } else {
+        release::release_workspace(release_matches)
+    };
+
+    match res {
         Ok(code) => exit(code),
         Err(e) => {
             log::error!("Fatal: {}", e);
