@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+- `--dump-config` flag to see defaults and debug config layering
+
 ## [0.18.7] - 2021-12-27
 
 ### Fixed
