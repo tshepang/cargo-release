@@ -298,7 +298,7 @@ fn release_packages<'m>(
             if !pkg.config.pre_release_replacements().is_empty() {
                 // try replacing text in configured files
                 let template = Template {
-                    prev_version: Some(&prev_version_string),
+                    prev_version: Some(prev_version_string),
                     version: Some(new_version_string),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
