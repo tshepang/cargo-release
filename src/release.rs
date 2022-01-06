@@ -259,15 +259,20 @@ fn release_packages<'m>(
         let prompt = if pkgs.len() == 1 {
             let pkg = pkgs[0];
             let crate_name = pkg.meta.name.as_str();
-            let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-            format!("Release {} {}?", crate_name, base.full_version_string)
+            let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+            format!("Release {} {}?", crate_name, version.full_version_string)
         } else {
             let mut buffer: Vec<u8> = vec![];
             writeln!(&mut buffer, "Release").unwrap();
             for pkg in pkgs {
                 let crate_name = pkg.meta.name.as_str();
-                let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-                writeln!(&mut buffer, "  {} {}", crate_name, base.full_version_string).unwrap();
+                let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+                writeln!(
+                    &mut buffer,
+                    "  {} {}",
+                    crate_name, version.full_version_string
+                )
+                .unwrap();
             }
             write!(&mut buffer, "?").unwrap();
             String::from_utf8(buffer).expect("Only valid UTF-8 has been written")
@@ -286,11 +291,18 @@ fn release_packages<'m>(
         let crate_name = pkg.meta.name.as_str();
 
         if let Some(version) = pkg.version.as_ref() {
-            let prev_version_string = pkg.prev_version.full_version_string.as_str();
-            let new_version_string = version.full_version_string.as_str();
-            log::info!("Update {} to version {}", crate_name, new_version_string);
+            let prev_version_var = pkg.prev_version.full_version_string.as_str();
+            let version_var = version.full_version_string.as_str();
+            log::info!(
+                "Update {} to version {}",
+                crate_name,
+                version.full_version_string
+            );
             if !dry_run {
-                cargo::set_package_version(pkg.manifest_path, new_version_string)?;
+                cargo::set_package_version(
+                    pkg.manifest_path,
+                    version.full_version_string.as_str(),
+                )?;
             }
             update_dependent_versions(pkg, version, dry_run)?;
             if dry_run {
@@ -302,8 +314,8 @@ fn release_packages<'m>(
             if !pkg.config.pre_release_replacements().is_empty() {
                 // try replacing text in configured files
                 let template = Template {
-                    prev_version: Some(prev_version_string),
-                    version: Some(new_version_string),
+                    prev_version: Some(prev_version_var),
+                    version: Some(version_var),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
                     tag_name: pkg.tag.as_deref(),
@@ -324,8 +336,8 @@ fn release_packages<'m>(
                 let pre_rel_hook = pre_rel_hook.args();
                 log::debug!("Calling pre-release hook: {:?}", pre_rel_hook);
                 let envs = maplit::btreemap! {
-                    OsStr::new("PREV_VERSION") => prev_version_string.as_ref(),
-                    OsStr::new("NEW_VERSION") => new_version_string.as_ref(),
+                    OsStr::new("PREV_VERSION") => prev_version_var.as_ref(),
+                    OsStr::new("NEW_VERSION") => version_var.as_ref(),
                     OsStr::new("DRY_RUN") => OsStr::new(if dry_run { "true" } else { "false" }),
                     OsStr::new("CRATE_NAME") => OsStr::new(crate_name),
                     OsStr::new("WORKSPACE_ROOT") => ws_meta.workspace_root.as_os_str(),
@@ -346,8 +358,8 @@ fn release_packages<'m>(
                 shared_commit = true;
             } else {
                 let template = Template {
-                    prev_version: Some(prev_version_string),
-                    version: Some(new_version_string),
+                    prev_version: Some(prev_version_var),
+                    version: Some(version_var),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
                     ..Default::default()
@@ -363,10 +375,11 @@ fn release_packages<'m>(
     }
     if shared_commit {
         let shared_commit_msg = {
+            let version_var = shared_version
+                .as_ref()
+                .map(|v| v.full_version_string.as_str());
             let template = Template {
-                version: shared_version
-                    .as_ref()
-                    .map(|v| v.full_version_string.as_str()),
+                version: version_var,
                 date: Some(NOW.as_str()),
                 ..Default::default()
             };
@@ -415,8 +428,8 @@ fn release_packages<'m>(
         let timeout = std::time::Duration::from_secs(300);
 
         if pkg.config.registry().is_none() {
-            let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-            cargo::wait_for_publish(crate_name, &base.full_version_string, timeout, dry_run)?;
+            let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+            cargo::wait_for_publish(crate_name, &version.full_version_string, timeout, dry_run)?;
             // HACK: Even once the index is updated, there seems to be another step before the publish is fully ready.
             // We don't have a way yet to check for that, so waiting for now in hopes everything is ready
             if !dry_run {
@@ -445,10 +458,12 @@ fn release_packages<'m>(
                 let cwd = pkg.package_path;
                 let crate_name = pkg.meta.name.as_str();
 
-                let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+                let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+                let prev_version_var = pkg.prev_version.full_version_string.as_str();
+                let version_var = version.full_version_string.as_str();
                 let template = Template {
-                    prev_version: Some(&pkg.prev_version.full_version_string),
-                    version: Some(&base.full_version_string),
+                    prev_version: Some(prev_version_var),
+                    version: Some(version_var),
                     crate_name: Some(crate_name),
                     tag_name: Some(tag_name),
                     date: Some(NOW.as_str()),
@@ -469,29 +484,34 @@ fn release_packages<'m>(
     let mut shared_commit = false;
     let mut shared_post_version: Option<version::Version> = None;
     for pkg in pkgs {
-        if let Some(version) = pkg.post_version.as_ref() {
+        if let Some(next_version) = pkg.post_version.as_ref() {
             let cwd = pkg.package_path;
             let crate_name = pkg.meta.name.as_str();
 
-            let updated_version_string = version.full_version_string.as_ref();
             log::info!(
                 "Starting {}'s next development iteration {}",
                 crate_name,
-                updated_version_string,
+                next_version.full_version_string
             );
-            update_dependent_versions(pkg, version, dry_run)?;
+            update_dependent_versions(pkg, next_version, dry_run)?;
             if !dry_run {
-                cargo::set_package_version(pkg.manifest_path, updated_version_string)?;
+                cargo::set_package_version(
+                    pkg.manifest_path,
+                    next_version.full_version_string.as_str(),
+                )?;
                 cargo::update_lock(pkg.manifest_path)?;
             }
-            let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+            let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+            let prev_version_var = pkg.prev_version.full_version_string.as_str();
+            let version_var = version.full_version_string.as_str();
+            let next_version_var = next_version.full_version_string.as_ref();
             let template = Template {
-                prev_version: Some(&pkg.prev_version.full_version_string),
-                version: Some(&base.full_version_string),
+                prev_version: Some(prev_version_var),
+                version: Some(version_var),
                 crate_name: Some(crate_name),
                 date: Some(NOW.as_str()),
                 tag_name: pkg.tag.as_deref(),
-                next_version: Some(updated_version_string),
+                next_version: Some(next_version_var),
                 ..Default::default()
             };
             if !pkg.config.post_release_replacements().is_empty() {
@@ -506,7 +526,7 @@ fn release_packages<'m>(
             }
 
             if pkg.config.shared_version() && shared_post_version.is_none() {
-                shared_post_version = Some(version.clone());
+                shared_post_version = Some(next_version.clone());
             }
             if pkg.config.consolidate_commits() {
                 shared_commit = true;
@@ -522,14 +542,16 @@ fn release_packages<'m>(
     }
     if shared_commit {
         let shared_commit_msg = {
+            let version_var = shared_version
+                .as_ref()
+                .map(|v| v.full_version_string.as_str());
+            let next_version_var = shared_post_version
+                .as_ref()
+                .map(|v| v.full_version_string.as_str());
             let template = Template {
-                version: shared_version
-                    .as_ref()
-                    .map(|v| v.full_version_string.as_str()),
+                version: version_var,
                 date: Some(NOW.as_str()),
-                next_version: shared_post_version
-                    .as_ref()
-                    .map(|v| v.full_version_string.as_str()),
+                next_version: next_version_var,
                 ..Default::default()
             };
             template.render(ws_config.post_release_commit_message())
