@@ -560,45 +560,38 @@ fn release_packages<'m>(
     }
 
     // STEP 7: git push
-    let mut seen_tags = HashSet::new();
     if ws_config.push() {
-        let mut shared_push = false;
+        let mut shared_refs = HashSet::new();
         for pkg in pkgs {
             if !pkg.config.push() {
                 continue;
             }
 
-            let cwd = pkg.package_path;
-            if let Some(tag_name) = pkg.tag.as_ref() {
-                if seen_tags.insert(tag_name) {
-                    log::info!("Pushing {} to {}", tag_name, git_remote);
-                    if !git::push_tag(cwd, git_remote, tag_name, dry_run)? {
-                        return Ok(106);
-                    }
-                }
-            }
-
             if pkg.config.consolidate_pushes() {
-                shared_push = true
-            } else if !shared_push {
-                log::info!("Pushing HEAD to {}", git_remote);
-                if !git::push(
-                    cwd,
-                    git_remote,
-                    Some(branch.as_str()),
-                    pkg.config.push_options(),
-                    dry_run,
-                )? {
+                shared_refs.insert(branch.as_str());
+                if let Some(tag_name) = pkg.tag.as_deref() {
+                    shared_refs.insert(tag_name);
+                }
+            } else {
+                let mut refs = vec![branch.as_str()];
+                if let Some(tag_name) = pkg.tag.as_deref() {
+                    refs.push(tag_name)
+                }
+                log::info!("Pushing {} to {}", refs.join(", "), git_remote);
+                let cwd = pkg.package_path;
+                if !git::push(cwd, git_remote, refs, pkg.config.push_options(), dry_run)? {
                     return Ok(106);
                 }
             }
         }
-        if shared_push {
-            log::info!("Pushing HEAD to {}", git_remote);
+        if !shared_refs.is_empty() {
+            let mut shared_refs = shared_refs.into_iter().collect::<Vec<_>>();
+            shared_refs.sort_unstable();
+            log::info!("Pushing {} to {}", shared_refs.join(", "), git_remote);
             if !git::push(
                 ws_meta.workspace_root.as_std_path(),
                 git_remote,
-                Some(branch.as_str()),
+                shared_refs,
                 ws_config.push_options(),
                 dry_run,
             )? {

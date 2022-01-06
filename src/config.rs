@@ -70,7 +70,12 @@ impl Config {
             no_verify: None,
             push: Some(empty.push()),
             disable_push: None,
-            push_options: Some(empty.push_options().to_vec()),
+            push_options: Some(
+                empty
+                    .push_options()
+                    .map(|s| s.to_owned())
+                    .collect::<Vec<String>>(),
+            ),
             dev_version_ext: Some(empty.dev_version_ext().to_owned()),
             dev_version: Some(empty.dev_version()),
             no_dev_version: None,
@@ -222,11 +227,11 @@ impl Config {
         resolve_bool_arg(self.push, self.disable_push).unwrap_or(true)
     }
 
-    pub fn push_options(&self) -> &[String] {
+    pub fn push_options(&self) -> impl Iterator<Item = &str> {
         self.push_options
             .as_ref()
-            .map(|v| v.as_ref())
-            .unwrap_or(&[])
+            .into_iter()
+            .flat_map(|v| v.iter().map(|s| s.as_str()))
     }
 
     pub fn dev_version_ext(&self) -> &str {
