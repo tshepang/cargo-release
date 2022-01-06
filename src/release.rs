@@ -449,13 +449,6 @@ fn release_packages<'m>(
     for pkg in pkgs {
         if let Some(tag_name) = pkg.tag.as_ref() {
             if seen_tags.insert(tag_name) {
-                let sign = pkg.config.sign_commit() || pkg.config.sign_tag();
-
-                // FIXME: remove when the meaning of sign_commit is changed
-                if !pkg.config.sign_tag() && pkg.config.sign_commit() {
-                    log::warn!("In next minor release, `sign-commit` will only be used to control git commit signing. Use option `sign-tag` for tag signing.");
-                }
-
                 let cwd = pkg.package_path;
                 let crate_name = pkg.meta.name.as_str();
 
@@ -471,7 +464,7 @@ fn release_packages<'m>(
                 let tag_message = template.render(pkg.config.tag_message());
 
                 log::debug!("Creating git tag {}", tag_name);
-                if !git::tag(cwd, tag_name, &tag_message, sign, dry_run)? {
+                if !git::tag(cwd, tag_name, &tag_message, pkg.config.sign_tag(), dry_run)? {
                     // tag failed, abort release
                     return Ok(104);
                 }
