@@ -678,7 +678,6 @@ impl<'m> PackageRelease<'m> {
                 .unwrap_or(true)
             {
                 release_config.publish = Some(false);
-                release_config.disable_publish = None;
             }
 
             release_config

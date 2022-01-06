@@ -105,19 +105,19 @@ pub struct ConfigArgs {
     #[clap(long, overrides_with("no-publish"), hide(true))]
     publish: bool,
     /// Do not run cargo publish on release
-    #[clap(long, overrides_with("publish"), visible_alias = "skip-publish")]
+    #[clap(long, overrides_with("publish"))]
     no_publish: bool,
 
     #[clap(long, overrides_with("no-push"), hide(true))]
     push: bool,
     /// Do not run git push in the last step
-    #[clap(long, overrides_with("push"), visible_alias = "skip-push")]
+    #[clap(long, overrides_with("push"))]
     no_push: bool,
 
     #[clap(long, overrides_with("no-tag"), hide(true))]
     tag: bool,
     /// Do not create git tag
-    #[clap(long, overrides_with("tag"), visible_alias = "skip-tag")]
+    #[clap(long, overrides_with("tag"))]
     no_tag: bool,
 
     #[clap(long, overrides_with("no-verify"), hide(true))]

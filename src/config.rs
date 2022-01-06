@@ -15,17 +15,12 @@ pub struct Config {
     pub push_remote: Option<String>,
     pub registry: Option<String>,
     pub release: Option<bool>,
-    pub disable_release: Option<bool>,
     pub publish: Option<bool>,
-    pub disable_publish: Option<bool>,
     pub verify: Option<bool>,
-    pub no_verify: Option<bool>,
     pub push: Option<bool>,
-    pub disable_push: Option<bool>,
     pub push_options: Option<Vec<String>>,
     pub dev_version_ext: Option<String>,
     pub dev_version: Option<bool>,
-    pub no_dev_version: Option<bool>,
     pub shared_version: Option<bool>,
     pub consolidate_commits: Option<bool>,
     pub consolidate_pushes: Option<bool>,
@@ -38,7 +33,6 @@ pub struct Config {
     pub tag_prefix: Option<String>,
     pub tag_name: Option<String>,
     pub tag: Option<bool>,
-    pub disable_tag: Option<bool>,
     pub enable_features: Option<Vec<String>>,
     pub enable_all_features: Option<bool>,
     pub dependent_version: Option<DependentVersion>,
@@ -63,13 +57,9 @@ impl Config {
             push_remote: Some(empty.push_remote().to_owned()),
             registry: empty.registry().map(|s| s.to_owned()),
             release: Some(empty.release()),
-            disable_release: None,
             publish: Some(empty.publish()),
-            disable_publish: None,
             verify: Some(empty.verify()),
-            no_verify: None,
             push: Some(empty.push()),
-            disable_push: None,
             push_options: Some(
                 empty
                     .push_options()
@@ -78,7 +68,6 @@ impl Config {
             ),
             dev_version_ext: Some(empty.dev_version_ext().to_owned()),
             dev_version: Some(empty.dev_version()),
-            no_dev_version: None,
             shared_version: Some(empty.shared_version()),
             consolidate_commits: Some(empty.consolidate_commits()),
             consolidate_pushes: Some(empty.consolidate_pushes()),
@@ -91,7 +80,6 @@ impl Config {
             tag_prefix: None, // Skipping, its location dependent
             tag_name: Some(empty.tag_name().to_owned()),
             tag: Some(empty.tag()),
-            disable_tag: None,
             enable_features: Some(empty.enable_features().to_vec()),
             enable_all_features: Some(empty.enable_all_features()),
             dependent_version: Some(empty.dependent_version()),
@@ -114,21 +102,17 @@ impl Config {
         if let Some(registry) = source.registry.as_deref() {
             self.registry = Some(registry.to_owned());
         }
-        if let Some(release) = resolve_bool_arg(source.release, source.disable_release) {
+        if let Some(release) = source.release {
             self.release = Some(release);
-            self.disable_release = None;
         }
-        if let Some(publish) = resolve_bool_arg(source.publish, source.disable_publish) {
+        if let Some(publish) = source.publish {
             self.publish = Some(publish);
-            self.disable_publish = None;
         }
-        if let Some(verify) = resolve_bool_arg(source.verify, source.no_verify) {
+        if let Some(verify) = source.verify {
             self.verify = Some(verify);
-            self.no_verify = None;
         }
-        if let Some(push) = resolve_bool_arg(source.push, source.disable_push) {
+        if let Some(push) = source.push {
             self.push = Some(push);
-            self.disable_push = None;
         }
         if let Some(push_options) = source.push_options.as_deref() {
             self.push_options = Some(push_options.to_owned());
@@ -136,9 +120,8 @@ impl Config {
         if let Some(dev_version_ext) = source.dev_version_ext.as_deref() {
             self.dev_version_ext = Some(dev_version_ext.to_owned());
         }
-        if let Some(dev_version) = resolve_bool_arg(source.dev_version, source.no_dev_version) {
+        if let Some(dev_version) = source.dev_version {
             self.dev_version = Some(dev_version);
-            self.no_dev_version = None;
         }
         if let Some(shared_version) = source.shared_version {
             self.shared_version = Some(shared_version);
@@ -173,9 +156,8 @@ impl Config {
         if let Some(tag_name) = source.tag_name.as_deref() {
             self.tag_name = Some(tag_name.to_owned());
         }
-        if let Some(tag) = resolve_bool_arg(source.tag, source.disable_tag) {
+        if let Some(tag) = source.tag {
             self.tag = Some(tag);
-            self.disable_tag = None;
         }
         if let Some(enable_features) = source.enable_features.as_deref() {
             self.enable_features = Some(enable_features.to_owned());
@@ -212,19 +194,19 @@ impl Config {
     }
 
     pub fn release(&self) -> bool {
-        resolve_bool_arg(self.release, self.disable_release).unwrap_or(true)
+        self.release.unwrap_or(true)
     }
 
     pub fn publish(&self) -> bool {
-        resolve_bool_arg(self.publish, self.disable_publish).unwrap_or(true)
+        self.publish.unwrap_or(true)
     }
 
     pub fn verify(&self) -> bool {
-        resolve_bool_arg(self.verify, self.no_verify).unwrap_or(true)
+        self.verify.unwrap_or(true)
     }
 
     pub fn push(&self) -> bool {
-        resolve_bool_arg(self.push, self.disable_push).unwrap_or(true)
+        self.push.unwrap_or(true)
     }
 
     pub fn push_options(&self) -> impl Iterator<Item = &str> {
@@ -239,7 +221,7 @@ impl Config {
     }
 
     pub fn dev_version(&self) -> bool {
-        resolve_bool_arg(self.dev_version, self.no_dev_version).unwrap_or(false)
+        self.dev_version.unwrap_or(false)
     }
 
     pub fn shared_version(&self) -> bool {
@@ -302,7 +284,7 @@ impl Config {
     }
 
     pub fn tag(&self) -> bool {
-        resolve_bool_arg(self.tag, self.disable_tag).unwrap_or(true)
+        self.tag.unwrap_or(true)
     }
 
     pub fn enable_features(&self) -> &[String] {
@@ -464,7 +446,6 @@ pub fn dump_config(
                 .unwrap_or(true)
             {
                 release_config.publish = Some(false);
-                release_config.disable_publish = None;
             }
 
             release_config
@@ -637,18 +618,6 @@ pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Con
     };
 
     Ok(config)
-}
-
-fn resolve_bool_arg(yes: Option<bool>, no: Option<bool>) -> Option<bool> {
-    match (yes, no) {
-        (Some(_), Some(_)) => panic!("`disable_` flags are deprecated and can't be set at the same time with their positive versions"),
-        (Some(yes), None) => Some(yes),
-        (None, Some(no)) => {
-            log::warn!("Negative config values are deprecated (`no_`, `disable_`)");
-            Some(!no)
-        },
-        (None, None) => None,
-    }
 }
 
 #[cfg(test)]
