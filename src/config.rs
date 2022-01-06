@@ -45,6 +45,54 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    pub fn from_defaults() -> Self {
+        let empty = Config::new();
+        Config {
+            allow_branch: Some(
+                empty
+                    .allow_branch()
+                    .map(|s| s.to_owned())
+                    .collect::<Vec<String>>(),
+            ),
+            sign_commit: Some(empty.sign_commit()),
+            sign_tag: Some(empty.sign_tag()),
+            push_remote: Some(empty.push_remote().to_owned()),
+            registry: empty.registry().map(|s| s.to_owned()),
+            release: Some(empty.release()),
+            disable_release: None,
+            publish: Some(empty.publish()),
+            disable_publish: None,
+            verify: Some(empty.verify()),
+            no_verify: None,
+            push: Some(empty.push()),
+            disable_push: None,
+            push_options: Some(empty.push_options().to_vec()),
+            dev_version_ext: Some(empty.dev_version_ext().to_owned()),
+            dev_version: Some(empty.dev_version()),
+            no_dev_version: None,
+            shared_version: Some(empty.shared_version()),
+            consolidate_commits: Some(empty.consolidate_commits()),
+            consolidate_pushes: Some(empty.consolidate_pushes()),
+            pre_release_commit_message: Some(empty.pre_release_commit_message().to_owned()),
+            post_release_commit_message: Some(empty.post_release_commit_message().to_owned()),
+            pre_release_replacements: Some(empty.pre_release_replacements().to_vec()),
+            post_release_replacements: Some(empty.post_release_replacements().to_vec()),
+            pre_release_hook: empty.pre_release_hook().cloned(),
+            tag_message: Some(empty.tag_message().to_owned()),
+            tag_prefix: None, // Skipping, its location dependent
+            tag_name: Some(empty.tag_name().to_owned()),
+            tag: Some(empty.tag()),
+            disable_tag: None,
+            enable_features: Some(empty.enable_features().to_vec()),
+            enable_all_features: Some(empty.enable_all_features()),
+            dependent_version: Some(empty.dependent_version()),
+        }
+    }
+
     pub fn update(&mut self, source: &Config) {
         if let Some(allow_branch) = source.allow_branch.as_deref() {
             self.allow_branch = Some(allow_branch.to_owned());
@@ -386,7 +434,7 @@ pub fn dump_config(
                 .expect("root should always be present");
             let manifest_path = pkg.manifest_path.as_std_path();
 
-            let mut release_config = Config::default();
+            let mut release_config = Config::from_defaults();
 
             if !args.isolated {
                 let cfg = resolve_config(ws_meta.workspace_root.as_std_path(), manifest_path)?;
@@ -416,7 +464,7 @@ pub fn dump_config(
 
             release_config
         } else {
-            let mut release_config = Config::default();
+            let mut release_config = Config::from_defaults();
 
             if !args.isolated {
                 let cfg = resolve_workspace_config(ws_meta.workspace_root.as_std_path())?;
