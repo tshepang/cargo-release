@@ -16,7 +16,7 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
     let ws_meta = args
         .manifest
         .metadata()
-        // When evaluating dependency ordering, we need to consider optional depednencies
+        // When evaluating dependency ordering, we need to consider optional dependencies
         .features(cargo_metadata::CargoOpt::AllFeatures)
         .exec()
         .map_err(FatalError::from)?;
