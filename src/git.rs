@@ -46,15 +46,11 @@ pub fn is_behind_remote(dir: &Path, remote: &str, branch: &str) -> Result<bool, 
 }
 
 pub fn current_branch(dir: &Path) -> Result<String, FatalError> {
-    let output = Command::new("git")
-        .arg("rev-parse")
-        .arg("--abbrev-ref")
-        .arg("HEAD")
-        .current_dir(dir)
-        .output()
-        .map_err(FatalError::from)?;
-    let branch = String::from_utf8(output.stdout)?.trim().to_owned();
-    Ok(branch)
+    let repo = git2::Repository::discover(dir)?;
+
+    let resolved = repo.head()?.resolve()?;
+    let name = resolved.shorthand().unwrap_or("HEAD");
+    Ok(name.to_owned())
 }
 
 pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
