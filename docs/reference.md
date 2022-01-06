@@ -97,8 +97,11 @@ See [release.toml](https://github.com/crate-ci/cargo-release/blob/master/release
 The following placeholders in configuration values will be be replaced with the desired value:
 
 * `{{prev_version}}`: The version before `cargo-release` was executed (before any version bump).
+* `{{prev_metadata}}`: The version's metadata before `cargo-release` was executed (before any version bump).
 * `{{version}}`: The current (bumped) crate version.
+* `{{metadata}}`: The current (bumped) crate version's metadata field.
 * `{{next_version}}` (only valid for `post-release-{commit-message,replacements}`): The crate version for starting development.
+* `{{next_metadata}}` (only valid for `post-release-{commit-message,replacements}`): The crate version's metadata field for starting development.
 * `{{crate_name}}`: The name of the current crate in `Cargo.toml`.
 * `{{date}}`: The current date in `%Y-%m-%d` format.
 * `{{prefix}}` (only valid for `tag-name` / `tag-message`): The value prepended to the tag name.
@@ -109,7 +112,9 @@ The following placeholders in configuration values will be be replaced with the 
 The following environment variables are made available to `pre-release-hook`:
 
 * `PREV_VERSION`: The version before `cargo-release` was executed (before any version bump).
+* `PREV_METADATA`: The version's metadata field before `cargo-release` was executed (before any version bump).
 * `NEW_VERSION`: The current (bumped) crate version.
+* `NEW_METADATA`: The current (bumped) crate version's metadata field.
 * `DRY_RUN`: Whether the release is actually happening (`true` / `false`)
 * `CRATE_NAME`: The current (bumped) crate version.
 * `WORKSPACE_ROOT`: The path to the workspace.

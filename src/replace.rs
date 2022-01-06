@@ -9,13 +9,16 @@ use crate::error::FatalError;
 #[derive(Clone, Default, Debug)]
 pub struct Template<'a> {
     pub prev_version: Option<&'a str>,
+    pub prev_metadata: Option<&'a str>,
     pub version: Option<&'a str>,
+    pub metadata: Option<&'a str>,
     pub crate_name: Option<&'a str>,
     pub date: Option<&'a str>,
 
     pub prefix: Option<&'a str>,
     pub tag_name: Option<&'a str>,
     pub next_version: Option<&'a str>,
+    pub next_metadata: Option<&'a str>,
 }
 
 impl<'a> Template<'a> {
@@ -24,8 +27,14 @@ impl<'a> Template<'a> {
         if let Some(prev_version) = self.prev_version {
             s = s.replace("{{prev_version}}", prev_version);
         }
+        if let Some(prev_metadata) = self.prev_metadata {
+            s = s.replace("{{prev_metadata}}", prev_metadata);
+        }
         if let Some(version) = self.version {
             s = s.replace("{{version}}", version);
+        }
+        if let Some(metadata) = self.metadata {
+            s = s.replace("{{metadata}}", metadata);
         }
         if let Some(crate_name) = self.crate_name {
             s = s.replace("{{crate_name}}", crate_name);
@@ -42,6 +51,9 @@ impl<'a> Template<'a> {
         }
         if let Some(next_version) = self.next_version {
             s = s.replace("{{next_version}}", next_version);
+        }
+        if let Some(next_metadata) = self.next_metadata {
+            s = s.replace("{{next_metadata}}", next_metadata);
         }
         s
     }
