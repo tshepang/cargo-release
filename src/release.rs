@@ -572,7 +572,7 @@ fn release_packages<'m>(
             if let Some(tag_name) = pkg.tag.as_ref() {
                 if seen_tags.insert(tag_name) {
                     log::info!("Pushing {} to {}", tag_name, git_remote);
-                    if !git::push_tag(cwd, git_remote, tag_name, dry_run)? {
+                    if !git::push(cwd, git_remote, [tag_name.as_str()], [], dry_run)? {
                         return Ok(106);
                     }
                 }
@@ -585,7 +585,7 @@ fn release_packages<'m>(
                 if !git::push(
                     cwd,
                     git_remote,
-                    Some(branch.as_str()),
+                    [branch.as_str()],
                     pkg.config.push_options(),
                     dry_run,
                 )? {
@@ -598,7 +598,7 @@ fn release_packages<'m>(
             if !git::push(
                 ws_meta.workspace_root.as_std_path(),
                 git_remote,
-                Some(branch.as_str()),
+                [branch.as_str()],
                 ws_config.push_options(),
                 dry_run,
             )? {

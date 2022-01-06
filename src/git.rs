@@ -147,27 +147,32 @@ pub fn tag_exists(dir: &Path, name: &str) -> Result<bool, FatalError> {
     Ok(!names.is_empty())
 }
 
-pub fn push(
+pub fn push<'s>(
     dir: &Path,
     remote: &str,
-    branch: Option<&str>,
-    options: &[String],
+    refs: impl IntoIterator<Item = &'s str>,
+    options: impl IntoIterator<Item = &'s str>,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
     let mut command = vec!["git", "push"];
+
     for option in options {
         command.push("--push-option");
-        command.push(option.as_str());
+        command.push(option);
     }
-    command.push(remote);
-    if let Some(branch) = branch {
-        command.push(branch);
-    }
-    call_on_path(command, dir, dry_run)
-}
 
-pub fn push_tag(dir: &Path, remote: &str, tag: &str, dry_run: bool) -> Result<bool, FatalError> {
-    call_on_path(vec!["git", "push", remote, tag], dir, dry_run)
+    command.push(remote);
+
+    let mut is_empty = true;
+    for ref_ in refs {
+        command.push(ref_);
+        is_empty = false;
+    }
+    if is_empty {
+        return Ok(true);
+    }
+
+    call_on_path(command, dir, dry_run)
 }
 
 pub fn top_level(dir: &Path) -> Result<PathBuf, FatalError> {
