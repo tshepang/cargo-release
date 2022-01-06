@@ -16,7 +16,7 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
     let ws_meta = args
         .manifest
         .metadata()
-        // When evaluating dependency ordering, we need to consider optional depednencies
+        // When evaluating dependency ordering, we need to consider optional dependencies
         .features(cargo_metadata::CargoOpt::AllFeatures)
         .exec()
         .map_err(FatalError::from)?;
@@ -125,6 +125,7 @@ fn release_packages<'m>(
 
     // STEP 0: Help the user make the right decisions.
     git::git_version()?;
+
     let mut dirty = false;
     if ws_config.consolidate_commits() {
         if git::is_dirty(ws_meta.workspace_root.as_std_path())? {
@@ -145,6 +146,26 @@ fn release_packages<'m>(
         }
     }
     if dirty {
+        if !dry_run {
+            return Ok(101);
+        }
+    }
+
+    let mut tag_exists = false;
+    let mut seen_tags = HashSet::new();
+    for pkg in pkgs {
+        if let Some(tag_name) = pkg.tag.as_ref() {
+            if seen_tags.insert(tag_name) {
+                let cwd = pkg.package_path;
+                if git::tag_exists(cwd, tag_name)? {
+                    let crate_name = pkg.meta.name.as_str();
+                    log::error!("Tag `{}` already exists (for `{}`)", tag_name, crate_name);
+                    tag_exists = true;
+                }
+            }
+        }
+    }
+    if tag_exists {
         if !dry_run {
             return Ok(101);
         }
@@ -424,33 +445,36 @@ fn release_packages<'m>(
     }
 
     // STEP 5: Tag
+    let mut seen_tags = HashSet::new();
     for pkg in pkgs {
         if let Some(tag_name) = pkg.tag.as_ref() {
-            let sign = pkg.config.sign_commit() || pkg.config.sign_tag();
+            if seen_tags.insert(tag_name) {
+                let sign = pkg.config.sign_commit() || pkg.config.sign_tag();
 
-            // FIXME: remove when the meaning of sign_commit is changed
-            if !pkg.config.sign_tag() && pkg.config.sign_commit() {
-                log::warn!("In next minor release, `sign-commit` will only be used to control git commit signing. Use option `sign-tag` for tag signing.");
-            }
+                // FIXME: remove when the meaning of sign_commit is changed
+                if !pkg.config.sign_tag() && pkg.config.sign_commit() {
+                    log::warn!("In next minor release, `sign-commit` will only be used to control git commit signing. Use option `sign-tag` for tag signing.");
+                }
 
-            let cwd = pkg.package_path;
-            let crate_name = pkg.meta.name.as_str();
+                let cwd = pkg.package_path;
+                let crate_name = pkg.meta.name.as_str();
 
-            let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-            let template = Template {
-                prev_version: Some(&pkg.prev_version.full_version_string),
-                version: Some(&base.full_version_string),
-                crate_name: Some(crate_name),
-                tag_name: Some(tag_name),
-                date: Some(NOW.as_str()),
-                ..Default::default()
-            };
-            let tag_message = template.render(pkg.config.tag_message());
+                let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+                let template = Template {
+                    prev_version: Some(&pkg.prev_version.full_version_string),
+                    version: Some(&base.full_version_string),
+                    crate_name: Some(crate_name),
+                    tag_name: Some(tag_name),
+                    date: Some(NOW.as_str()),
+                    ..Default::default()
+                };
+                let tag_message = template.render(pkg.config.tag_message());
 
-            log::debug!("Creating git tag {}", tag_name);
-            if !git::tag(cwd, tag_name, &tag_message, sign, dry_run)? {
-                // tag failed, abort release
-                return Ok(104);
+                log::debug!("Creating git tag {}", tag_name);
+                if !git::tag(cwd, tag_name, &tag_message, sign, dry_run)? {
+                    // tag failed, abort release
+                    return Ok(104);
+                }
             }
         }
     }
@@ -536,6 +560,7 @@ fn release_packages<'m>(
     }
 
     // STEP 7: git push
+    let mut seen_tags = HashSet::new();
     if ws_config.push() {
         let mut shared_push = false;
         for pkg in pkgs {
@@ -545,9 +570,11 @@ fn release_packages<'m>(
 
             let cwd = pkg.package_path;
             if let Some(tag_name) = pkg.tag.as_ref() {
-                log::info!("Pushing {} to {}", tag_name, git_remote);
-                if !git::push_tag(cwd, git_remote, tag_name, dry_run)? {
-                    return Ok(106);
+                if seen_tags.insert(tag_name) {
+                    log::info!("Pushing {} to {}", tag_name, git_remote);
+                    if !git::push_tag(cwd, git_remote, tag_name, dry_run)? {
+                        return Ok(106);
+                    }
                 }
             }
 

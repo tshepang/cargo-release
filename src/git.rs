@@ -15,43 +15,42 @@ pub fn fetch(dir: &Path, remote: &str, branch: &str) -> Result<(), FatalError> {
         .current_dir(dir)
         .output()
         .map(|_| ())
-        .map_err(|_| FatalError::GitError)
+        .map_err(|_| FatalError::GitBinError)
 }
 
 pub fn is_behind_remote(dir: &Path, remote: &str, branch: &str) -> Result<bool, FatalError> {
-    let output = Command::new("git")
-        .arg("merge-base")
-        .arg(&format!("{}/{}", remote, branch))
-        .arg(branch)
-        .current_dir(dir)
-        .output()
-        .map_err(FatalError::from)?;
-    let base_sha = String::from_utf8(output.stdout)?.trim().to_owned();
+    let repo = git2::Repository::discover(dir)?;
 
-    let output = Command::new("git")
-        .arg("rev-parse")
-        .arg(&format!("{}/{}", remote, branch))
-        .current_dir(dir)
-        .output()
-        .map_err(FatalError::from)?;
-    let upstream_sha = String::from_utf8(output.stdout)?.trim().to_owned();
+    let branch_id = repo.revparse_single(branch)?.id();
 
-    log::trace!("{}/{}: {}", remote, branch, upstream_sha);
-    log::trace!("merge base: {}", base_sha);
+    let remote_branch = format!("{}/{}", remote, branch);
+    let behind = match repo.revparse_single(&remote_branch) {
+        Ok(o) => {
+            let remote_branch_id = o.id();
 
-    Ok(base_sha != upstream_sha)
+            let base_id = repo.merge_base(remote_branch_id, branch_id)?;
+
+            log::trace!("{}: {}", remote_branch, remote_branch_id);
+            log::trace!("merge base: {}", base_id);
+
+            base_id != remote_branch_id
+        }
+        Err(err) => {
+            log::warn!("Push target `{}` doesn't exist", remote_branch);
+            log::trace!("Error {}", err);
+            false
+        }
+    };
+
+    Ok(behind)
 }
 
 pub fn current_branch(dir: &Path) -> Result<String, FatalError> {
-    let output = Command::new("git")
-        .arg("rev-parse")
-        .arg("--abbrev-ref")
-        .arg("HEAD")
-        .current_dir(dir)
-        .output()
-        .map_err(FatalError::from)?;
-    let branch = String::from_utf8(output.stdout)?.trim().to_owned();
-    Ok(branch)
+    let repo = git2::Repository::discover(dir)?;
+
+    let resolved = repo.head()?.resolve()?;
+    let name = resolved.shorthand().unwrap_or("HEAD");
+    Ok(name.to_owned())
 }
 
 pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
@@ -141,6 +140,13 @@ pub fn tag(
     )
 }
 
+pub fn tag_exists(dir: &Path, name: &str) -> Result<bool, FatalError> {
+    let repo = git2::Repository::discover(dir)?;
+
+    let names = repo.tag_names(Some(name))?;
+    Ok(!names.is_empty())
+}
+
 pub fn push(
     dir: &Path,
     remote: &str,
@@ -182,5 +188,5 @@ pub(crate) fn git_version() -> Result<(), FatalError> {
         .arg("--version")
         .output()
         .map(|_| ())
-        .map_err(|_| FatalError::GitError)
+        .map_err(|_| FatalError::GitBinError)
 }
