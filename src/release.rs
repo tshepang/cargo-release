@@ -291,8 +291,10 @@ fn release_packages<'m>(
         let crate_name = pkg.meta.name.as_str();
 
         if let Some(version) = pkg.version.as_ref() {
-            let prev_version_var = pkg.prev_version.full_version_string.as_str();
-            let version_var = version.full_version_string.as_str();
+            let prev_version_var = pkg.prev_version.bare_version_string.as_str();
+            let prev_metadata_var = pkg.prev_version.full_version.build.as_str();
+            let version_var = version.bare_version_string.as_str();
+            let metadata_var = version.full_version.build.as_str();
             log::info!(
                 "Update {} to version {}",
                 crate_name,
@@ -315,7 +317,9 @@ fn release_packages<'m>(
                 // try replacing text in configured files
                 let template = Template {
                     prev_version: Some(prev_version_var),
+                    prev_metadata: Some(prev_metadata_var),
                     version: Some(version_var),
+                    metadata: Some(metadata_var),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
                     tag_name: pkg.tag.as_deref(),
@@ -337,7 +341,9 @@ fn release_packages<'m>(
                 log::debug!("Calling pre-release hook: {:?}", pre_rel_hook);
                 let envs = maplit::btreemap! {
                     OsStr::new("PREV_VERSION") => prev_version_var.as_ref(),
+                    OsStr::new("PREV_METADATA") => prev_metadata_var.as_ref(),
                     OsStr::new("NEW_VERSION") => version_var.as_ref(),
+                    OsStr::new("NEW_METADATA") => metadata_var.as_ref(),
                     OsStr::new("DRY_RUN") => OsStr::new(if dry_run { "true" } else { "false" }),
                     OsStr::new("CRATE_NAME") => OsStr::new(crate_name),
                     OsStr::new("WORKSPACE_ROOT") => ws_meta.workspace_root.as_os_str(),
@@ -359,7 +365,9 @@ fn release_packages<'m>(
             } else {
                 let template = Template {
                     prev_version: Some(prev_version_var),
+                    prev_metadata: Some(prev_metadata_var),
                     version: Some(version_var),
+                    metadata: Some(metadata_var),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
                     ..Default::default()
@@ -377,9 +385,13 @@ fn release_packages<'m>(
         let shared_commit_msg = {
             let version_var = shared_version
                 .as_ref()
-                .map(|v| v.full_version_string.as_str());
+                .map(|v| v.bare_version_string.as_str());
+            let metadata_var = shared_version
+                .as_ref()
+                .map(|v| v.full_version.build.as_str());
             let template = Template {
                 version: version_var,
+                metadata: metadata_var,
                 date: Some(NOW.as_str()),
                 ..Default::default()
             };
@@ -459,11 +471,15 @@ fn release_packages<'m>(
                 let crate_name = pkg.meta.name.as_str();
 
                 let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-                let prev_version_var = pkg.prev_version.full_version_string.as_str();
-                let version_var = version.full_version_string.as_str();
+                let prev_version_var = pkg.prev_version.bare_version_string.as_str();
+                let prev_metadata_var = pkg.prev_version.full_version.build.as_str();
+                let version_var = version.bare_version_string.as_str();
+                let metadata_var = version.full_version.build.as_str();
                 let template = Template {
                     prev_version: Some(prev_version_var),
+                    prev_metadata: Some(prev_metadata_var),
                     version: Some(version_var),
+                    metadata: Some(metadata_var),
                     crate_name: Some(crate_name),
                     tag_name: Some(tag_name),
                     date: Some(NOW.as_str()),
@@ -502,16 +518,22 @@ fn release_packages<'m>(
                 cargo::update_lock(pkg.manifest_path)?;
             }
             let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-            let prev_version_var = pkg.prev_version.full_version_string.as_str();
-            let version_var = version.full_version_string.as_str();
-            let next_version_var = next_version.full_version_string.as_ref();
+            let prev_version_var = pkg.prev_version.bare_version_string.as_str();
+            let prev_metadata_var = pkg.prev_version.full_version.build.as_str();
+            let version_var = version.bare_version_string.as_str();
+            let metadata_var = version.full_version.build.as_str();
+            let next_version_var = next_version.bare_version_string.as_ref();
+            let next_metadata_var = next_version.full_version.build.as_ref();
             let template = Template {
                 prev_version: Some(prev_version_var),
+                prev_metadata: Some(prev_metadata_var),
                 version: Some(version_var),
+                metadata: Some(metadata_var),
                 crate_name: Some(crate_name),
                 date: Some(NOW.as_str()),
                 tag_name: pkg.tag.as_deref(),
                 next_version: Some(next_version_var),
+                next_metadata: Some(next_metadata_var),
                 ..Default::default()
             };
             if !pkg.config.post_release_replacements().is_empty() {
@@ -544,14 +566,22 @@ fn release_packages<'m>(
         let shared_commit_msg = {
             let version_var = shared_version
                 .as_ref()
-                .map(|v| v.full_version_string.as_str());
+                .map(|v| v.bare_version_string.as_str());
+            let metadata_var = shared_version
+                .as_ref()
+                .map(|v| v.full_version.build.as_str());
             let next_version_var = shared_post_version
                 .as_ref()
-                .map(|v| v.full_version_string.as_str());
+                .map(|v| v.bare_version_string.as_str());
+            let next_metadata_var = shared_post_version
+                .as_ref()
+                .map(|v| v.full_version.build.as_str());
             let template = Template {
                 version: version_var,
+                metadata: metadata_var,
                 date: Some(NOW.as_str()),
                 next_version: next_version_var,
+                next_metadata: next_metadata_var,
                 ..Default::default()
             };
             template.render(ws_config.post_release_commit_message())
@@ -682,9 +712,15 @@ impl<'m> PackageRelease<'m> {
             // they don't care about any changes from before this tag.
             prev_tag.to_owned()
         } else {
+            let prev_version_var = prev_version.bare_version_string.as_str();
+            let prev_metadata_var = prev_version.full_version.build.as_str();
+            let version_var = prev_version.bare_version_string.as_str();
+            let metadata_var = prev_version.full_version.build.as_str();
             let mut template = Template {
-                prev_version: Some(&prev_version.full_version_string),
-                version: Some(&prev_version.full_version_string),
+                prev_version: Some(prev_version_var),
+                prev_metadata: Some(prev_metadata_var),
+                version: Some(version_var),
+                metadata: Some(metadata_var),
                 crate_name: Some(pkg_meta.name.as_str()),
                 ..Default::default()
             };
@@ -709,9 +745,15 @@ impl<'m> PackageRelease<'m> {
         let base = version.as_ref().unwrap_or(&prev_version);
 
         let tag = if config.tag() {
+            let prev_version_var = prev_version.bare_version_string.as_str();
+            let prev_metadata_var = prev_version.full_version.build.as_str();
+            let version_var = base.bare_version_string.as_str();
+            let metadata_var = base.full_version.build.as_str();
             let mut template = Template {
-                prev_version: Some(&prev_version.full_version_string),
-                version: Some(&base.full_version_string),
+                prev_version: Some(prev_version_var),
+                prev_metadata: Some(prev_metadata_var),
+                version: Some(version_var),
+                metadata: Some(metadata_var),
                 crate_name: Some(pkg_meta.name.as_str()),
                 ..Default::default()
             };
