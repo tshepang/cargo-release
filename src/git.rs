@@ -140,6 +140,13 @@ pub fn tag(
     )
 }
 
+pub fn tag_exists(dir: &Path, name: &str) -> Result<bool, FatalError> {
+    let repo = git2::Repository::discover(dir)?;
+
+    let names = repo.tag_names(Some(name))?;
+    Ok(!names.is_empty())
+}
+
 pub fn push(
     dir: &Path,
     remote: &str,

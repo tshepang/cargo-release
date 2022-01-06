@@ -125,6 +125,7 @@ fn release_packages<'m>(
 
     // STEP 0: Help the user make the right decisions.
     git::git_version()?;
+
     let mut dirty = false;
     if ws_config.consolidate_commits() {
         if git::is_dirty(ws_meta.workspace_root.as_std_path())? {
@@ -145,6 +146,23 @@ fn release_packages<'m>(
         }
     }
     if dirty {
+        if !dry_run {
+            return Ok(101);
+        }
+    }
+
+    let mut tag_exists = false;
+    for pkg in pkgs {
+        if let Some(tag_name) = pkg.tag.as_ref() {
+            let cwd = pkg.package_path;
+            if git::tag_exists(cwd, tag_name)? {
+                let crate_name = pkg.meta.name.as_str();
+                log::error!("Tag `{}` already exists (for `{}`)", tag_name, crate_name);
+                tag_exists = true;
+            }
+        }
+    }
+    if tag_exists {
         if !dry_run {
             return Ok(101);
         }
