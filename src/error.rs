@@ -74,6 +74,11 @@ quick_error! {
             source(err)
             display("{}", err)
         }
+        Git2Error(err: git2::Error) {
+            from()
+            source(err)
+            display("{}", err)
+        }
         NoPackage {
             display("No package in manifest file")
         }
@@ -108,7 +113,7 @@ quick_error! {
             source(err)
             display("Environment Variable Error: {}", err)
         }
-        GitError {
+        GitBinError {
             display("git is not found. git is required for cargo-release workflow.")
         }
         PublishTimeoutError {
