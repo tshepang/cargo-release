@@ -402,45 +402,55 @@ fn release_packages<'m>(
 
     // STEP 3: cargo publish
     for pkg in pkgs {
-        if pkg.config.publish() {
-            let crate_name = pkg.meta.name.as_str();
+        if !pkg.config.publish() {
+            continue;
+        }
+
+        let crate_name = pkg.meta.name.as_str();
+        log::info!("Publishing {}", crate_name);
+
+        let verify = if !pkg.config.verify() {
+            false
+        } else if dry_run && pkgs.len() != 1 {
+            log::debug!("Skipping verification to avoid unpublished dependencies from dry-run");
+            false
+        } else {
+            true
+        };
+        // feature list to release
+        let features = &pkg.features;
+        if !cargo::publish(
+            dry_run,
+            verify,
+            pkg.manifest_path,
+            features,
+            pkg.config.registry(),
+            args.token.as_ref().map(AsRef::as_ref),
+        )? {
+            return Ok(103);
+        }
+        let timeout = std::time::Duration::from_secs(300);
+
+        if pkg.config.registry().is_none() {
             let base = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-
-            log::info!("Running cargo publish on {}", crate_name);
-            // feature list to release
-            let features = &pkg.features;
-            if !cargo::publish(
-                dry_run,
-                pkg.config.verify(),
-                pkg.manifest_path,
-                features,
-                pkg.config.registry(),
-                args.token.as_ref().map(AsRef::as_ref),
-            )? {
-                return Ok(103);
-            }
-            let timeout = std::time::Duration::from_secs(300);
-
-            if pkg.config.registry().is_none() {
-                cargo::wait_for_publish(crate_name, &base.full_version_string, timeout, dry_run)?;
-                // HACK: Even once the index is updated, there seems to be another step before the publish is fully ready.
-                // We don't have a way yet to check for that, so waiting for now in hopes everything is ready
-                if !dry_run {
-                    let publish_grace_sleep = std::env::var("PUBLISH_GRACE_SLEEP")
-                        .unwrap_or_else(|_| Default::default())
-                        .parse()
-                        .unwrap_or(0);
-                    if 0 < publish_grace_sleep {
-                        log::info!(
-                            "Waiting an additional {} seconds for crates.io to update its indices...",
-                            publish_grace_sleep
-                        );
-                        std::thread::sleep(std::time::Duration::from_secs(publish_grace_sleep));
-                    }
+            cargo::wait_for_publish(crate_name, &base.full_version_string, timeout, dry_run)?;
+            // HACK: Even once the index is updated, there seems to be another step before the publish is fully ready.
+            // We don't have a way yet to check for that, so waiting for now in hopes everything is ready
+            if !dry_run {
+                let publish_grace_sleep = std::env::var("PUBLISH_GRACE_SLEEP")
+                    .unwrap_or_else(|_| Default::default())
+                    .parse()
+                    .unwrap_or(0);
+                if 0 < publish_grace_sleep {
+                    log::info!(
+                        "Waiting an additional {} seconds for crates.io to update its indices...",
+                        publish_grace_sleep
+                    );
+                    std::thread::sleep(std::time::Duration::from_secs(publish_grace_sleep));
                 }
-            } else {
-                log::debug!("Not waiting for publish because the registry is not crates.io and doesn't get updated automatically");
             }
+        } else {
+            log::debug!("Not waiting for publish because the registry is not crates.io and doesn't get updated automatically");
         }
     }
 
