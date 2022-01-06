@@ -124,7 +124,6 @@ tag differently for the root crate vs the other crate's, you have two choices:
 - Put the common setting in the workspace's `release.toml` and override it for the root crate in `Cargo.toml`.
 - Modify each crate's `release.toml` with the setting relevant for that crate.
 
-
 ## How do I do a release when there is dependency cycle in my workspace?
 
 If this is for dev-dependencies, just declare your dev-dependency with only a path, no version, and it should work out.
@@ -137,3 +136,9 @@ If you run with extra logging, we'll call out which file changed that triggered 
 
 If that file shouldn't be included in the package, update your `Cargo.toml`'s
 [`include` and `exclude` fields](https://doc.rust-lang.org/cargo/reference/manifest.html#the-exclude-and-include-fields).
+
+## Why does `publish=false` still release?
+
+`publish` only controls whether to publish to `crates.io`.  Some programs might want version bumping, tagging, replacements, etc without publishing.
+
+If you do want to disable everything, set `release = false`.

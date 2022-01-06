@@ -56,7 +56,7 @@ Configuration is read from the following (in precedence order)
 | `push`         | `--no-push`     | bool                        | `true`       | Don't do git push |
 | `push-options` | \-              | list of strings             | `[]`         | Flags to send to the server when doing a `git push` |
 | `tag`          | `--no-tag`      | bool                        | `true`       | Don't do git tag |
-| `publish`      | `--no-publish`  | bool                        | `true`       | Don't do cargo publish right now, see [manifest `publish` field](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional) to permanently disable publish. |
+| `publish`      | `--no-publish`  | bool                        | `true`       | Don't do cargo publish right now, see [manifest `publish` field](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish--field-optional) to permanently disable publish.  See `release` for disabling the complete release process. |
 | `verify`       | `--no-verify`   | bool                        | `true`       | Don't verify the contents by building them |
 | `shared-version` | \-            | bool                        | `false`      | Ensure all crates with `shared_version` are the same version |
 | `consolidate-commits` | \-       | bool                        | `false`      | When releasing a workspace, use a single commit for the pre-release version bump and a single commit for the post-release version bump. |
