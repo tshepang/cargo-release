@@ -20,24 +20,7 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
         .features(cargo_metadata::CargoOpt::AllFeatures)
         .exec()
         .map_err(FatalError::from)?;
-    let ws_config = {
-        let mut release_config = config::Config::default();
-
-        if !args.isolated {
-            let cfg = config::resolve_workspace_config(ws_meta.workspace_root.as_std_path())?;
-            release_config.update(&cfg);
-        }
-
-        if let Some(custom_config_path) = args.custom_config.as_ref() {
-            // when calling with -c option
-            let cfg =
-                config::resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
-            release_config.update(&cfg);
-        }
-
-        release_config.update(&args.config.to_config());
-        release_config
-    };
+    let ws_config = config::load_workspace_config(args, &ws_meta)?;
 
     let pkg_ids = cargo::sort_workspace(&ws_meta);
 
@@ -660,38 +643,7 @@ impl<'m> PackageRelease<'m> {
         let manifest_path = pkg_meta.manifest_path.as_std_path();
         let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
-        let config = {
-            let mut release_config = config::Config::default();
-
-            if !args.isolated {
-                let cfg =
-                    config::resolve_config(ws_meta.workspace_root.as_std_path(), manifest_path)?;
-                release_config.update(&cfg);
-            }
-
-            if let Some(custom_config_path) = args.custom_config.as_ref() {
-                // when calling with -c option
-                let cfg = config::resolve_custom_config(Path::new(custom_config_path))?
-                    .unwrap_or_default();
-                release_config.update(&cfg);
-            }
-
-            release_config.update(&args.config.to_config());
-
-            // the publish flag in cargo file
-            let cargo_file = cargo::parse_cargo_config(manifest_path)?;
-            if !cargo_file
-                .get("package")
-                .and_then(|f| f.as_table())
-                .and_then(|f| f.get("publish"))
-                .and_then(|f| f.as_bool())
-                .unwrap_or(true)
-            {
-                release_config.publish = Some(false);
-            }
-
-            release_config
-        };
+        let config = config::load_package_config(args, ws_meta, pkg_meta)?;
         if !config.release() {
             log::trace!("Disabled in config, skipping {}", manifest_path.display());
             return Ok(None);

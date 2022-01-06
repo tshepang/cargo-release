@@ -399,6 +399,64 @@ struct CargoMetadata {
     release: Option<Config>,
 }
 
+pub fn load_workspace_config(
+    args: &crate::args::ReleaseOpt,
+    ws_meta: &cargo_metadata::Metadata,
+) -> Result<Config, FatalError> {
+    let mut release_config = Config::default();
+
+    if !args.isolated {
+        let cfg = resolve_workspace_config(ws_meta.workspace_root.as_std_path())?;
+        release_config.update(&cfg);
+    }
+
+    if let Some(custom_config_path) = args.custom_config.as_ref() {
+        // when calling with -c option
+        let cfg = resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
+        release_config.update(&cfg);
+    }
+
+    release_config.update(&args.config.to_config());
+    Ok(release_config)
+}
+
+pub fn load_package_config(
+    args: &crate::args::ReleaseOpt,
+    ws_meta: &cargo_metadata::Metadata,
+    pkg: &cargo_metadata::Package,
+) -> Result<Config, FatalError> {
+    let manifest_path = pkg.manifest_path.as_std_path();
+
+    let mut release_config = Config::default();
+
+    if !args.isolated {
+        let cfg = resolve_config(ws_meta.workspace_root.as_std_path(), manifest_path)?;
+        release_config.update(&cfg);
+    }
+
+    if let Some(custom_config_path) = args.custom_config.as_ref() {
+        // when calling with -c option
+        let cfg = resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
+        release_config.update(&cfg);
+    }
+
+    release_config.update(&args.config.to_config());
+
+    // the publish flag in cargo file
+    let cargo_file = crate::cargo::parse_cargo_config(manifest_path)?;
+    if !cargo_file
+        .get("package")
+        .and_then(|f| f.as_table())
+        .and_then(|f| f.get("publish"))
+        .and_then(|f| f.as_bool())
+        .unwrap_or(true)
+    {
+        release_config.publish = Some(false);
+    }
+
+    Ok(release_config)
+}
+
 pub fn dump_config(
     args: &crate::args::ReleaseOpt,
     output_path: &std::path::Path,
@@ -419,51 +477,13 @@ pub fn dump_config(
                 .iter()
                 .find(|p| p.id == *root_id)
                 .expect("root should always be present");
-            let manifest_path = pkg.manifest_path.as_std_path();
 
             let mut release_config = Config::from_defaults();
-
-            if !args.isolated {
-                let cfg = resolve_config(ws_meta.workspace_root.as_std_path(), manifest_path)?;
-                release_config.update(&cfg);
-            }
-
-            if let Some(custom_config_path) = args.custom_config.as_ref() {
-                // when calling with -c option
-                let cfg = resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
-                release_config.update(&cfg);
-            }
-
-            release_config.update(&args.config.to_config());
-
-            // the publish flag in cargo file
-            let cargo_file = crate::cargo::parse_cargo_config(manifest_path)?;
-            if !cargo_file
-                .get("package")
-                .and_then(|f| f.as_table())
-                .and_then(|f| f.get("publish"))
-                .and_then(|f| f.as_bool())
-                .unwrap_or(true)
-            {
-                release_config.publish = Some(false);
-            }
-
+            release_config.update(&load_package_config(args, &ws_meta, pkg)?);
             release_config
         } else {
             let mut release_config = Config::from_defaults();
-
-            if !args.isolated {
-                let cfg = resolve_workspace_config(ws_meta.workspace_root.as_std_path())?;
-                release_config.update(&cfg);
-            }
-
-            if let Some(custom_config_path) = args.custom_config.as_ref() {
-                // when calling with -c option
-                let cfg = resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
-                release_config.update(&cfg);
-            }
-
-            release_config.update(&args.config.to_config());
+            release_config.update(&load_workspace_config(args, &ws_meta)?);
             release_config
         };
 
