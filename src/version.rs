@@ -14,36 +14,35 @@ impl TargetVersion {
         current: &semver::Version,
         metadata: Option<&str>,
     ) -> Result<Option<Version>, FatalError> {
-        match self {
+        let bumped = match self {
             TargetVersion::Relative(bump_level) => {
                 let mut potential_version = current.to_owned();
                 if bump_level.bump_version(&mut potential_version, metadata)? {
                     let full_version = potential_version;
-                    Ok(Some(Version::from(full_version)))
+                    let version = Version::from(full_version);
+                    Some(version)
                 } else {
-                    Ok(None)
+                    None
                 }
             }
             TargetVersion::Absolute(version) => {
-                if current < version {
-                    let mut full_version = version.to_owned();
-                    if full_version.build.is_empty() {
-                        if let Some(metadata) = metadata {
-                            full_version.build = semver::BuildMetadata::new(metadata)?;
-                        } else {
-                            full_version.build = current.build.clone();
-                        }
+                let mut full_version = version.to_owned();
+                if full_version.build.is_empty() {
+                    if let Some(metadata) = metadata {
+                        full_version.build = semver::BuildMetadata::new(metadata)?;
+                    } else {
+                        full_version.build = current.build.clone();
                     }
-                    Ok(Some(Version::from(full_version)))
-                } else if current == version {
-                    Ok(None)
+                }
+                let version = Version::from(full_version);
+                if version.bare_version != Version::from(current.clone()).bare_version {
+                    Some(version)
                 } else {
-                    Err(crate::error::FatalError::UnsupportedVersionReq(
-                        "Cannot release version smaller than current one".to_owned(),
-                    ))
+                    None
                 }
             }
-        }
+        };
+        Ok(bumped)
     }
 }
 

@@ -136,6 +136,27 @@ fn release_packages<'m>(
         }
     }
 
+    let mut downgrades_present = false;
+    for pkg in pkgs {
+        if let Some(version) = pkg.version.as_ref() {
+            if version.full_version < pkg.prev_version.full_version {
+                let crate_name = pkg.meta.name.as_str();
+                log::error!(
+                    "Cannot downgrade {} from {} to {}",
+                    crate_name,
+                    version.full_version,
+                    pkg.prev_version.full_version
+                );
+                downgrades_present = true;
+            }
+        }
+    }
+    if downgrades_present {
+        if !dry_run {
+            return Ok(101);
+        }
+    }
+
     let mut changed_pkgs = HashSet::new();
     for pkg in pkgs {
         if let Some(version) = pkg.version.as_ref() {
