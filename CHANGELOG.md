@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.19.0] - 2022-01-07
+
 ### Breaking Changes
 
 - Dirty repo check will now check the entire workspace
@@ -354,7 +356,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.18.8...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/crate-ci/cargo-release/compare/v0.18.8...v0.19.0
 [0.18.8]: https://github.com/crate-ci/cargo-release/compare/v0.18.7...v0.18.8
 [0.18.7]: https://github.com/crate-ci/cargo-release/compare/v0.18.6...v0.18.7
 [0.18.6]: https://github.com/crate-ci/cargo-release/compare/v0.18.5...v0.18.6
