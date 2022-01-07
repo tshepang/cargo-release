@@ -1,10 +1,10 @@
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::io::Write;
 use std::path::Path;
 
 use chrono::prelude::Local;
+use indexmap::IndexMap;
 use itertools::Itertools;
 
 use crate::error::FatalError;
@@ -20,89 +20,74 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
         .features(cargo_metadata::CargoOpt::AllFeatures)
         .exec()
         .map_err(FatalError::from)?;
+    let root = git::top_level(ws_meta.workspace_root.as_std_path())?;
     let ws_config = config::load_workspace_config(args, &ws_meta)?;
 
-    let pkg_ids = cargo::sort_workspace(&ws_meta);
-
-    let (selected_pkgs, excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
-    if selected_pkgs.is_empty() {
-        log::info!("No packages selected.");
-        return Ok(0);
-    }
-
-    let root = git::top_level(ws_meta.workspace_root.as_std_path())?;
-    let pkg_releases: Result<HashMap<_, _>, _> = selected_pkgs
+    let member_ids = cargo::sort_workspace(&ws_meta);
+    let pkgs: Result<IndexMap<_, _>, _> = member_ids
         .iter()
-        .filter_map(|p| PackageRelease::load(args, &root, &ws_meta, p).transpose())
+        .filter_map(|p| PackageRelease::load(args, &root, &ws_meta, &ws_meta[p]).transpose())
         .map(|p| p.map(|p| (&p.meta.id, p)))
         .collect();
-    let pkg_releases = pkg_releases?;
-    let pkg_releases: Vec<_> = pkg_ids
-        .iter()
-        .filter_map(|id| pkg_releases.get(id))
-        .collect();
+    let mut pkgs = pkgs?;
 
-    if !excluded_pkgs.is_empty() {
-        // We aren't releasing these, so keep the target version the same rather than attempting to
-        // change it which can be especially bad when an absolute version is used and the target
-        // version becomes a downgrade.
-        let mut excluded_args = args.clone();
-        excluded_args.level_or_version =
-            version::TargetVersion::Relative(version::BumpLevel::Release);
-        let excluded_pkgs: Vec<_> = excluded_pkgs
-            .iter()
-            .filter(|p| pkg_ids.contains(&&p.id))
-            .filter_map(|p| PackageRelease::load(&excluded_args, &root, &ws_meta, p).transpose())
-            .collect();
-        for pkg in excluded_pkgs {
-            let pkg = match pkg {
-                Ok(pkg) => pkg,
-                Err(err) => {
-                    log::debug!("Could not analyze skipped package: {}", err);
-                    continue;
-                }
-            };
-            let crate_name = pkg.meta.name.as_str();
-            let prev_tag_name = &pkg.prev_tag;
-            if let Some((changed, lock_changed)) = changed_since(&ws_meta, &pkg, prev_tag_name) {
-                if !changed.is_empty() {
-                    log::warn!(
-                        "Disabled by user, skipping {} which has files changed since {}: {:#?}",
-                        crate_name,
-                        prev_tag_name,
-                        changed
-                    );
-                } else if lock_changed {
-                    log::warn!(
-                        "Disabled by user, skipping {} despite lock file being changed since {}",
-                        crate_name,
-                        prev_tag_name
-                    );
-                } else {
-                    log::trace!(
-                        "Disabled by user, skipping {} (no changes since {})",
-                        crate_name,
-                        prev_tag_name
-                    );
-                }
+    let (_selected_pkgs, excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
+    for excluded_pkg in excluded_pkgs {
+        if !member_ids.contains(&&excluded_pkg.id) {
+            continue;
+        }
+        let pkg = &mut pkgs[&excluded_pkg.id];
+        pkg.config.release = Some(false);
+
+        let crate_name = pkg.meta.name.as_str();
+        let prev_tag_name = &pkg.prev_tag;
+        if let Some((changed, lock_changed)) = changed_since(&ws_meta, &pkg, prev_tag_name) {
+            if !changed.is_empty() {
+                log::warn!(
+                    "Disabled by user, skipping {} which has files changed since {}: {:#?}",
+                    crate_name,
+                    prev_tag_name,
+                    changed
+                );
+            } else if lock_changed {
+                log::warn!(
+                    "Disabled by user, skipping {} despite lock file being changed since {}",
+                    crate_name,
+                    prev_tag_name
+                );
             } else {
-                log::debug!(
-                    "Disabled by user, skipping {} (no {} tag)",
+                log::trace!(
+                    "Disabled by user, skipping {} (no changes since {})",
                     crate_name,
                     prev_tag_name
                 );
             }
+        } else {
+            log::debug!(
+                "Disabled by user, skipping {} (no {} tag)",
+                crate_name,
+                prev_tag_name
+            );
         }
     }
 
-    release_packages(args, &ws_meta, &ws_config, pkg_releases.as_slice())
+    let pkgs: Vec<_> = pkgs
+        .into_iter()
+        .map(|(_, pkg)| pkg)
+        .filter(|p| p.config.release())
+        .collect();
+    if pkgs.is_empty() {
+        log::info!("No packages selected.");
+        return Ok(0);
+    }
+    release_packages(args, &ws_meta, &ws_config, pkgs.as_slice())
 }
 
 fn release_packages<'m>(
     args: &args::ReleaseOpt,
     ws_meta: &cargo_metadata::Metadata,
     ws_config: &config::Config,
-    pkgs: &'m [&'m PackageRelease<'m>],
+    pkgs: &'m [PackageRelease<'m>],
 ) -> Result<i32, error::FatalError> {
     let dry_run = args.dry_run();
 
@@ -285,7 +270,7 @@ fn release_packages<'m>(
     // STEP 1: Release Confirmation
     if !dry_run && !args.no_confirm {
         let prompt = if pkgs.len() == 1 {
-            let pkg = pkgs[0];
+            let pkg = &pkgs[0];
             let crate_name = pkg.meta.name.as_str();
             let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
             format!("Release {} {}?", crate_name, version.full_version_string)

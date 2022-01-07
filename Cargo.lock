@@ -99,6 +99,7 @@ dependencies = [
  "env_logger",
  "git2",
  "ignore",
+ "indexmap",
  "itertools",
  "log",
  "maplit",
