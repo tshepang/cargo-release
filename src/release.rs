@@ -178,16 +178,19 @@ fn release_packages<'m>(
             continue;
         }
         if pkg.config.registry().is_none() {
-            let index = crates_index::Index::new_cargo_default()?;
-            let crate_name = pkg.meta.name.as_str();
-            let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-            if cargo::is_published(&index, crate_name, &version.full_version_string) {
-                log::error!(
-                    "{} {} is already published",
-                    crate_name,
-                    version.full_version_string
-                );
-                double_publish = true;
+            // While we'll publish when there is `pkg.version.is_none()`, we'll check that case
+            // during the publish
+            if let Some(version) = pkg.version.as_ref() {
+                let index = crates_index::Index::new_cargo_default()?;
+                let crate_name = pkg.meta.name.as_str();
+                if cargo::is_published(&index, crate_name, &version.full_version_string) {
+                    log::error!(
+                        "{} {} is already published",
+                        crate_name,
+                        version.full_version_string
+                    );
+                    double_publish = true;
+                }
             }
         }
     }
@@ -458,6 +461,15 @@ fn release_packages<'m>(
         }
 
         let crate_name = pkg.meta.name.as_str();
+        if pkg.config.registry().is_none() && pkg.version.is_none() {
+            let version = &pkg.prev_version;
+            let index = crates_index::Index::new_cargo_default()?;
+            if cargo::is_published(&index, crate_name, &version.full_version_string) {
+                log::warn!("Skipping publish of {} {}, assuming we are recovering from a prior failed release", crate_name, version.full_version_string);
+                continue;
+            }
+        }
+
         log::info!("Publishing {}", crate_name);
 
         let verify = if !pkg.config.verify() {
