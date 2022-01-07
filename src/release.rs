@@ -1,10 +1,11 @@
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::io::Write;
 use std::path::Path;
 
 use chrono::prelude::Local;
+use indexmap::IndexMap;
+use indexmap::IndexSet;
 use itertools::Itertools;
 
 use crate::error::FatalError;
@@ -20,89 +21,103 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
         .features(cargo_metadata::CargoOpt::AllFeatures)
         .exec()
         .map_err(FatalError::from)?;
+    let root = git::top_level(ws_meta.workspace_root.as_std_path())?;
     let ws_config = config::load_workspace_config(args, &ws_meta)?;
 
-    let pkg_ids = cargo::sort_workspace(&ws_meta);
-
-    let (selected_pkgs, excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
-    if selected_pkgs.is_empty() {
-        log::info!("No packages selected.");
-        return Ok(0);
-    }
-
-    let root = git::top_level(ws_meta.workspace_root.as_std_path())?;
-    let pkg_releases: Result<HashMap<_, _>, _> = selected_pkgs
+    let member_ids = cargo::sort_workspace(&ws_meta);
+    let pkgs: Result<IndexMap<_, _>, _> = member_ids
         .iter()
-        .filter_map(|p| PackageRelease::load(args, &root, &ws_meta, p).transpose())
+        .filter_map(|p| PackageRelease::load(args, &root, &ws_meta, &ws_meta[p]).transpose())
         .map(|p| p.map(|p| (&p.meta.id, p)))
         .collect();
-    let pkg_releases = pkg_releases?;
-    let pkg_releases: Vec<_> = pkg_ids
-        .iter()
-        .filter_map(|id| pkg_releases.get(id))
-        .collect();
+    let mut pkgs = pkgs?;
 
-    if !excluded_pkgs.is_empty() {
-        // We aren't releasing these, so keep the target version the same rather than attempting to
-        // change it which can be especially bad when an absolute version is used and the target
-        // version becomes a downgrade.
-        let mut excluded_args = args.clone();
-        excluded_args.level_or_version =
-            version::TargetVersion::Relative(version::BumpLevel::Release);
-        let excluded_pkgs: Vec<_> = excluded_pkgs
-            .iter()
-            .filter(|p| pkg_ids.contains(&&p.id))
-            .filter_map(|p| PackageRelease::load(&excluded_args, &root, &ws_meta, p).transpose())
-            .collect();
-        for pkg in excluded_pkgs {
-            let pkg = match pkg {
-                Ok(pkg) => pkg,
-                Err(err) => {
-                    log::debug!("Could not analyze skipped package: {}", err);
-                    continue;
-                }
-            };
-            let crate_name = pkg.meta.name.as_str();
-            let prev_tag_name = &pkg.prev_tag;
-            if let Some((changed, lock_changed)) = changed_since(&ws_meta, &pkg, prev_tag_name) {
-                if !changed.is_empty() {
-                    log::warn!(
-                        "Disabled by user, skipping {} which has files changed since {}: {:#?}",
-                        crate_name,
-                        prev_tag_name,
-                        changed
-                    );
-                } else if lock_changed {
-                    log::warn!(
-                        "Disabled by user, skipping {} despite lock file being changed since {}",
-                        crate_name,
-                        prev_tag_name
-                    );
-                } else {
-                    log::trace!(
-                        "Disabled by user, skipping {} (no changes since {})",
-                        crate_name,
-                        prev_tag_name
-                    );
-                }
+    let (_selected_pkgs, excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
+    for excluded_pkg in excluded_pkgs {
+        if !member_ids.contains(&&excluded_pkg.id) {
+            continue;
+        }
+        let pkg = &mut pkgs[&excluded_pkg.id];
+        pkg.config.release = Some(false);
+        pkg.version = None;
+
+        let crate_name = pkg.meta.name.as_str();
+        let prev_tag_name = &pkg.prev_tag;
+        if let Some((changed, lock_changed)) = changed_since(&ws_meta, pkg, prev_tag_name) {
+            if !changed.is_empty() {
+                log::warn!(
+                    "Disabled by user, skipping {} which has files changed since {}: {:#?}",
+                    crate_name,
+                    prev_tag_name,
+                    changed
+                );
+            } else if lock_changed {
+                log::warn!(
+                    "Disabled by user, skipping {} despite lock file being changed since {}",
+                    crate_name,
+                    prev_tag_name
+                );
             } else {
-                log::debug!(
-                    "Disabled by user, skipping {} (no {} tag)",
+                log::trace!(
+                    "Disabled by user, skipping {} (no changes since {})",
                     crate_name,
                     prev_tag_name
                 );
             }
+        } else {
+            log::debug!(
+                "Disabled by user, skipping {} (no {} tag)",
+                crate_name,
+                prev_tag_name
+            );
         }
     }
 
-    release_packages(args, &ws_meta, &ws_config, pkg_releases.as_slice())
+    let mut shared_max: Option<version::Version> = None;
+    let mut shared_ids = IndexSet::new();
+    for (pkg_id, pkg) in pkgs.iter() {
+        if pkg.config.shared_version() {
+            shared_ids.insert(*pkg_id);
+            let planned = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+            if shared_max
+                .as_ref()
+                .map(|max| max.full_version < planned.full_version)
+                .unwrap_or(true)
+            {
+                shared_max = Some(planned.clone());
+            }
+        }
+    }
+    if let Some(shared_max) = shared_max {
+        for shared_id in shared_ids {
+            let shared_pkg = &mut pkgs[shared_id];
+            if shared_pkg.prev_version.bare_version != shared_max.bare_version {
+                shared_pkg.version = Some(shared_max.clone());
+            }
+        }
+    }
+
+    for pkg in pkgs.values_mut() {
+        pkg.plan()?;
+    }
+
+    let pkgs: Vec<_> = pkgs
+        .into_iter()
+        .map(|(_, pkg)| pkg)
+        .filter(|p| p.config.release())
+        .collect();
+    if pkgs.is_empty() {
+        log::info!("No packages selected.");
+        return Ok(0);
+    }
+    release_packages(args, &ws_meta, &ws_config, pkgs.as_slice())
 }
 
 fn release_packages<'m>(
     args: &args::ReleaseOpt,
     ws_meta: &cargo_metadata::Metadata,
     ws_config: &config::Config,
-    pkgs: &'m [&'m PackageRelease<'m>],
+    pkgs: &'m [PackageRelease<'m>],
 ) -> Result<i32, error::FatalError> {
     let dry_run = args.dry_run();
 
@@ -121,7 +136,7 @@ fn release_packages<'m>(
     for pkg in pkgs {
         if let Some(tag_name) = pkg.tag.as_ref() {
             if seen_tags.insert(tag_name) {
-                let cwd = pkg.package_path;
+                let cwd = pkg.package_root;
                 if git::tag_exists(cwd, tag_name)? {
                     let crate_name = pkg.meta.name.as_str();
                     log::error!("Tag `{}` already exists (for `{}`)", tag_name, crate_name);
@@ -131,6 +146,52 @@ fn release_packages<'m>(
         }
     }
     if tag_exists {
+        if !dry_run {
+            return Ok(101);
+        }
+    }
+
+    let mut downgrades_present = false;
+    for pkg in pkgs {
+        if let Some(version) = pkg.version.as_ref() {
+            if version.full_version < pkg.prev_version.full_version {
+                let crate_name = pkg.meta.name.as_str();
+                log::error!(
+                    "Cannot downgrade {} from {} to {}",
+                    crate_name,
+                    version.full_version,
+                    pkg.prev_version.full_version
+                );
+                downgrades_present = true;
+            }
+        }
+    }
+    if downgrades_present {
+        if !dry_run {
+            return Ok(101);
+        }
+    }
+
+    let mut double_publish = false;
+    for pkg in pkgs {
+        if !pkg.config.publish() {
+            continue;
+        }
+        if pkg.config.registry().is_none() {
+            let index = crates_index::Index::new_cargo_default()?;
+            let crate_name = pkg.meta.name.as_str();
+            let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+            if cargo::is_published(&index, crate_name, &version.full_version_string) {
+                log::error!(
+                    "{} {} is already published",
+                    crate_name,
+                    version.full_version_string
+                );
+                double_publish = true;
+            }
+        }
+    }
+    if double_publish {
         if !dry_run {
             return Ok(101);
         }
@@ -239,7 +300,7 @@ fn release_packages<'m>(
     // STEP 1: Release Confirmation
     if !dry_run && !args.no_confirm {
         let prompt = if pkgs.len() == 1 {
-            let pkg = pkgs[0];
+            let pkg = &pkgs[0];
             let crate_name = pkg.meta.name.as_str();
             let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
             format!("Release {} {}?", crate_name, version.full_version_string)
@@ -269,7 +330,7 @@ fn release_packages<'m>(
     // STEP 2: update current version, save and commit
     let mut shared_commit = false;
     for pkg in pkgs {
-        let cwd = pkg.package_path;
+        let cwd = pkg.package_root;
         let crate_name = pkg.meta.name.as_str();
 
         if let Some(version) = pkg.version.as_ref() {
@@ -422,8 +483,16 @@ fn release_packages<'m>(
         let timeout = std::time::Duration::from_secs(300);
 
         if pkg.config.registry().is_none() {
+            let mut index = crates_index::Index::new_cargo_default()?;
+
             let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-            cargo::wait_for_publish(crate_name, &version.full_version_string, timeout, dry_run)?;
+            cargo::wait_for_publish(
+                &mut index,
+                crate_name,
+                &version.full_version_string,
+                timeout,
+                dry_run,
+            )?;
             // HACK: Even once the index is updated, there seems to be another step before the publish is fully ready.
             // We don't have a way yet to check for that, so waiting for now in hopes everything is ready
             if !dry_run {
@@ -449,7 +518,7 @@ fn release_packages<'m>(
     for pkg in pkgs {
         if let Some(tag_name) = pkg.tag.as_ref() {
             if seen_tags.insert(tag_name) {
-                let cwd = pkg.package_path;
+                let cwd = pkg.package_root;
                 let crate_name = pkg.meta.name.as_str();
 
                 let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
@@ -483,7 +552,7 @@ fn release_packages<'m>(
     let mut shared_post_version: Option<version::Version> = None;
     for pkg in pkgs {
         if let Some(next_version) = pkg.post_version.as_ref() {
-            let cwd = pkg.package_path;
+            let cwd = pkg.package_root;
             let crate_name = pkg.meta.name.as_str();
 
             log::info!(
@@ -598,7 +667,7 @@ fn release_packages<'m>(
                     refs.push(tag_name)
                 }
                 log::info!("Pushing {} to {}", refs.join(", "), git_remote);
-                let cwd = pkg.package_path;
+                let cwd = pkg.package_root;
                 if !git::push(cwd, git_remote, refs, pkg.config.push_options(), dry_run)? {
                     return Ok(106);
                 }
@@ -649,22 +718,21 @@ fn find_dependents<'w>(
 struct PackageRelease<'m> {
     meta: &'m cargo_metadata::Package,
     manifest_path: &'m Path,
-    package_path: &'m Path,
+    package_root: &'m Path,
+    is_root: bool,
     config: config::Config,
 
-    bin: bool,
-
     package_content: Vec<std::path::PathBuf>,
+    bin: bool,
+    dependents: Vec<Dependency<'m>>,
+    features: cargo::Features,
 
     prev_version: version::Version,
     prev_tag: String,
+
     version: Option<version::Version>,
     tag: Option<String>,
     post_version: Option<version::Version>,
-
-    dependents: Vec<Dependency<'m>>,
-
-    features: cargo::Features,
 }
 
 impl<'m> PackageRelease<'m> {
@@ -675,20 +743,26 @@ impl<'m> PackageRelease<'m> {
         pkg_meta: &'m cargo_metadata::Package,
     ) -> Result<Option<Self>, error::FatalError> {
         let manifest_path = pkg_meta.manifest_path.as_std_path();
-        let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
-
+        let package_root = manifest_path.parent().unwrap_or_else(|| Path::new("."));
         let config = config::load_package_config(args, ws_meta, pkg_meta)?;
         if !config.release() {
             log::trace!("Disabled in config, skipping {}", manifest_path.display());
             return Ok(None);
         }
 
-        let is_root = git_root == cwd;
-
-        let prev_version = version::Version::from(pkg_meta.version.clone());
-
         let package_content = cargo::package_content(manifest_path)?;
+        let bin = pkg_meta
+            .targets
+            .iter()
+            .flat_map(|t| t.kind.iter())
+            .any(|k| k == "bin");
+        let features = config.features();
+        let dependents = find_dependents(ws_meta, pkg_meta)
+            .map(|(pkg, dep)| Dependency { pkg, req: &dep.req })
+            .collect();
 
+        let is_root = git_root == package_root;
+        let prev_version = version::Version::from(pkg_meta.version.clone());
         let prev_tag = if let Some(prev_tag) = args.prev_tag_name.as_ref() {
             // Trust the user that the tag passed in is the latest tag for the workspace and that
             // they don't care about any changes from before this tag.
@@ -716,19 +790,36 @@ impl<'m> PackageRelease<'m> {
         let version = args
             .level_or_version
             .bump(&prev_version.full_version, args.metadata.as_deref())?;
-        let is_pre_release = version
-            .as_ref()
-            .map(version::Version::is_prerelease)
-            .unwrap_or(false);
-        let dependents = find_dependents(ws_meta, pkg_meta)
-            .map(|(pkg, dep)| Dependency { pkg, req: &dep.req })
-            .collect();
+        let tag = None;
+        let post_version = None;
 
-        let base = version.as_ref().unwrap_or(&prev_version);
+        let pkg = PackageRelease {
+            meta: pkg_meta,
+            manifest_path,
+            package_root,
+            is_root,
+            config,
 
-        let tag = if config.tag() {
-            let prev_version_var = prev_version.bare_version_string.as_str();
-            let prev_metadata_var = prev_version.full_version.build.as_str();
+            package_content,
+            bin,
+            dependents,
+            features,
+
+            prev_version,
+            prev_tag,
+
+            version,
+            tag,
+            post_version,
+        };
+        Ok(Some(pkg))
+    }
+
+    fn plan(&mut self) -> Result<(), FatalError> {
+        let base = self.version.as_ref().unwrap_or(&self.prev_version);
+        let tag = if self.config.tag() {
+            let prev_version_var = self.prev_version.bare_version_string.as_str();
+            let prev_metadata_var = self.prev_version.full_version.build.as_str();
             let version_var = base.bare_version_string.as_str();
             let metadata_var = base.full_version.build.as_str();
             let mut template = Template {
@@ -736,56 +827,33 @@ impl<'m> PackageRelease<'m> {
                 prev_metadata: Some(prev_metadata_var),
                 version: Some(version_var),
                 metadata: Some(metadata_var),
-                crate_name: Some(pkg_meta.name.as_str()),
+                crate_name: Some(self.meta.name.as_str()),
                 ..Default::default()
             };
 
-            let tag_prefix = config.tag_prefix(is_root);
+            let tag_prefix = self.config.tag_prefix(self.is_root);
             let tag_prefix = template.render(tag_prefix);
             template.prefix = Some(&tag_prefix);
-            Some(template.render(config.tag_name()))
+            Some(template.render(self.config.tag_name()))
         } else {
             None
         };
 
-        let post_version = if !is_pre_release && config.dev_version() {
+        let is_pre_release = base.is_prerelease();
+        let post_version = if !is_pre_release && self.config.dev_version() {
             let mut post = base.full_version.clone();
             post.increment_patch();
-            post.pre = semver::Prerelease::new(config.dev_version_ext())?;
+            post.pre = semver::Prerelease::new(self.config.dev_version_ext())?;
 
             Some(version::Version::from(post))
         } else {
             None
         };
 
-        let bin = pkg_meta
-            .targets
-            .iter()
-            .flat_map(|t| t.kind.iter())
-            .any(|k| k == "bin");
+        self.tag = tag;
+        self.post_version = post_version;
 
-        let features = config.features();
-
-        let pkg = PackageRelease {
-            meta: pkg_meta,
-            manifest_path,
-            package_path: cwd,
-            config,
-
-            bin,
-
-            package_content,
-
-            prev_version,
-            prev_tag,
-            version,
-            tag,
-            post_version,
-            dependents,
-
-            features,
-        };
-        Ok(Some(pkg))
+        Ok(())
     }
 }
 
@@ -799,7 +867,7 @@ fn changed_since<'m>(
         ws_meta.workspace_root.as_std_path()
     } else {
         // Limit our lookup since we don't need to check for `Cargo.lock`
-        pkg.package_path
+        pkg.package_root
     };
     let changed = git::changed_files(changed_root, since_ref).ok().flatten()?;
     let mut changed: Vec<_> = changed

@@ -103,6 +103,7 @@ pub fn publish(
 }
 
 pub fn wait_for_publish(
+    index: &mut crates_index::Index,
     name: &str,
     version: &str,
     timeout: std::time::Duration,
@@ -111,19 +112,12 @@ pub fn wait_for_publish(
     if !dry_run {
         let now = std::time::Instant::now();
         let sleep_time = std::time::Duration::from_secs(1);
-        let mut index = crates_index::Index::new_cargo_default()?;
         let mut logged = false;
         loop {
             if let Err(e) = index.update() {
                 log::debug!("Crate index update failed with {}", e);
             }
-            let crate_data = index.crate_(name);
-            let published = crate_data
-                .iter()
-                .flat_map(|c| c.versions().iter())
-                .any(|v| v.version() == version);
-
-            if published {
+            if is_published(index, name, version) {
                 break;
             } else if timeout < now.elapsed() {
                 return Err(FatalError::PublishTimeoutError);
@@ -138,6 +132,14 @@ pub fn wait_for_publish(
     }
 
     Ok(())
+}
+
+pub fn is_published(index: &crates_index::Index, name: &str, version: &str) -> bool {
+    let crate_data = index.crate_(name);
+    crate_data
+        .iter()
+        .flat_map(|c| c.versions().iter())
+        .any(|v| v.version() == version)
 }
 
 pub fn set_package_version(manifest_path: &Path, version: &str) -> Result<(), FatalError> {
