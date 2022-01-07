@@ -43,7 +43,7 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
 
         let crate_name = pkg.meta.name.as_str();
         let prev_tag_name = &pkg.prev_tag;
-        if let Some((changed, lock_changed)) = changed_since(&ws_meta, &pkg, prev_tag_name) {
+        if let Some((changed, lock_changed)) = changed_since(&ws_meta, pkg, prev_tag_name) {
             if !changed.is_empty() {
                 log::warn!(
                     "Disabled by user, skipping {} which has files changed since {}: {:#?}",
@@ -77,7 +77,7 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
     let mut shared_ids = IndexSet::new();
     for (pkg_id, pkg) in pkgs.iter() {
         if pkg.config.shared_version() {
-            shared_ids.insert(pkg_id.clone());
+            shared_ids.insert(*pkg_id);
             let planned = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
             if shared_max
                 .as_ref()

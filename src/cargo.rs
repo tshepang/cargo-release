@@ -117,7 +117,7 @@ pub fn wait_for_publish(
             if let Err(e) = index.update() {
                 log::debug!("Crate index update failed with {}", e);
             }
-            if is_published(&index, name, version) {
+            if is_published(index, name, version) {
                 break;
             } else if timeout < now.elapsed() {
                 return Err(FatalError::PublishTimeoutError);
