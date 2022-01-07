@@ -31,6 +31,10 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
         .collect();
     let mut pkgs = pkgs?;
 
+    for pkg in pkgs.values_mut() {
+        pkg.plan()?;
+    }
+
     let (_selected_pkgs, excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
     for excluded_pkg in excluded_pkgs {
         if !member_ids.contains(&&excluded_pkg.id) {
@@ -689,6 +693,7 @@ struct PackageRelease<'m> {
     meta: &'m cargo_metadata::Package,
     manifest_path: &'m Path,
     package_root: &'m Path,
+    is_root: bool,
     config: config::Config,
 
     package_content: Vec<std::path::PathBuf>,
@@ -759,45 +764,14 @@ impl<'m> PackageRelease<'m> {
         let version = args
             .level_or_version
             .bump(&prev_version.full_version, args.metadata.as_deref())?;
-
-        let base = version.as_ref().unwrap_or(&prev_version);
-        let tag = if config.tag() {
-            let prev_version_var = prev_version.bare_version_string.as_str();
-            let prev_metadata_var = prev_version.full_version.build.as_str();
-            let version_var = base.bare_version_string.as_str();
-            let metadata_var = base.full_version.build.as_str();
-            let mut template = Template {
-                prev_version: Some(prev_version_var),
-                prev_metadata: Some(prev_metadata_var),
-                version: Some(version_var),
-                metadata: Some(metadata_var),
-                crate_name: Some(pkg_meta.name.as_str()),
-                ..Default::default()
-            };
-
-            let tag_prefix = config.tag_prefix(is_root);
-            let tag_prefix = template.render(tag_prefix);
-            template.prefix = Some(&tag_prefix);
-            Some(template.render(config.tag_name()))
-        } else {
-            None
-        };
-
-        let is_pre_release = base.is_prerelease();
-        let post_version = if !is_pre_release && config.dev_version() {
-            let mut post = base.full_version.clone();
-            post.increment_patch();
-            post.pre = semver::Prerelease::new(config.dev_version_ext())?;
-
-            Some(version::Version::from(post))
-        } else {
-            None
-        };
+        let tag = None;
+        let post_version = None;
 
         let pkg = PackageRelease {
             meta: pkg_meta,
             manifest_path,
             package_root,
+            is_root,
             config,
 
             package_content,
@@ -813,6 +787,47 @@ impl<'m> PackageRelease<'m> {
             post_version,
         };
         Ok(Some(pkg))
+    }
+
+    fn plan(&mut self) -> Result<(), FatalError> {
+        let base = self.version.as_ref().unwrap_or(&self.prev_version);
+        let tag = if self.config.tag() {
+            let prev_version_var = self.prev_version.bare_version_string.as_str();
+            let prev_metadata_var = self.prev_version.full_version.build.as_str();
+            let version_var = base.bare_version_string.as_str();
+            let metadata_var = base.full_version.build.as_str();
+            let mut template = Template {
+                prev_version: Some(prev_version_var),
+                prev_metadata: Some(prev_metadata_var),
+                version: Some(version_var),
+                metadata: Some(metadata_var),
+                crate_name: Some(self.meta.name.as_str()),
+                ..Default::default()
+            };
+
+            let tag_prefix = self.config.tag_prefix(self.is_root);
+            let tag_prefix = template.render(tag_prefix);
+            template.prefix = Some(&tag_prefix);
+            Some(template.render(self.config.tag_name()))
+        } else {
+            None
+        };
+
+        let is_pre_release = base.is_prerelease();
+        let post_version = if !is_pre_release && self.config.dev_version() {
+            let mut post = base.full_version.clone();
+            post.increment_patch();
+            post.pre = semver::Prerelease::new(self.config.dev_version_ext())?;
+
+            Some(version::Version::from(post))
+        } else {
+            None
+        };
+
+        self.tag = tag;
+        self.post_version = post_version;
+
+        Ok(())
     }
 }
 
