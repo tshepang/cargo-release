@@ -443,8 +443,16 @@ fn release_packages<'m>(
         let timeout = std::time::Duration::from_secs(300);
 
         if pkg.config.registry().is_none() {
+            let mut index = crates_index::Index::new_cargo_default()?;
+
             let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-            cargo::wait_for_publish(crate_name, &version.full_version_string, timeout, dry_run)?;
+            cargo::wait_for_publish(
+                &mut index,
+                crate_name,
+                &version.full_version_string,
+                timeout,
+                dry_run,
+            )?;
             // HACK: Even once the index is updated, there seems to be another step before the publish is fully ready.
             // We don't have a way yet to check for that, so waiting for now in hopes everything is ready
             if !dry_run {
