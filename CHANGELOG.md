@@ -3,6 +3,46 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Breaking Changes
+
+- Dirty repo check will now check the entire workspace
+
+Config
+- `sign-commit` will no longer sign tags, instead set `sign-tag`
+- Removed `disable-release` in favor of `release`
+- Removed `disable-publish` in favor of `publish`
+- Removed `no-verify` in favor of `verify`
+- Removed `disable-push` in favor of `push`
+- Removed `no-dev-version` in favor of `dev-version`
+- Removed `disable-tag` in favor of `tag`
+
+Args:
+- Removed `--skip-publish` in favor of `--no-publish`
+- Removed `--skip-push` in favor of `--no-push`
+- Removed `--skip-tag` in favor of `--no-tag`
+
+Template
+- `{{version}}`, `{{prev_version}}`, and `{{next_version}}` now exclude the build field which is exposed in `{{metadata}}` etc
+
+Hook
+- `${NEXT_VERSION}` and `${PREV_VERSION}` now exclude the build field which is exposed in `${METADATA}` etc
+
+### Features
+
+- Automatically share tags between crates by giving them the same name
+  - Recommended to use with `shared-version = true`
+
+### Fixed
+
+- With `shared-version`, bump to highest shared version, rather than error on mismatch
+- `cargo-release release` will now skip publishing crates that are already published
+- Report tag name conflicts earlier in the process
+- `--dump-config` will now also include defaults
+- Don't fail on dry-run release in a workspace (from intra-workspace dependency updates)
+- `cargo-release <version>` will now work with `-m <build>`
+- `cargo-release <version>` will now carry over `-m <build>` from a prior run if none is specified
+- Make dirty check more expansive so we don't accidentally commit unexpected filed
+
 ## [0.18.8] - 2021-12-31
 
 ### Features
