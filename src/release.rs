@@ -106,7 +106,7 @@ fn release_packages<'m>(
     for pkg in pkgs {
         if let Some(tag_name) = pkg.tag.as_ref() {
             if seen_tags.insert(tag_name) {
-                let cwd = pkg.package_path;
+                let cwd = pkg.package_root;
                 if git::tag_exists(cwd, tag_name)? {
                     let crate_name = pkg.meta.name.as_str();
                     log::error!("Tag `{}` already exists (for `{}`)", tag_name, crate_name);
@@ -300,7 +300,7 @@ fn release_packages<'m>(
     // STEP 2: update current version, save and commit
     let mut shared_commit = false;
     for pkg in pkgs {
-        let cwd = pkg.package_path;
+        let cwd = pkg.package_root;
         let crate_name = pkg.meta.name.as_str();
 
         if let Some(version) = pkg.version.as_ref() {
@@ -488,7 +488,7 @@ fn release_packages<'m>(
     for pkg in pkgs {
         if let Some(tag_name) = pkg.tag.as_ref() {
             if seen_tags.insert(tag_name) {
-                let cwd = pkg.package_path;
+                let cwd = pkg.package_root;
                 let crate_name = pkg.meta.name.as_str();
 
                 let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
@@ -522,7 +522,7 @@ fn release_packages<'m>(
     let mut shared_post_version: Option<version::Version> = None;
     for pkg in pkgs {
         if let Some(next_version) = pkg.post_version.as_ref() {
-            let cwd = pkg.package_path;
+            let cwd = pkg.package_root;
             let crate_name = pkg.meta.name.as_str();
 
             log::info!(
@@ -637,7 +637,7 @@ fn release_packages<'m>(
                     refs.push(tag_name)
                 }
                 log::info!("Pushing {} to {}", refs.join(", "), git_remote);
-                let cwd = pkg.package_path;
+                let cwd = pkg.package_root;
                 if !git::push(cwd, git_remote, refs, pkg.config.push_options(), dry_run)? {
                     return Ok(106);
                 }
@@ -688,22 +688,20 @@ fn find_dependents<'w>(
 struct PackageRelease<'m> {
     meta: &'m cargo_metadata::Package,
     manifest_path: &'m Path,
-    package_path: &'m Path,
+    package_root: &'m Path,
     config: config::Config,
 
-    bin: bool,
-
     package_content: Vec<std::path::PathBuf>,
+    bin: bool,
+    dependents: Vec<Dependency<'m>>,
+    features: cargo::Features,
 
     prev_version: version::Version,
     prev_tag: String,
+
     version: Option<version::Version>,
     tag: Option<String>,
     post_version: Option<version::Version>,
-
-    dependents: Vec<Dependency<'m>>,
-
-    features: cargo::Features,
 }
 
 impl<'m> PackageRelease<'m> {
@@ -714,20 +712,26 @@ impl<'m> PackageRelease<'m> {
         pkg_meta: &'m cargo_metadata::Package,
     ) -> Result<Option<Self>, error::FatalError> {
         let manifest_path = pkg_meta.manifest_path.as_std_path();
-        let cwd = manifest_path.parent().unwrap_or_else(|| Path::new("."));
-
+        let package_root = manifest_path.parent().unwrap_or_else(|| Path::new("."));
         let config = config::load_package_config(args, ws_meta, pkg_meta)?;
         if !config.release() {
             log::trace!("Disabled in config, skipping {}", manifest_path.display());
             return Ok(None);
         }
 
-        let is_root = git_root == cwd;
-
-        let prev_version = version::Version::from(pkg_meta.version.clone());
-
         let package_content = cargo::package_content(manifest_path)?;
+        let bin = pkg_meta
+            .targets
+            .iter()
+            .flat_map(|t| t.kind.iter())
+            .any(|k| k == "bin");
+        let features = config.features();
+        let dependents = find_dependents(ws_meta, pkg_meta)
+            .map(|(pkg, dep)| Dependency { pkg, req: &dep.req })
+            .collect();
 
+        let is_root = git_root == package_root;
+        let prev_version = version::Version::from(pkg_meta.version.clone());
         let prev_tag = if let Some(prev_tag) = args.prev_tag_name.as_ref() {
             // Trust the user that the tag passed in is the latest tag for the workspace and that
             // they don't care about any changes from before this tag.
@@ -755,16 +759,8 @@ impl<'m> PackageRelease<'m> {
         let version = args
             .level_or_version
             .bump(&prev_version.full_version, args.metadata.as_deref())?;
-        let is_pre_release = version
-            .as_ref()
-            .map(version::Version::is_prerelease)
-            .unwrap_or(false);
-        let dependents = find_dependents(ws_meta, pkg_meta)
-            .map(|(pkg, dep)| Dependency { pkg, req: &dep.req })
-            .collect();
 
         let base = version.as_ref().unwrap_or(&prev_version);
-
         let tag = if config.tag() {
             let prev_version_var = prev_version.bare_version_string.as_str();
             let prev_metadata_var = prev_version.full_version.build.as_str();
@@ -787,6 +783,7 @@ impl<'m> PackageRelease<'m> {
             None
         };
 
+        let is_pre_release = base.is_prerelease();
         let post_version = if !is_pre_release && config.dev_version() {
             let mut post = base.full_version.clone();
             post.increment_patch();
@@ -797,32 +794,23 @@ impl<'m> PackageRelease<'m> {
             None
         };
 
-        let bin = pkg_meta
-            .targets
-            .iter()
-            .flat_map(|t| t.kind.iter())
-            .any(|k| k == "bin");
-
-        let features = config.features();
-
         let pkg = PackageRelease {
             meta: pkg_meta,
             manifest_path,
-            package_path: cwd,
+            package_root,
             config,
 
-            bin,
-
             package_content,
+            bin,
+            dependents,
+            features,
 
             prev_version,
             prev_tag,
+
             version,
             tag,
             post_version,
-            dependents,
-
-            features,
         };
         Ok(Some(pkg))
     }
@@ -838,7 +826,7 @@ fn changed_since<'m>(
         ws_meta.workspace_root.as_std_path()
     } else {
         // Limit our lookup since we don't need to check for `Cargo.lock`
-        pkg.package_path
+        pkg.package_root
     };
     let changed = git::changed_files(changed_root, since_ref).ok().flatten()?;
     let mut changed: Vec<_> = changed
