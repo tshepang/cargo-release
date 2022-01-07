@@ -157,6 +157,31 @@ fn release_packages<'m>(
         }
     }
 
+    let mut double_publish = false;
+    for pkg in pkgs {
+        if !pkg.config.publish() {
+            continue;
+        }
+        if pkg.config.registry().is_none() {
+            let index = crates_index::Index::new_cargo_default()?;
+            let crate_name = pkg.meta.name.as_str();
+            let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+            if cargo::is_published(&index, crate_name, &version.full_version_string) {
+                log::error!(
+                    "{} {} is already published",
+                    crate_name,
+                    version.full_version_string
+                );
+                double_publish = true;
+            }
+        }
+    }
+    if double_publish {
+        if !dry_run {
+            return Ok(101);
+        }
+    }
+
     let mut changed_pkgs = HashSet::new();
     for pkg in pkgs {
         if let Some(version) = pkg.version.as_ref() {
