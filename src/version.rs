@@ -30,6 +30,8 @@ impl TargetVersion {
                     if full_version.build.is_empty() {
                         if let Some(metadata) = metadata {
                             full_version.build = semver::BuildMetadata::new(metadata)?;
+                        } else {
+                            full_version.build = current.build.clone();
                         }
                     }
                     Ok(Some(Version::from(full_version)))
