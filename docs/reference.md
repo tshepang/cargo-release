@@ -116,6 +116,6 @@ The following environment variables are made available to `pre-release-hook`:
 * `NEW_VERSION`: The current (bumped) crate version.
 * `NEW_METADATA`: The current (bumped) crate version's metadata field.
 * `DRY_RUN`: Whether the release is actually happening (`true` / `false`)
-* `CRATE_NAME`: The current (bumped) crate version.
+* `CRATE_NAME`: The name of the crate.
 * `WORKSPACE_ROOT`: The path to the workspace.
 * `CRATE_ROOT`: The path to the crate.
