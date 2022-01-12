@@ -34,10 +34,12 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
 
     let (_selected_pkgs, excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
     for excluded_pkg in excluded_pkgs {
-        if !member_ids.contains(&&excluded_pkg.id) {
+        let pkg = if let Some(pkg) = pkgs.get_mut(&excluded_pkg.id) {
+            pkg
+        } else {
+            // Either not in workspace or marked as `release = false`.
             continue;
-        }
-        let pkg = &mut pkgs[&excluded_pkg.id];
+        };
         pkg.config.release = Some(false);
         pkg.version = None;
 
