@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Don't panic on `release=false`
+
 ## [0.19.0] - 2022-01-07
 
 ### Breaking Changes
