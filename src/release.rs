@@ -491,6 +491,7 @@ fn release_packages<'m>(
             features,
             pkg.config.registry(),
             args.token.as_ref().map(AsRef::as_ref),
+            pkg.config.target.as_ref().map(AsRef::as_ref),
         )? {
             return Ok(103);
         }
