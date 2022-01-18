@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+- `--target` flag to control what target is used for the verification build during publish
+
 ## [0.19.1] - 2022-01-12
 
 ### Fixes
