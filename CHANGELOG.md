@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.19.2] - 2022-01-17
+
 ### Features
 
 - `--target` flag to control what target is used for the verification build during publish
@@ -366,7 +368,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.19.1...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.19.2...HEAD
+[0.19.2]: https://github.com/crate-ci/cargo-release/compare/v0.19.1...v0.19.2
 [0.19.1]: https://github.com/crate-ci/cargo-release/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/crate-ci/cargo-release/compare/v0.18.8...v0.19.0
 [0.18.8]: https://github.com/crate-ci/cargo-release/compare/v0.18.7...v0.18.8
