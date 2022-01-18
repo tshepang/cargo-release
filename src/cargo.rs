@@ -57,6 +57,7 @@ pub fn publish(
     features: &Features,
     registry: Option<&str>,
     token: Option<&str>,
+    target: Option<&str>,
 ) -> Result<bool, FatalError> {
     let cargo = cargo();
 
@@ -84,6 +85,11 @@ pub fn publish(
 
     if !verify {
         command.push("--no-verify");
+    }
+
+    if let Some(target) = target {
+        command.push("--target");
+        command.push(target);
     }
 
     let feature_arg;

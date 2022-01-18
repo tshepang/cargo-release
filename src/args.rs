@@ -155,6 +155,10 @@ pub struct ConfigArgs {
     /// Enable all features via `all-features`. Overrides `features`
     #[clap(long)]
     all_features: bool,
+
+    /// Build for the target triple
+    #[clap(long)]
+    target: Option<String>,
 }
 
 impl ConfigArgs {
@@ -176,6 +180,7 @@ impl ConfigArgs {
             enable_features: (!self.features.is_empty()).then(|| self.features.clone()),
             enable_all_features: self.all_features.then(|| true),
             dependent_version: self.dependent_version,
+            target: self.target.clone(),
             ..Default::default()
         }
     }
