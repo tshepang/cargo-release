@@ -229,9 +229,14 @@ fn find_dependency_tables<'r>(
     })
 }
 
-fn set_version(dep_item: &mut toml_edit::Item, name: &str, version: &str) -> bool {
+fn set_version(dep_item: &mut toml_edit::Item, name: &str, mut version: &str) -> bool {
     if let Some(table_like) = dep_item.as_table_like_mut() {
         if let Some(version_value) = table_like.get_mut("version") {
+            // Preserve the presence or lack of an explicit caret.
+            if version.starts_with('^') && !version_item_uses_caret(version_value) {
+                version = &version[1..];
+            }
+
             *version_value = toml_edit::value(version);
             true
         } else {
@@ -242,6 +247,14 @@ fn set_version(dep_item: &mut toml_edit::Item, name: &str, version: &str) -> boo
         log::debug!("Not updating version-only dependency on {}", name);
         false
     }
+}
+
+/// Check if a toml item representing a version starts with a caret.
+fn version_item_uses_caret(version: &toml_edit::Item) -> bool {
+    version
+        .as_str()
+        .map(|s| s.starts_with('^'))
+        .unwrap_or(false)
 }
 
 pub fn update_lock(manifest_path: &Path) -> Result<(), FatalError> {
@@ -720,6 +733,102 @@ mod test {
     [dependencies.foo]
     version = "2.0"
     path = "../"
+    "#,
+                )
+                .from_utf8()
+                .from_file_path(),
+            );
+
+            temp.close().unwrap();
+        }
+
+        /// Updating a dependent version that uses an explicit caret
+        /// should retain an explicit caret.
+        #[test]
+        fn preserve_caret() {
+            let temp = assert_fs::TempDir::new().unwrap();
+            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
+            let manifest_path = temp.child("Cargo.toml");
+            manifest_path
+                .write_str(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [build-dependencies]
+
+    [dependencies]
+    foo = { version = "^1.0", path = "../" }
+    "#,
+                )
+                .unwrap();
+
+            set_dependency_version(manifest_path.path(), "foo", "^1.0").unwrap();
+
+            manifest_path.assert(
+                predicate::str::diff(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [build-dependencies]
+
+    [dependencies]
+    foo = { version = "^1.0", path = "../" }
+    "#,
+                )
+                .from_utf8()
+                .from_file_path(),
+            );
+
+            temp.close().unwrap();
+        }
+
+        /// Updating a dependent version that does not use an explicit
+        /// caret should elide the caret from the updated version too.
+        #[test]
+        fn elide_caret() {
+            let temp = assert_fs::TempDir::new().unwrap();
+            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
+            let manifest_path = temp.child("Cargo.toml");
+            manifest_path
+                .write_str(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [build-dependencies]
+
+    [dependencies]
+    foo = { version = "1.0", path = "../" }
+    "#,
+                )
+                .unwrap();
+
+            set_dependency_version(manifest_path.path(), "foo", "^1.0").unwrap();
+
+            manifest_path.assert(
+                predicate::str::diff(
+                    r#"
+    [package]
+    name = "t"
+    version = "0.1.0"
+    authors = []
+    edition = "2018"
+
+    [build-dependencies]
+
+    [dependencies]
+    foo = { version = "1.0", path = "../" }
     "#,
                 )
                 .from_utf8()
