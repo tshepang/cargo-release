@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Preserve dependent version requirement format
+
 ## [0.19.2] - 2022-01-17
 
 ### Features
