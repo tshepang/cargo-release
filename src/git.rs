@@ -125,19 +125,14 @@ pub fn tag(
     sign: bool,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
-    call_on_path(
-        vec![
-            "git",
-            "tag",
-            "-a",
-            name,
-            "-m",
-            msg,
-            if sign { "-s" } else { "" },
-        ],
-        dir,
-        dry_run,
-    )
+    let mut cmd = vec!["git", "tag", name];
+    if !msg.is_empty() {
+        cmd.extend(["-a", "-m", msg]);
+        if sign {
+            cmd.push("-s");
+        }
+    }
+    call_on_path(cmd, dir, dry_run)
 }
 
 pub fn tag_exists(dir: &Path, name: &str) -> Result<bool, FatalError> {
