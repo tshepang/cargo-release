@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+- Lightweight tag support by setting `message = ""`
+
 ## [0.19.3] - 2022-01-21
 
 ### Fixes
