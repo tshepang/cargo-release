@@ -125,15 +125,13 @@ pub fn tag(
     sign: bool,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
-    let cmd = vec![
-        "git",
-        "tag",
-        name,
-        "-a",
-        "-m",
-        msg,
-        if sign { "-s" } else { "" },
-    ];
+    let mut cmd = vec!["git", "tag", name];
+    if !msg.is_empty() {
+        cmd.extend(["-a", "-m", msg]);
+        if sign {
+            cmd.push("-s");
+        }
+    }
     call_on_path(cmd, dir, dry_run)
 }
 
