@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.19.4] - 2022-01-25
+
 ### Features
 
 - Lightweight tag support by setting `message = ""`
@@ -378,7 +380,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.19.3...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.19.4...HEAD
+[0.19.4]: https://github.com/crate-ci/cargo-release/compare/v0.19.3...v0.19.4
 [0.19.3]: https://github.com/crate-ci/cargo-release/compare/v0.19.2...v0.19.3
 [0.19.2]: https://github.com/crate-ci/cargo-release/compare/v0.19.1...v0.19.2
 [0.19.1]: https://github.com/crate-ci/cargo-release/compare/v0.19.0...v0.19.1
