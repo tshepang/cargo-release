@@ -198,8 +198,8 @@ pub struct Verbosity {
 
     /// Pass many times for more log output
     ///
-    /// By default, it'll report info. Passing `-v` one time also prints
-    /// warnings, `-vv` enables info logging, `-vvv` debug, and `-vvvv` trace.
+    /// By default, it'll report info. Passing `-v` one time adds debug
+    /// logs, `-vv` adds trace logs.
     #[clap(long, short, parse(from_occurrences))]
     verbose: i8,
 }
