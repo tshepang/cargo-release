@@ -3,6 +3,14 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Breaking Changes
+
+- **Replacements:** Changed `^` / `$` to match start/end of lines rather than file
+
+### Fixes
+
+- **Replacements:** Changed `^` / `$` to match start/end of lines rather than file
+
 ## [0.19.4] - 2022-01-25
 
 ### Features
