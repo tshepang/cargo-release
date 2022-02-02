@@ -1,8 +1,6 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use regex::Regex;
-
 use crate::config::Replace;
 use crate::error::FatalError;
 
@@ -89,7 +87,10 @@ pub fn do_file_replacements(
             }
 
             let pattern = replace.search.as_str();
-            let r = Regex::new(pattern).map_err(FatalError::from)?;
+            let r = regex::RegexBuilder::new(pattern)
+                .multi_line(true)
+                .build()
+                .map_err(FatalError::from)?;
 
             let min = replace.min.or(replace.exactly).unwrap_or(1);
             let max = replace.max.or(replace.exactly).unwrap_or(std::usize::MAX);
