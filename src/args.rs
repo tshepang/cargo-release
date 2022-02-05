@@ -30,7 +30,7 @@ pub struct ReleaseOpt {
     pub level_or_version: crate::version::TargetVersion,
 
     /// Semver metadata
-    #[clap(short)]
+    #[clap(short, long)]
     pub metadata: Option<String>,
 
     /// Custom config file
