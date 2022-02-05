@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Add missing `--metadata` to complement `-m`
+
 ## [0.20.0] - 2022-02-02
 
 ### Breaking Changes
