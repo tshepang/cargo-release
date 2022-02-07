@@ -3,7 +3,6 @@ use std::ffi::OsStr;
 use std::io::Write;
 use std::path::Path;
 
-use chrono::prelude::Local;
 use indexmap::IndexMap;
 use indexmap::IndexSet;
 use itertools::Itertools;
@@ -711,8 +710,11 @@ fn release_packages<'m>(
     Ok(0)
 }
 
-static NOW: once_cell::sync::Lazy<String> =
-    once_cell::sync::Lazy::new(|| Local::now().format("%Y-%m-%d").to_string());
+static NOW: once_cell::sync::Lazy<String> = once_cell::sync::Lazy::new(|| {
+    time::OffsetDateTime::now_utc()
+        .format(time::macros::format_description!("[year]-[month]-[day]"))
+        .unwrap()
+});
 
 fn find_dependents<'w>(
     ws_meta: &'w cargo_metadata::Metadata,
