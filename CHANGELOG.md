@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.20.2] - 2022-02-15
+
 ### Fixes
 
 - Break cycles at dev dependencies
@@ -400,7 +402,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.20.2...HEAD
+[0.20.2]: https://github.com/crate-ci/cargo-release/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/crate-ci/cargo-release/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/crate-ci/cargo-release/compare/v0.19.4...v0.20.0
 [0.19.4]: https://github.com/crate-ci/cargo-release/compare/v0.19.3...v0.19.4
