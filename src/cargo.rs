@@ -281,19 +281,27 @@ pub fn sort_workspace(ws_meta: &cargo_metadata::Metadata) -> Vec<&cargo_metadata
         .iter()
         .filter_map(|n| {
             if members.contains(&n.id) {
-                // Return the package ID of all normal dependencies. Exclusde all dependencies that
-                // are dev and/or build dependencies only.
-                let normal_deps: Vec<_> = n
-                    .deps
-                    .iter()
-                    .filter_map(|d| {
-                        d.dep_kinds
-                            .iter()
-                            .position(|k| k.kind == cargo_metadata::DependencyKind::Normal)
-                            .map(|_| &d.pkg)
-                    })
-                    .collect();
-                Some((&n.id, normal_deps))
+                // Ignore dev dependencies. This breaks dev dependency cyles and allows for
+                // correct publishing order when a workspace package depends on the root package.
+
+                // It would be more correct to ignore only dev dependencies without a version
+                // field specified. However, cargo_metadata exposes only the resolved version of
+                // a package, and not what semver range (if any) is requested in Cargo.toml.
+
+                let non_dev_pkgs = n.deps.iter().filter_map(|dep| {
+                    let dev_only = dep
+                        .dep_kinds
+                        .iter()
+                        .all(|info| info.kind == cargo_metadata::DependencyKind::Development);
+
+                    if dev_only {
+                        None
+                    } else {
+                        Some(&dep.pkg)
+                    }
+                });
+
+                Some((&n.id, non_dev_pkgs.collect()))
             } else {
                 None
             }
