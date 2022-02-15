@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Break cycles at dev dependencies
+
 ## [0.20.1] - 2022-02-04
 
 ### Fixes
