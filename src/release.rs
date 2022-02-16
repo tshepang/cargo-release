@@ -347,12 +347,11 @@ fn release_packages<'m>(
                 crate_name,
                 version.full_version_string
             );
-            if !dry_run {
-                cargo::set_package_version(
-                    pkg.manifest_path,
-                    version.full_version_string.as_str(),
-                )?;
-            }
+            cargo::set_package_version(
+                pkg.manifest_path,
+                version.full_version_string.as_str(),
+                dry_run,
+            )?;
             update_dependent_versions(pkg, version, dry_run)?;
             if dry_run {
                 log::debug!("Updating lock file");
@@ -575,11 +574,12 @@ fn release_packages<'m>(
                 next_version.full_version_string
             );
             update_dependent_versions(pkg, next_version, dry_run)?;
+            cargo::set_package_version(
+                pkg.manifest_path,
+                next_version.full_version_string.as_str(),
+                dry_run,
+            )?;
             if !dry_run {
-                cargo::set_package_version(
-                    pkg.manifest_path,
-                    next_version.full_version_string.as_str(),
-                )?;
                 cargo::update_lock(pkg.manifest_path)?;
             }
             let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
@@ -974,13 +974,12 @@ fn update_dependent_versions(
                             new_req,
                             dep.req
                         );
-                        if !dry_run {
-                            cargo::set_dependency_version(
-                                dep.pkg.manifest_path.as_std_path(),
-                                &pkg.meta.name,
-                                &new_req,
-                            )?;
-                        }
+                        cargo::set_dependency_version(
+                            dep.pkg.manifest_path.as_std_path(),
+                            &pkg.meta.name,
+                            &new_req,
+                            dry_run,
+                        )?;
                     }
                 }
             }
@@ -994,13 +993,12 @@ fn update_dependent_versions(
                         new_req,
                         dep.req
                     );
-                    if !dry_run {
-                        cargo::set_dependency_version(
-                            dep.pkg.manifest_path.as_std_path(),
-                            &pkg.meta.name,
-                            &new_req,
-                        )?;
-                    }
+                    cargo::set_dependency_version(
+                        dep.pkg.manifest_path.as_std_path(),
+                        &pkg.meta.name,
+                        &new_req,
+                        dry_run,
+                    )?;
                 }
             }
         }

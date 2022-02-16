@@ -1,6 +1,4 @@
 use std::env;
-use std::fs::{self, File};
-use std::io::prelude::*;
 use std::path::Path;
 
 use bstr::ByteSlice;
@@ -148,23 +146,38 @@ pub fn is_published(index: &crates_index::Index, name: &str, version: &str) -> b
         .any(|v| v.version() == version)
 }
 
-pub fn set_package_version(manifest_path: &Path, version: &str) -> Result<(), FatalError> {
-    let temp_manifest_path = manifest_path
-        .parent()
-        .unwrap_or_else(|| Path::new("."))
-        .join("Cargo.toml.work");
+pub fn set_package_version(
+    manifest_path: &Path,
+    version: &str,
+    dry_run: bool,
+) -> Result<(), FatalError> {
+    let original_manifest = std::fs::read_to_string(manifest_path)?;
+    let mut manifest: toml_edit::Document = original_manifest.parse().map_err(FatalError::from)?;
+    manifest["package"]["version"] = toml_edit::value(version);
+    let manifest = manifest.to_string();
 
-    {
-        let manifest = std::fs::read_to_string(manifest_path)?;
-        let mut manifest: toml_edit::Document = manifest.parse().map_err(FatalError::from)?;
-        manifest["package"]["version"] = toml_edit::value(version);
-
-        let mut file_out = File::create(&temp_manifest_path).map_err(FatalError::from)?;
-        file_out
-            .write(manifest.to_string().as_bytes())
-            .map_err(FatalError::from)?;
+    if dry_run {
+        if manifest != original_manifest {
+            let display_path = manifest_path.display().to_string();
+            let old_lines: Vec<_> = original_manifest
+                .lines()
+                .map(|s| format!("{}\n", s))
+                .collect();
+            let new_lines: Vec<_> = manifest.lines().map(|s| format!("{}\n", s)).collect();
+            let diff = difflib::unified_diff(
+                &old_lines,
+                &new_lines,
+                display_path.as_str(),
+                display_path.as_str(),
+                "original",
+                "updated",
+                0,
+            );
+            log::debug!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+        }
+    } else {
+        atomic_write(manifest_path, &manifest)?;
     }
-    fs::rename(temp_manifest_path, manifest_path)?;
 
     Ok(())
 }
@@ -173,28 +186,41 @@ pub fn set_dependency_version(
     manifest_path: &Path,
     name: &str,
     version: &str,
+    dry_run: bool,
 ) -> Result<(), FatalError> {
-    let temp_manifest_path = manifest_path
-        .parent()
-        .unwrap_or_else(|| Path::new("."))
-        .join("Cargo.toml.work");
+    let original_manifest = std::fs::read_to_string(manifest_path)?;
+    let mut manifest: toml_edit::Document = original_manifest.parse().map_err(FatalError::from)?;
 
-    {
-        let manifest = std::fs::read_to_string(manifest_path)?;
-        let mut manifest: toml_edit::Document = manifest.parse().map_err(FatalError::from)?;
-
-        for deps_table in find_dependency_tables(manifest.as_table_mut()) {
-            if let Some(dep_item) = deps_table.get_mut(name) {
-                set_version(dep_item, name, version);
-            }
+    for deps_table in find_dependency_tables(manifest.as_table_mut()) {
+        if let Some(dep_item) = deps_table.get_mut(name) {
+            set_version(dep_item, name, version);
         }
-
-        let mut file_out = File::create(&temp_manifest_path).map_err(FatalError::from)?;
-        file_out
-            .write(manifest.to_string().as_bytes())
-            .map_err(FatalError::from)?;
     }
-    fs::rename(temp_manifest_path, manifest_path)?;
+
+    let manifest = manifest.to_string();
+
+    if dry_run {
+        if manifest != original_manifest {
+            let display_path = manifest_path.display().to_string();
+            let old_lines: Vec<_> = original_manifest
+                .lines()
+                .map(|s| format!("{}\n", s))
+                .collect();
+            let new_lines: Vec<_> = manifest.lines().map(|s| format!("{}\n", s)).collect();
+            let diff = difflib::unified_diff(
+                &old_lines,
+                &new_lines,
+                display_path.as_str(),
+                display_path.as_str(),
+                "original",
+                "updated",
+                0,
+            );
+            log::debug!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+        }
+    } else {
+        atomic_write(manifest_path, &manifest)?;
+    }
 
     Ok(())
 }
@@ -341,6 +367,17 @@ fn sort_workspace_inner<'m>(
     sorted.push(pkg_id);
 }
 
+fn atomic_write(path: &Path, data: &str) -> std::io::Result<()> {
+    let temp_path = path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("Cargo.toml.work");
+    std::fs::write(&temp_path, &data)?;
+    std::fs::rename(&temp_path, path)?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -373,7 +410,7 @@ mod test {
                 .unwrap();
             assert_eq!(meta.packages[0].version.to_string(), "0.1.0");
 
-            set_package_version(manifest_path.path(), "2.0.0").unwrap();
+            set_package_version(manifest_path.path(), "2.0.0", false).unwrap();
 
             let meta = cargo_metadata::MetadataCommand::new()
                 .manifest_path(manifest_path.path())
@@ -410,7 +447,7 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -456,7 +493,7 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -502,7 +539,7 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -548,7 +585,7 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -598,7 +635,7 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -648,7 +685,7 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -692,7 +729,7 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -737,7 +774,7 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0").unwrap();
+            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -786,7 +823,7 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "^1.0").unwrap();
+            set_dependency_version(manifest_path.path(), "foo", "^1.0", false).unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -834,7 +871,7 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "^1.0").unwrap();
+            set_dependency_version(manifest_path.path(), "foo", "^1.0", false).unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -869,7 +906,7 @@ mod test {
             let manifest_path = temp.child("Cargo.toml");
             let lock_path = temp.child("Cargo.lock");
 
-            set_package_version(manifest_path.path(), "2.0.0").unwrap();
+            set_package_version(manifest_path.path(), "2.0.0", false).unwrap();
             lock_path.assert(predicate::path::eq_file(Path::new(
                 "tests/fixtures/simple/Cargo.lock",
             )));
@@ -889,7 +926,7 @@ mod test {
             let manifest_path = temp.child("b/Cargo.toml");
             let lock_path = temp.child("Cargo.lock");
 
-            set_package_version(manifest_path.path(), "2.0.0").unwrap();
+            set_package_version(manifest_path.path(), "2.0.0", false).unwrap();
             lock_path.assert(predicate::path::eq_file(Path::new(
                 "tests/fixtures/pure_ws/Cargo.lock",
             )));
@@ -909,7 +946,7 @@ mod test {
             let manifest_path = temp.child("Cargo.toml");
             let lock_path = temp.child("Cargo.lock");
 
-            set_package_version(manifest_path.path(), "2.0.0").unwrap();
+            set_package_version(manifest_path.path(), "2.0.0", false).unwrap();
             lock_path.assert(predicate::path::eq_file(Path::new(
                 "tests/fixtures/mixed_ws/Cargo.lock",
             )));
