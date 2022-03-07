@@ -3,6 +3,11 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Don't fail dirty detection when a `HEAD` file exists
+- Show more details on dry-run
+
 ## [0.20.2] - 2022-02-15
 
 ### Fixes
