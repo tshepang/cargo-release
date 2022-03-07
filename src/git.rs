@@ -59,6 +59,8 @@ pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
         .arg("HEAD")
         .arg("--exit-code")
         .arg("--name-only")
+        .arg("--")
+        .arg(".")
         .current_dir(dir)
         .output()
         .map_err(FatalError::from)?;
@@ -92,6 +94,7 @@ pub fn changed_files(dir: &Path, tag: &str) -> Result<Option<Vec<PathBuf>>, Fata
         .arg(&format!("{}..HEAD", tag))
         .arg("--name-only")
         .arg("--exit-code")
+        .arg("--")
         .arg(".")
         .current_dir(dir)
         .output()
