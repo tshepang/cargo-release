@@ -5,14 +5,13 @@ use clap::Parser;
 #[clap(bin_name = "cargo")]
 #[clap(
     setting = clap::AppSettings::DeriveDisplayOrder,
-    setting = clap::AppSettings::DontCollapseArgsInUsage
+    dont_collapse_args_in_usage = true,
 )]
 pub enum Command {
     #[clap(name = "release")]
     #[clap(about, author, version)]
     #[clap(
         setting = clap::AppSettings::DeriveDisplayOrder,
-        setting = clap::AppSettings::DontCollapseArgsInUsage
     )]
     Release(ReleaseOpt),
 }
