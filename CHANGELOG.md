@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.20.3] - 2022-03-07
+
 ### Fixes
 
 - Don't fail dirty detection when a `HEAD` file exists
@@ -407,7 +409,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.20.2...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.20.3...HEAD
+[0.20.3]: https://github.com/crate-ci/cargo-release/compare/v0.20.2...v0.20.3
 [0.20.2]: https://github.com/crate-ci/cargo-release/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/crate-ci/cargo-release/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/crate-ci/cargo-release/compare/v0.19.4...v0.20.0
