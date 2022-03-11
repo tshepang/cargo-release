@@ -12,6 +12,7 @@ rust-version = "1.58.1"
 include = [
   "src/**/*",
   "Cargo.toml",
+  "Cargo.lock",
   "LICENSE*",
   "README.md",
   "examples/**/*"
