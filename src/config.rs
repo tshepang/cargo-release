@@ -281,7 +281,7 @@ impl Config {
         // crate_name as default tag prefix for multi-crate project
         self.tag_prefix
             .as_deref()
-            .unwrap_or_else(|| if !is_root { "{{crate_name}}-" } else { "" })
+            .unwrap_or(if !is_root { "{{crate_name}}-" } else { "" })
     }
 
     pub fn tag_name(&self) -> &str {
