@@ -232,7 +232,7 @@ impl VersionExt for semver::Version {
 
     fn prerelease_id_version(&self) -> Result<Option<(String, Option<u64>)>, FatalError> {
         if !self.pre.is_empty() {
-            if let Some((alpha, numeric)) = self.pre.as_str().split_once(".") {
+            if let Some((alpha, numeric)) = self.pre.as_str().split_once('.') {
                 let alpha = alpha.to_owned();
                 let numeric = u64::from_str(numeric)
                     .map_err(|_| FatalError::UnsupportedPrereleaseVersionScheme)?;

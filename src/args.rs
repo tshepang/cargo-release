@@ -209,11 +209,11 @@ impl Verbosity {
         let verbosity = 2 - self.quiet + self.verbose;
 
         match verbosity {
-            std::i8::MIN..=0 => log::Level::Error,
+            i8::MIN..=0 => log::Level::Error,
             1 => log::Level::Warn,
             2 => log::Level::Info,
             3 => log::Level::Debug,
-            4..=std::i8::MAX => log::Level::Trace,
+            4..=i8::MAX => log::Level::Trace,
         }
     }
 }
@@ -230,5 +230,5 @@ fn resolve_bool_arg(yes: bool, no: bool) -> Option<bool> {
 #[test]
 fn verify_app() {
     use clap::IntoApp;
-    Command::into_app().debug_assert()
+    Command::command().debug_assert()
 }
