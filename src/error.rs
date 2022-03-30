@@ -95,7 +95,7 @@ quick_error! {
             display("Support for modifying {} is currently unsupported", req)
         }
         ReplacerConfigError {
-            display("Insuffient replacer config: file, search and replace are required.")
+            display("Insufficient replacer config: file, search and replace are required.")
         }
         ReplacerRegexError(err: RegexError) {
             from()
