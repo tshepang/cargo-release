@@ -77,7 +77,7 @@ Configuration is read from the following (in precedence order)
 
 ### Supported Environment Variables
 
-* `PUBLISH_GRACE_SLEEP`: sleep timeout between crates publish when releasing from workspace. This is a workaround to make previous crate discoveriable on crates.io.
+* `PUBLISH_GRACE_SLEEP`: sleep timeout between crates publish when releasing from workspace. This is a workaround to make previous crate discoverable on crates.io.
 
 ### {Pre,Post}-release Replacements
 
