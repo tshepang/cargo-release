@@ -83,6 +83,9 @@ Workspace configuration is read from the following (in precedence order)
 | `enable-all-features` | `--all-features` | bool                | `false`                    | Signal to `cargo publish`, that all features should be used (requires rust 1.33+) |
 | `target`       | \-              | string                      | \-           | Target triple to use for the verification build |
 
+
+Note: fields are from the package-configuration unless otherwise specified.
+
 ### Supported Environment Variables
 
 * `PUBLISH_GRACE_SLEEP`: sleep timeout between crates publish when releasing from workspace. This is a workaround to make previous crate discoverable on crates.io.
