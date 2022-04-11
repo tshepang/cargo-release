@@ -11,6 +11,7 @@
 | `<LEVEL>`       | string | Bump specified version field. |
 | `--metadata`    | string | Populate the metadata field in the version. |
 | `--token`       | string | Token to use when running `cargo publish` |
+| `--verbose`     | bool   | Show more detailed context, useful for debugging |
 
 ### Bump level
 
