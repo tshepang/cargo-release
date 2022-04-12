@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.20.4] - 2022-04-12
+
 ### Fixes
 
 - Be explicit on dry-run failures
@@ -413,7 +415,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.20.3...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.20.4...HEAD
+[0.20.4]: https://github.com/crate-ci/cargo-release/compare/v0.20.3...v0.20.4
 [0.20.3]: https://github.com/crate-ci/cargo-release/compare/v0.20.2...v0.20.3
 [0.20.2]: https://github.com/crate-ci/cargo-release/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/crate-ci/cargo-release/compare/v0.20.0...v0.20.1
