@@ -121,12 +121,14 @@ fn release_packages<'m>(
     pkgs: &'m [PackageRelease<'m>],
 ) -> Result<i32, error::FatalError> {
     let dry_run = args.dry_run();
+    let mut failed = false;
 
     // STEP 0: Help the user make the right decisions.
     git::git_version()?;
 
     if git::is_dirty(ws_meta.workspace_root.as_std_path())? {
         log::error!("Uncommitted changes detected, please commit before release.");
+        failed = true;
         if !dry_run {
             return Ok(101);
         }
@@ -147,6 +149,7 @@ fn release_packages<'m>(
         }
     }
     if tag_exists {
+        failed = true;
         if !dry_run {
             return Ok(101);
         }
@@ -168,6 +171,7 @@ fn release_packages<'m>(
         }
     }
     if downgrades_present {
+        failed = true;
         if !dry_run {
             return Ok(101);
         }
@@ -196,6 +200,7 @@ fn release_packages<'m>(
         }
     }
     if double_publish {
+        failed = true;
         if !dry_run {
             return Ok(101);
         }
@@ -266,6 +271,7 @@ fn release_packages<'m>(
             ws_config.allow_branch().join(", ")
         );
         log::trace!("Due to {:?}", good_branch_match);
+        failed = true;
         if !dry_run {
             return Ok(101);
         }
@@ -704,10 +710,16 @@ fn release_packages<'m>(
     }
 
     if dry_run {
-        log::warn!("Ran a `dry-run`, re-run with `--execute` if all looked good.");
+        if failed {
+            log::error!("Dry-run failed, resolve the above errors and try again.");
+            Ok(107)
+        } else {
+            log::warn!("Ran a `dry-run`, re-run with `--execute` if all looked good.");
+            Ok(0)
+        }
+    } else {
+        Ok(0)
     }
-
-    Ok(0)
 }
 
 static NOW: once_cell::sync::Lazy<String> = once_cell::sync::Lazy::new(|| {
