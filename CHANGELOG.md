@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Be explicit on dry-run failures
+
 ## [0.20.3] - 2022-03-07
 
 ### Fixes
