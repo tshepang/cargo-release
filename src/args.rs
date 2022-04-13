@@ -158,11 +158,16 @@ pub struct ConfigArgs {
     /// Build for the target triple
     #[clap(long)]
     target: Option<String>,
+
+    /// Comma-separated globs of branch names a release can happen from
+    #[clap(long, use_value_delimiter = true)]
+    allow_branch: Option<Vec<String>>,
 }
 
 impl ConfigArgs {
     pub fn to_config(&self) -> crate::config::Config {
         crate::config::Config {
+            allow_branch: self.allow_branch.clone(),
             sign_commit: resolve_bool_arg(self.sign_commit, self.no_sign_commit)
                 .or_else(|| self.sign()),
             sign_tag: resolve_bool_arg(self.sign_tag, self.no_sign_tag).or_else(|| self.sign()),
