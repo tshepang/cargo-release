@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+- Add `--allow-branch`
+
 ## [0.20.4] - 2022-04-12
 
 ### Fixes
