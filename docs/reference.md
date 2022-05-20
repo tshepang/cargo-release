@@ -107,7 +107,15 @@ See [release.toml](https://github.com/crate-ci/cargo-release/blob/master/release
 
 ### Placeholders
 
-The following placeholders in configuration values will be be replaced with the desired value:
+The following fields support placeholders for information about your release:
+
+- `pre-release-commit-message`
+- `post-release-commit-message`
+- `tag-message`
+- `tag-prefix`
+- `tag-name`
+
+The following placeholders are supported:
 
 * `{{prev_version}}`: The version before `cargo-release` was executed (before any version bump).
 * `{{prev_metadata}}`: The version's metadata before `cargo-release` was executed (before any version bump).
