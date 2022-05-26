@@ -48,10 +48,12 @@ pub fn package_content(manifest_path: &Path) -> Result<Vec<std::path::PathBuf>, 
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn publish(
     dry_run: bool,
     verify: bool,
     manifest_path: &Path,
+    pkgid: Option<&str>,
     features: &Features,
     registry: Option<&str>,
     token: Option<&str>,
@@ -65,6 +67,11 @@ pub fn publish(
         "--manifest-path",
         manifest_path.to_str().unwrap(),
     ];
+
+    if let Some(pkgid) = pkgid {
+        command.push("--package");
+        command.push(pkgid);
+    }
 
     if let Some(registry) = registry {
         command.push("--registry");
