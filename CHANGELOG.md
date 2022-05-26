@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.21.0] - 2022-05-26
+
 ### Breaking Change
 
 - Template substitutions are now performed on pre-release-hook arguments
@@ -435,7 +437,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.20.6...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/crate-ci/cargo-release/compare/v0.20.6...v0.21.0
 [0.20.6]: https://github.com/crate-ci/cargo-release/compare/v0.20.5...v0.20.6
 [0.20.5]: https://github.com/crate-ci/cargo-release/compare/v0.20.4...v0.20.5
 [0.20.4]: https://github.com/crate-ci/cargo-release/compare/v0.20.3...v0.20.4
