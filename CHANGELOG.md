@@ -3,6 +3,14 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Breaking Change
+
+- Template substitutions are now performed on pre-release-hook arguments
+
+### Features
+
+- Template substitutions are now performed on pre-release-hook arguments
+
 ## [0.20.6] - 2022-05-26
 
 ### Fixes
