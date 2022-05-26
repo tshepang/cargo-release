@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Don't accidentally publish a `default-member` instead of the root crate
+
 ## [0.20.5] - 2022-04-13
 
 ### Features
