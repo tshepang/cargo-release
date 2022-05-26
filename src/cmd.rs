@@ -6,11 +6,12 @@ use std::process::Command;
 use crate::error::FatalError;
 
 fn do_call(
-    command: Vec<&str>,
+    command: impl IntoIterator<Item = impl Into<String>>,
     path: Option<&Path>,
     envs: Option<BTreeMap<&OsStr, &OsStr>>,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
+    let command: Vec<_> = command.into_iter().map(|s| s.into()).collect();
     if dry_run {
         if path.is_some() {
             log::trace!("cd {}", path.unwrap().display());
@@ -43,16 +44,23 @@ fn do_call(
     Ok(result.success())
 }
 
-pub fn call(command: Vec<&str>, dry_run: bool) -> Result<bool, FatalError> {
+pub fn call(
+    command: impl IntoIterator<Item = impl Into<String>>,
+    dry_run: bool,
+) -> Result<bool, FatalError> {
     do_call(command, None, None, dry_run)
 }
 
-pub fn call_on_path(command: Vec<&str>, path: &Path, dry_run: bool) -> Result<bool, FatalError> {
+pub fn call_on_path(
+    command: impl IntoIterator<Item = impl Into<String>>,
+    path: &Path,
+    dry_run: bool,
+) -> Result<bool, FatalError> {
     do_call(command, Some(path), None, dry_run)
 }
 
 pub fn call_with_env(
-    command: Vec<&str>,
+    command: impl IntoIterator<Item = impl Into<String>>,
     envs: BTreeMap<&OsStr, &OsStr>,
     path: &Path,
     dry_run: bool,
