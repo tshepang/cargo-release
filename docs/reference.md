@@ -114,6 +114,7 @@ The following fields support placeholders for information about your release:
 - `tag-message`
 - `tag-prefix`
 - `tag-name`
+- `pre-release-hook`
 
 The following placeholders are supported:
 

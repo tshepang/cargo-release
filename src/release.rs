@@ -389,7 +389,20 @@ fn release_packages<'m>(
 
             // pre-release hook
             if let Some(pre_rel_hook) = pkg.config.pre_release_hook() {
-                let pre_rel_hook = pre_rel_hook.args();
+                let template = Template {
+                    prev_version: Some(prev_version_var),
+                    prev_metadata: Some(prev_metadata_var),
+                    version: Some(version_var),
+                    metadata: Some(metadata_var),
+                    crate_name: Some(crate_name),
+                    date: Some(NOW.as_str()),
+                    tag_name: pkg.tag.as_deref(),
+                    ..Default::default()
+                };
+                let pre_rel_hook = pre_rel_hook
+                    .args()
+                    .into_iter()
+                    .map(|arg| template.render(arg));
                 log::debug!("Calling pre-release hook: {:?}", pre_rel_hook);
                 let envs = maplit::btreemap! {
                     OsStr::new("PREV_VERSION") => prev_version_var.as_ref(),
