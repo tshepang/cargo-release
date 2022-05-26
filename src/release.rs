@@ -488,10 +488,18 @@ fn release_packages<'m>(
         };
         // feature list to release
         let features = &pkg.features;
+        let pkgid = if 1 < ws_meta.workspace_members.len() {
+            // Override `workspace.default-members`
+            Some(crate_name)
+        } else {
+            // `-p` is not recommended outside of a workspace
+            None
+        };
         if !cargo::publish(
             dry_run,
             verify,
             pkg.manifest_path,
+            pkgid,
             features,
             pkg.config.registry(),
             args.token.as_ref().map(AsRef::as_ref),
@@ -499,11 +507,11 @@ fn release_packages<'m>(
         )? {
             return Ok(103);
         }
-        let timeout = std::time::Duration::from_secs(300);
 
         if pkg.config.registry().is_none() {
             let mut index = crates_index::Index::new_cargo_default()?;
 
+            let timeout = std::time::Duration::from_secs(300);
             let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
             cargo::wait_for_publish(
                 &mut index,
