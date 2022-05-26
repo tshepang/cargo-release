@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.20.6] - 2022-05-26
+
 ### Fixes
 
 - Don't accidentally publish a `default-member` instead of the root crate
@@ -425,7 +427,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.20.5...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.20.6...HEAD
+[0.20.6]: https://github.com/crate-ci/cargo-release/compare/v0.20.5...v0.20.6
 [0.20.5]: https://github.com/crate-ci/cargo-release/compare/v0.20.4...v0.20.5
 [0.20.4]: https://github.com/crate-ci/cargo-release/compare/v0.20.3...v0.20.4
 [0.20.3]: https://github.com/crate-ci/cargo-release/compare/v0.20.2...v0.20.3
