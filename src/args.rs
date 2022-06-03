@@ -75,7 +75,7 @@ impl ReleaseOpt {
 
 #[derive(Debug, Clone, clap::Args)]
 pub struct ConfigArgs {
-    /// Sign both git commit and tag,
+    /// Sign both git commit and tag
     #[clap(long, overrides_with("no-sign"))]
     sign: bool,
     #[clap(long, overrides_with("sign"), hide(true))]
