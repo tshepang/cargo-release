@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.21.1] - 2022-07-12
+
 ### Fixes
 
 - Load workspace config from the actual workspace manifest
@@ -441,7 +443,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.21.1...HEAD
+[0.21.1]: https://github.com/crate-ci/cargo-release/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/crate-ci/cargo-release/compare/v0.20.6...v0.21.0
 [0.20.6]: https://github.com/crate-ci/cargo-release/compare/v0.20.5...v0.20.6
 [0.20.5]: https://github.com/crate-ci/cargo-release/compare/v0.20.4...v0.20.5
