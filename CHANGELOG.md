@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Load workspace config from the actual workspace manifest
+
 ## [0.21.0] - 2022-05-26
 
 ### Breaking Change
