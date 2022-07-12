@@ -623,12 +623,13 @@ pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Con
         if let Some(cfg) = current_dir_config {
             config.update(&cfg);
         };
-    }
 
-    let current_dir_config = get_ws_config_from_manifest(manifest_path)?;
-    if let Some(cfg) = current_dir_config {
-        config.update(&cfg);
-    };
+        let root_manifest_path = workspace_root.join("Cargo.toml");
+        let current_dir_config = get_ws_config_from_manifest(&root_manifest_path)?;
+        if let Some(cfg) = current_dir_config {
+            config.update(&cfg);
+        };
+    }
 
     // Crate config
     let default_config = crate_root.join("release.toml");
