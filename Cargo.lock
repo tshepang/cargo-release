@@ -160,9 +160,9 @@ dependencies = [
 
 [[package]]
 name = "clap-cargo"
-version = "0.9.0"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6b78b6a766ca6a8f83d4642a5eea9b43fa827fe7cb16efa7093402c393dafd3"
+checksum = "841b17c26cdae63b80cd9014f4fb779b761c388908bdf58e15223a08d65e9b08"
 dependencies = [
  "cargo_metadata",
  "clap",
