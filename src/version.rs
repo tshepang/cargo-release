@@ -106,8 +106,8 @@ impl From<semver::Version> for Version {
     }
 }
 
-#[derive(Debug, Clone, Copy, clap::ArgEnum)]
-#[clap(rename_all = "kebab-case")]
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+#[value(rename_all = "kebab-case")]
 pub enum BumpLevel {
     Major,
     Minor,
@@ -120,7 +120,7 @@ pub enum BumpLevel {
 
 impl std::fmt::Display for BumpLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use clap::ArgEnum;
+        use clap::ValueEnum;
 
         self.to_possible_value()
             .expect("no values are skipped")
@@ -133,7 +133,7 @@ impl std::str::FromStr for BumpLevel {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use clap::ArgEnum;
+        use clap::ValueEnum;
 
         for variant in Self::value_variants() {
             if variant.to_possible_value().unwrap().matches(s, false) {

@@ -1,69 +1,62 @@
 use clap::Parser;
 
 #[derive(Debug, Parser)]
-#[clap(name = "cargo")]
-#[clap(bin_name = "cargo")]
-#[clap(
-    setting = clap::AppSettings::DeriveDisplayOrder,
-    dont_collapse_args_in_usage = true,
-)]
+#[command(name = "cargo")]
+#[command(bin_name = "cargo")]
 pub enum Command {
-    #[clap(name = "release")]
-    #[clap(about, author, version)]
-    #[clap(
-        setting = clap::AppSettings::DeriveDisplayOrder,
-    )]
+    #[command(name = "release")]
+    #[command(about, author, version)]
     Release(ReleaseOpt),
 }
 
 #[derive(Debug, Clone, clap::Args)]
 pub struct ReleaseOpt {
-    #[clap(flatten)]
+    #[command(flatten)]
     pub manifest: clap_cargo::Manifest,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     pub workspace: clap_cargo::Workspace,
 
     /// Release level or version: bumping specified version field or remove prerelease extensions by default. Possible level value: major, minor, patch, release, rc, beta, alpha or any valid semver version that is greater than current version
-    #[clap(default_value_t)]
+    #[arg(default_value_t)]
     pub level_or_version: crate::version::TargetVersion,
 
     /// Semver metadata
-    #[clap(short, long)]
+    #[arg(short, long)]
     pub metadata: Option<String>,
 
     /// Custom config file
-    #[clap(short, long = "config")]
+    #[arg(short, long = "config")]
     pub custom_config: Option<String>,
 
     /// Ignore implicit configuration files.
-    #[clap(long)]
+    #[arg(long)]
     pub isolated: bool,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     pub config: ConfigArgs,
 
     /// Token to use when uploading
-    #[clap(long)]
+    #[arg(long)]
     pub token: Option<String>,
 
     /// Actually perform a release. Dry-run mode is the default
-    #[clap(short = 'x', long)]
+    #[arg(short = 'x', long)]
     pub execute: bool,
 
     /// Skip release confirmation and version preview
-    #[clap(long)]
+    #[arg(long)]
     pub no_confirm: bool,
 
     /// The name of tag for the previous release.
-    #[clap(long)]
+    #[arg(long)]
     pub prev_tag_name: Option<String>,
 
     /// Write the current configuration to file with `-` for stdout
-    #[clap(long)]
+    #[arg(long)]
     pub dump_config: Option<std::path::PathBuf>,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     pub logging: Verbosity,
 }
 
@@ -76,91 +69,91 @@ impl ReleaseOpt {
 #[derive(Debug, Clone, clap::Args)]
 pub struct ConfigArgs {
     /// Sign both git commit and tag
-    #[clap(long, overrides_with("no-sign"))]
+    #[arg(long, overrides_with("no_sign"))]
     sign: bool,
-    #[clap(long, overrides_with("sign"), hide(true))]
+    #[arg(long, overrides_with("sign"), hide(true))]
     no_sign: bool,
 
     /// Sign git commit
-    #[clap(long, overrides_with("no-sign-commit"))]
+    #[arg(long, overrides_with("no_sign_commit"))]
     sign_commit: bool,
-    #[clap(long, overrides_with("sign-commit"), hide(true))]
+    #[arg(long, overrides_with("sign_commit"), hide(true))]
     no_sign_commit: bool,
 
     /// Sign git tag
-    #[clap(long, overrides_with("no-sign-tag"))]
+    #[arg(long, overrides_with("no_sign_tag"))]
     sign_tag: bool,
-    #[clap(long, overrides_with("sign-tag"), hide(true))]
+    #[arg(long, overrides_with("sign_tag"), hide(true))]
     no_sign_tag: bool,
 
     /// Git remote to push
-    #[clap(long)]
+    #[arg(long)]
     push_remote: Option<String>,
 
     /// Cargo registry to upload to
-    #[clap(long)]
+    #[arg(long)]
     registry: Option<String>,
 
-    #[clap(long, overrides_with("no-publish"), hide(true))]
+    #[arg(long, overrides_with("no_publish"), hide(true))]
     publish: bool,
     /// Do not run cargo publish on release
-    #[clap(long, overrides_with("publish"))]
+    #[arg(long, overrides_with("publish"))]
     no_publish: bool,
 
-    #[clap(long, overrides_with("no-push"), hide(true))]
+    #[arg(long, overrides_with("no_push"), hide(true))]
     push: bool,
     /// Do not run git push in the last step
-    #[clap(long, overrides_with("push"))]
+    #[arg(long, overrides_with("push"))]
     no_push: bool,
 
-    #[clap(long, overrides_with("no-tag"), hide(true))]
+    #[arg(long, overrides_with("no_tag"), hide(true))]
     tag: bool,
     /// Do not create git tag
-    #[clap(long, overrides_with("tag"))]
+    #[arg(long, overrides_with("tag"))]
     no_tag: bool,
 
-    #[clap(long, overrides_with("no-verify"), hide(true))]
+    #[arg(long, overrides_with("no_verify"), hide(true))]
     verify: bool,
     /// Don't verify the contents by building them
-    #[clap(long, overrides_with("verify"))]
+    #[arg(long, overrides_with("verify"))]
     no_verify: bool,
 
     /// Specify how workspace dependencies on this crate should be handed.
-    #[clap(long, arg_enum)]
+    #[arg(long, value_enum)]
     dependent_version: Option<crate::config::DependentVersion>,
 
     /// Prefix of git tag, note that this will override default prefix based on sub-directory
-    #[clap(long)]
+    #[arg(long)]
     tag_prefix: Option<String>,
 
     /// The name of the git tag.
-    #[clap(long)]
+    #[arg(long)]
     tag_name: Option<String>,
 
     /// Pre-release identifier(s) to append to the next development version after release
-    #[clap(long)]
+    #[arg(long)]
     dev_version_ext: Option<String>,
 
     /// Create dev version after release
-    #[clap(long, overrides_with("no-dev-version"))]
+    #[arg(long, overrides_with("no_dev_version"))]
     dev_version: bool,
-    #[clap(long, overrides_with("dev-version"), hide(true))]
+    #[arg(long, overrides_with("dev_version"), hide(true))]
     no_dev_version: bool,
 
     /// Provide a set of features that need to be enabled
-    #[clap(long)]
+    #[arg(long)]
     features: Vec<String>,
 
     /// Enable all features via `all-features`. Overrides `features`
-    #[clap(long)]
+    #[arg(long)]
     all_features: bool,
 
     /// Build for the target triple
-    #[clap(long)]
+    #[arg(long)]
     target: Option<String>,
 
     /// Comma-separated globs of branch names a release can happen from
-    #[clap(long, use_value_delimiter = true)]
+    #[arg(long, value_delimiter = ',')]
     allow_branch: Option<Vec<String>>,
 }
 
@@ -197,21 +190,21 @@ impl ConfigArgs {
 #[derive(clap::Args, Debug, Clone)]
 pub struct Verbosity {
     /// Pass many times for less log output
-    #[clap(long, short, parse(from_occurrences))]
-    quiet: i8,
+    #[arg(long, short, action = clap::ArgAction::Count)]
+    quiet: u8,
 
     /// Pass many times for more log output
     ///
     /// By default, it'll report info. Passing `-v` one time adds debug
     /// logs, `-vv` adds trace logs.
-    #[clap(long, short, parse(from_occurrences))]
-    verbose: i8,
+    #[arg(long, short, action = clap::ArgAction::Count)]
+    verbose: u8,
 }
 
 impl Verbosity {
     /// Get the log level.
     pub fn log_level(&self) -> log::Level {
-        let verbosity = 2 - self.quiet + self.verbose;
+        let verbosity = 2 - (self.quiet as i8) + (self.verbose as i8);
 
         match verbosity {
             i8::MIN..=0 => log::Level::Error,
@@ -234,6 +227,6 @@ fn resolve_bool_arg(yes: bool, no: bool) -> Option<bool> {
 
 #[test]
 fn verify_app() {
-    use clap::IntoApp;
+    use clap::CommandFactory;
     Command::command().debug_assert()
 }

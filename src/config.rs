@@ -350,9 +350,9 @@ impl Command {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ArgEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
-#[clap(rename_all = "kebab-case")]
+#[value(rename_all = "kebab-case")]
 pub enum DependentVersion {
     Upgrade,
     Fix,
