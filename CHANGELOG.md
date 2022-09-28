@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.21.2] - 2022-09-28
+
 ### Fixes
 
 - Polish help output
@@ -447,7 +449,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.21.1...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.21.2...HEAD
+[0.21.2]: https://github.com/crate-ci/cargo-release/compare/v0.21.1...v0.21.2
 [0.21.1]: https://github.com/crate-ci/cargo-release/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/crate-ci/cargo-release/compare/v0.20.6...v0.21.0
 [0.20.6]: https://github.com/crate-ci/cargo-release/compare/v0.20.5...v0.20.6
