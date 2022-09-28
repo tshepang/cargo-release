@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Polish help output
+
 ## [0.21.1] - 2022-07-12
 
 ### Fixes
