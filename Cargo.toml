@@ -38,7 +38,7 @@ serde = { version = "1.0", features = ["derive"] }
 semver = "1.0"
 quick-error = "2.0"
 regex = "1.6"
-bstr = "0.2.17"
+bstr = "1.0.1"
 termcolor = "1.1"
 maplit = "1.0"
 indexmap = "1.9"
@@ -47,8 +47,8 @@ dirs-next = "2.0"
 ignore = "0.4"
 difflib = "0.4"
 itertools = "0.10"
-once_cell = "1.13.1"
-clap = { version = "4.0.0", features = ["derive", "wrap_help"] }
+once_cell = "1.15.0"
+clap = { version = "4.0.8", features = ["derive", "wrap_help"] }
 clap-cargo = { version = "0.10.0", features = ["cargo_metadata"] }
 log = "0.4"
 env_logger = "0.9"
