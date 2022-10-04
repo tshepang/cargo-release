@@ -44,6 +44,15 @@ verify what it will do.
 
 Once you are ready, pass the `--execute` flag.
 
+## Related tools
+
+- [release-pr Action](https://github.com/cargo-bins/release-pr)
+- [cargo-smart-release](https://github.com/Byron/gitoxide/tree/main/cargo-smart-release)
+- [cargo-set-version](https://github.com/killercup/cargo-edit)
+- [cargo-unleash](https://github.com/paritytech/cargo-unleash)
+- [release-plz](https://crates.io/crates/release-plz)
+- [cargo-workspaces](https://crates.io/crates/cargo-workspaces)
+
 ## License
 
 Licensed under either of
