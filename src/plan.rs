@@ -1,20 +1,21 @@
 use std::path::Path;
+use std::path::PathBuf;
 
 use crate::error::FatalError;
 use crate::replace::Template;
 use crate::version::VersionExt as _;
 use crate::*;
 
-pub struct PackageRelease<'m> {
-    pub meta: &'m cargo_metadata::Package,
-    pub manifest_path: &'m Path,
-    pub package_root: &'m Path,
+pub struct PackageRelease {
+    pub meta: cargo_metadata::Package,
+    pub manifest_path: PathBuf,
+    pub package_root: PathBuf,
     pub is_root: bool,
     pub config: config::Config,
 
-    pub package_content: Vec<std::path::PathBuf>,
+    pub package_content: Vec<PathBuf>,
     pub bin: bool,
-    pub dependents: Vec<Dependency<'m>>,
+    pub dependents: Vec<Dependency>,
     pub features: cargo::Features,
 
     pub prev_version: version::Version,
@@ -25,12 +26,12 @@ pub struct PackageRelease<'m> {
     pub post_version: Option<version::Version>,
 }
 
-impl<'m> PackageRelease<'m> {
+impl PackageRelease {
     pub fn load(
         args: &args::ReleaseOpt,
         git_root: &Path,
-        ws_meta: &'m cargo_metadata::Metadata,
-        pkg_meta: &'m cargo_metadata::Package,
+        ws_meta: &cargo_metadata::Metadata,
+        pkg_meta: &cargo_metadata::Package,
     ) -> Result<Option<Self>, error::FatalError> {
         let manifest_path = pkg_meta.manifest_path.as_std_path();
         let package_root = manifest_path.parent().unwrap_or_else(|| Path::new("."));
@@ -48,7 +49,10 @@ impl<'m> PackageRelease<'m> {
             .any(|k| k == "bin");
         let features = config.features();
         let dependents = find_dependents(ws_meta, pkg_meta)
-            .map(|(pkg, dep)| Dependency { pkg, req: &dep.req })
+            .map(|(pkg, dep)| Dependency {
+                pkg: pkg.clone(),
+                req: dep.req.clone(),
+            })
             .collect();
 
         let is_root = git_root == package_root;
@@ -84,9 +88,9 @@ impl<'m> PackageRelease<'m> {
         let post_version = None;
 
         let pkg = PackageRelease {
-            meta: pkg_meta,
-            manifest_path,
-            package_root,
+            meta: pkg_meta.clone(),
+            manifest_path: manifest_path.to_owned(),
+            package_root: package_root.to_owned(),
             is_root,
             config,
 
@@ -163,7 +167,7 @@ fn find_dependents<'w>(
     })
 }
 
-pub struct Dependency<'m> {
-    pub pkg: &'m cargo_metadata::Package,
-    pub req: &'m semver::VersionReq,
+pub struct Dependency {
+    pub pkg: cargo_metadata::Package,
+    pub req: semver::VersionReq,
 }

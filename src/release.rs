@@ -27,7 +27,7 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
     let pkgs: Result<IndexMap<_, _>, _> = member_ids
         .iter()
         .filter_map(|p| PackageRelease::load(args, &root, &ws_meta, &ws_meta[p]).transpose())
-        .map(|p| p.map(|p| (&p.meta.id, p)))
+        .map(|p| p.map(|p| (p.meta.id.clone(), p)))
         .collect();
     let mut pkgs = pkgs?;
 
@@ -78,7 +78,7 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
     let mut shared_ids = IndexSet::new();
     for (pkg_id, pkg) in pkgs.iter() {
         if pkg.config.shared_version() {
-            shared_ids.insert(*pkg_id);
+            shared_ids.insert(pkg_id.clone());
             let planned = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
             if shared_max
                 .as_ref()
@@ -91,7 +91,7 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
     }
     if let Some(shared_max) = shared_max {
         for shared_id in shared_ids {
-            let shared_pkg = &mut pkgs[shared_id];
+            let shared_pkg = &mut pkgs[&shared_id];
             if shared_pkg.prev_version.bare_version != shared_max.bare_version {
                 shared_pkg.version = Some(shared_max.clone());
             }
@@ -118,7 +118,7 @@ fn release_packages<'m>(
     args: &args::ReleaseOpt,
     ws_meta: &cargo_metadata::Metadata,
     ws_config: &config::Config,
-    pkgs: &'m [PackageRelease<'m>],
+    pkgs: &'m [PackageRelease],
 ) -> Result<i32, error::FatalError> {
     let dry_run = args.dry_run();
     let mut failed = false;
@@ -139,7 +139,7 @@ fn release_packages<'m>(
     for pkg in pkgs {
         if let Some(tag_name) = pkg.tag.as_ref() {
             if seen_tags.insert(tag_name) {
-                let cwd = pkg.package_root;
+                let cwd = &pkg.package_root;
                 if git::tag_exists(cwd, tag_name)? {
                     let crate_name = pkg.meta.name.as_str();
                     log::error!("Tag `{}` already exists (for `{}`)", tag_name, crate_name);
@@ -340,7 +340,7 @@ fn release_packages<'m>(
     // STEP 2: update current version, save and commit
     let mut shared_commit = false;
     for pkg in pkgs {
-        let cwd = pkg.package_root;
+        let cwd = &pkg.package_root;
         let crate_name = pkg.meta.name.as_str();
 
         if let Some(version) = pkg.version.as_ref() {
@@ -354,7 +354,7 @@ fn release_packages<'m>(
                 version.full_version_string
             );
             cargo::set_package_version(
-                pkg.manifest_path,
+                &pkg.manifest_path,
                 version.full_version_string.as_str(),
                 dry_run,
             )?;
@@ -362,7 +362,7 @@ fn release_packages<'m>(
             if dry_run {
                 log::debug!("Updating lock file");
             } else {
-                cargo::update_lock(pkg.manifest_path)?;
+                cargo::update_lock(&pkg.manifest_path)?;
             }
 
             if !pkg.config.pre_release_replacements().is_empty() {
@@ -511,7 +511,7 @@ fn release_packages<'m>(
         if !cargo::publish(
             dry_run,
             verify,
-            pkg.manifest_path,
+            &pkg.manifest_path,
             pkgid,
             features,
             pkg.config.registry(),
@@ -558,7 +558,7 @@ fn release_packages<'m>(
     for pkg in pkgs {
         if let Some(tag_name) = pkg.tag.as_ref() {
             if seen_tags.insert(tag_name) {
-                let cwd = pkg.package_root;
+                let cwd = &pkg.package_root;
                 let crate_name = pkg.meta.name.as_str();
 
                 let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
@@ -592,7 +592,7 @@ fn release_packages<'m>(
     let mut shared_post_version: Option<version::Version> = None;
     for pkg in pkgs {
         if let Some(next_version) = pkg.post_version.as_ref() {
-            let cwd = pkg.package_root;
+            let cwd = &pkg.package_root;
             let crate_name = pkg.meta.name.as_str();
 
             log::info!(
@@ -602,12 +602,12 @@ fn release_packages<'m>(
             );
             update_dependent_versions(pkg, next_version, dry_run)?;
             cargo::set_package_version(
-                pkg.manifest_path,
+                &pkg.manifest_path,
                 next_version.full_version_string.as_str(),
                 dry_run,
             )?;
             if !dry_run {
-                cargo::update_lock(pkg.manifest_path)?;
+                cargo::update_lock(&pkg.manifest_path)?;
             }
             let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
             let prev_version_var = pkg.prev_version.bare_version_string.as_str();
@@ -708,7 +708,7 @@ fn release_packages<'m>(
                     refs.push(tag_name)
                 }
                 log::info!("Pushing {} to {}", refs.join(", "), git_remote);
-                let cwd = pkg.package_root;
+                let cwd = &pkg.package_root;
                 if !git::push(cwd, git_remote, refs, pkg.config.push_options(), dry_run)? {
                     return Ok(106);
                 }
@@ -745,7 +745,7 @@ fn release_packages<'m>(
 
 fn changed_since<'m>(
     ws_meta: &cargo_metadata::Metadata,
-    pkg: &'m PackageRelease<'m>,
+    pkg: &'m PackageRelease,
     since_ref: &str,
 ) -> Option<(Vec<std::path::PathBuf>, bool)> {
     let lock_path = ws_meta.workspace_root.join("Cargo.lock");
@@ -753,7 +753,7 @@ fn changed_since<'m>(
         ws_meta.workspace_root.as_std_path()
     } else {
         // Limit our lookup since we don't need to check for `Cargo.lock`
-        pkg.package_root
+        &pkg.package_root
     };
     let changed = git::changed_files(changed_root, since_ref).ok().flatten()?;
     let mut changed: Vec<_> = changed
@@ -829,7 +829,7 @@ fn update_dependent_versions(
             }
             config::DependentVersion::Fix => {
                 if !dep.req.matches(&version.bare_version) {
-                    let new_req = version::set_requirement(dep.req, &version.bare_version)?;
+                    let new_req = version::set_requirement(&dep.req, &version.bare_version)?;
                     if let Some(new_req) = new_req {
                         log::info!(
                             "Fixing {}'s dependency on {} to `{}` (from `{}`)",
@@ -848,7 +848,7 @@ fn update_dependent_versions(
                 }
             }
             config::DependentVersion::Upgrade => {
-                let new_req = version::set_requirement(dep.req, &version.bare_version)?;
+                let new_req = version::set_requirement(&dep.req, &version.bare_version)?;
                 if let Some(new_req) = new_req {
                     log::info!(
                         "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
