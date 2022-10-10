@@ -11,9 +11,13 @@ mod cmd;
 mod config;
 mod error;
 mod git;
+mod publish;
+mod push;
 mod release;
 mod replace;
 mod shell;
+mod tag;
+mod util;
 mod version;
 
 fn main() {

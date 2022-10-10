@@ -1,5 +1,7 @@
 use clap::Parser;
 
+use crate::util::resolve_bool_arg;
+
 #[derive(Debug, Parser)]
 #[command(name = "cargo")]
 #[command(bin_name = "cargo")]
@@ -95,55 +97,9 @@ pub struct ConfigArgs {
     #[arg(long, overrides_with("sign_commit"), hide(true))]
     no_sign_commit: bool,
 
-    /// Sign git tag
-    #[arg(long, overrides_with("no_sign_tag"))]
-    sign_tag: bool,
-    #[arg(long, overrides_with("sign_tag"), hide(true))]
-    no_sign_tag: bool,
-
-    /// Git remote to push
-    #[arg(long)]
-    push_remote: Option<String>,
-
-    /// Cargo registry to upload to
-    #[arg(long)]
-    registry: Option<String>,
-
-    #[arg(long, overrides_with("no_publish"), hide(true))]
-    publish: bool,
-    /// Do not run cargo publish on release
-    #[arg(long, overrides_with("publish"))]
-    no_publish: bool,
-
-    #[arg(long, overrides_with("no_push"), hide(true))]
-    push: bool,
-    /// Do not run git push in the last step
-    #[arg(long, overrides_with("push"))]
-    no_push: bool,
-
-    #[arg(long, overrides_with("no_tag"), hide(true))]
-    tag: bool,
-    /// Do not create git tag
-    #[arg(long, overrides_with("tag"))]
-    no_tag: bool,
-
-    #[arg(long, overrides_with("no_verify"), hide(true))]
-    verify: bool,
-    /// Don't verify the contents by building them
-    #[arg(long, overrides_with("verify"))]
-    no_verify: bool,
-
     /// Specify how workspace dependencies on this crate should be handed.
     #[arg(long, value_enum)]
     dependent_version: Option<crate::config::DependentVersion>,
-
-    /// Prefix of git tag, note that this will override default prefix based on sub-directory
-    #[arg(long)]
-    tag_prefix: Option<String>,
-
-    /// The name of the git tag.
-    #[arg(long)]
-    tag_name: Option<String>,
 
     /// Pre-release identifier(s) to append to the next development version after release
     #[arg(long)]
@@ -155,46 +111,36 @@ pub struct ConfigArgs {
     #[arg(long, overrides_with("dev_version"), hide(true))]
     no_dev_version: bool,
 
-    /// Provide a set of features that need to be enabled
-    #[arg(long)]
-    features: Vec<String>,
-
-    /// Enable all features via `all-features`. Overrides `features`
-    #[arg(long)]
-    all_features: bool,
-
-    /// Build for the target triple
-    #[arg(long)]
-    target: Option<String>,
-
     /// Comma-separated globs of branch names a release can happen from
     #[arg(long, value_delimiter = ',')]
     allow_branch: Option<Vec<String>>,
+
+    #[command(flatten)]
+    publish: crate::publish::PublishArgs,
+
+    #[command(flatten)]
+    tag: crate::tag::TagArgs,
+
+    #[command(flatten)]
+    push: crate::push::PushArgs,
 }
 
 impl ConfigArgs {
     pub fn to_config(&self) -> crate::config::Config {
-        crate::config::Config {
+        let mut config = crate::config::Config {
             allow_branch: self.allow_branch.clone(),
             sign_commit: resolve_bool_arg(self.sign_commit, self.no_sign_commit)
                 .or_else(|| self.sign()),
-            sign_tag: resolve_bool_arg(self.sign_tag, self.no_sign_tag).or_else(|| self.sign()),
-            push_remote: self.push_remote.clone(),
-            registry: self.registry.clone(),
-            publish: resolve_bool_arg(self.publish, self.no_publish),
-            verify: resolve_bool_arg(self.verify, self.no_verify),
-            push: resolve_bool_arg(self.push, self.no_push),
+            sign_tag: self.sign(),
             dev_version_ext: self.dev_version_ext.clone(),
             dev_version: resolve_bool_arg(self.dev_version, self.no_dev_version),
-            tag_prefix: self.tag_prefix.clone(),
-            tag_name: self.tag_name.clone(),
-            tag: resolve_bool_arg(self.tag, self.no_tag),
-            enable_features: (!self.features.is_empty()).then(|| self.features.clone()),
-            enable_all_features: self.all_features.then(|| true),
             dependent_version: self.dependent_version,
-            target: self.target.clone(),
             ..Default::default()
-        }
+        };
+        config.update(&self.publish.to_config());
+        config.update(&self.tag.to_config());
+        config.update(&self.push.to_config());
+        config
     }
 
     fn sign(&self) -> Option<bool> {
@@ -228,15 +174,6 @@ impl Verbosity {
             3 => log::Level::Debug,
             4..=i8::MAX => log::Level::Trace,
         }
-    }
-}
-
-fn resolve_bool_arg(yes: bool, no: bool) -> Option<bool> {
-    match (yes, no) {
-        (true, false) => Some(true),
-        (false, true) => Some(false),
-        (false, false) => None,
-        (_, _) => unreachable!("clap should make this impossible"),
     }
 }
 
