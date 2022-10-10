@@ -406,28 +406,28 @@ struct CargoMetadata {
 }
 
 pub fn load_workspace_config(
-    args: &crate::args::ReleaseOpt,
+    args: &ConfigArgs,
     ws_meta: &cargo_metadata::Metadata,
 ) -> Result<Config, FatalError> {
     let mut release_config = Config::default();
 
-    if !args.config.isolated {
+    if !args.isolated {
         let cfg = resolve_workspace_config(ws_meta.workspace_root.as_std_path())?;
         release_config.update(&cfg);
     }
 
-    if let Some(custom_config_path) = args.config.custom_config.as_ref() {
+    if let Some(custom_config_path) = args.custom_config.as_ref() {
         // when calling with -c option
         let cfg = resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
         release_config.update(&cfg);
     }
 
-    release_config.update(&args.config.to_config());
+    release_config.update(&args.to_config());
     Ok(release_config)
 }
 
 pub fn load_package_config(
-    args: &crate::args::ReleaseOpt,
+    args: &ConfigArgs,
     ws_meta: &cargo_metadata::Metadata,
     pkg: &cargo_metadata::Package,
 ) -> Result<Config, FatalError> {
@@ -435,18 +435,18 @@ pub fn load_package_config(
 
     let mut release_config = Config::default();
 
-    if !args.config.isolated {
+    if !args.isolated {
         let cfg = resolve_config(ws_meta.workspace_root.as_std_path(), manifest_path)?;
         release_config.update(&cfg);
     }
 
-    if let Some(custom_config_path) = args.config.custom_config.as_ref() {
+    if let Some(custom_config_path) = args.custom_config.as_ref() {
         // when calling with -c option
         let cfg = resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
         release_config.update(&cfg);
     }
 
-    release_config.update(&args.config.to_config());
+    release_config.update(&args.to_config());
 
     // the publish flag in cargo file
     let cargo_file = crate::cargo::parse_cargo_config(manifest_path)?;
@@ -558,11 +558,11 @@ pub fn dump_config(
                 .expect("root should always be present");
 
             let mut release_config = Config::from_defaults();
-            release_config.update(&load_package_config(args, &ws_meta, pkg)?);
+            release_config.update(&load_package_config(&args.config, &ws_meta, pkg)?);
             release_config
         } else {
             let mut release_config = Config::from_defaults();
-            release_config.update(&load_workspace_config(args, &ws_meta)?);
+            release_config.update(&load_workspace_config(&args.config, &ws_meta)?);
             release_config
         };
 

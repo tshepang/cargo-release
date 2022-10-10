@@ -21,7 +21,7 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
         .exec()
         .map_err(FatalError::from)?;
     let root = git::top_level(ws_meta.workspace_root.as_std_path())?;
-    let ws_config = config::load_workspace_config(args, &ws_meta)?;
+    let ws_config = config::load_workspace_config(&args.config, &ws_meta)?;
 
     let member_ids = cargo::sort_workspace(&ws_meta);
     let pkgs: Result<IndexMap<_, _>, _> = member_ids
@@ -794,7 +794,7 @@ impl<'m> PackageRelease<'m> {
     ) -> Result<Option<Self>, error::FatalError> {
         let manifest_path = pkg_meta.manifest_path.as_std_path();
         let package_root = manifest_path.parent().unwrap_or_else(|| Path::new("."));
-        let config = config::load_package_config(args, ws_meta, pkg_meta)?;
+        let config = config::load_package_config(&args.config, ws_meta, pkg_meta)?;
         if !config.release() {
             log::trace!("Disabled in config, skipping {}", manifest_path.display());
             return Ok(None);
