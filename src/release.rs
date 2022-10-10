@@ -3,8 +3,6 @@ use std::ffi::OsStr;
 use std::io::Write;
 use std::path::Path;
 
-use indexmap::IndexMap;
-use indexmap::IndexSet;
 use itertools::Itertools;
 
 use crate::error::FatalError;
@@ -20,16 +18,8 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
         .features(cargo_metadata::CargoOpt::AllFeatures)
         .exec()
         .map_err(FatalError::from)?;
-    let root = git::top_level(ws_meta.workspace_root.as_std_path())?;
     let ws_config = config::load_workspace_config(&args.config, &ws_meta)?;
-
-    let member_ids = cargo::sort_workspace(&ws_meta);
-    let pkgs: Result<IndexMap<_, _>, _> = member_ids
-        .iter()
-        .filter_map(|p| PackageRelease::load(args, &root, &ws_meta, &ws_meta[p]).transpose())
-        .map(|p| p.map(|p| (p.meta.id.clone(), p)))
-        .collect();
-    let mut pkgs = pkgs?;
+    let mut pkgs = crate::plan::load(args, &ws_meta)?;
 
     let (_selected_pkgs, excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
     for excluded_pkg in excluded_pkgs {
@@ -74,33 +64,7 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
         }
     }
 
-    let mut shared_max: Option<version::Version> = None;
-    let mut shared_ids = IndexSet::new();
-    for (pkg_id, pkg) in pkgs.iter() {
-        if pkg.config.shared_version() {
-            shared_ids.insert(pkg_id.clone());
-            let planned = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-            if shared_max
-                .as_ref()
-                .map(|max| max.full_version < planned.full_version)
-                .unwrap_or(true)
-            {
-                shared_max = Some(planned.clone());
-            }
-        }
-    }
-    if let Some(shared_max) = shared_max {
-        for shared_id in shared_ids {
-            let shared_pkg = &mut pkgs[&shared_id];
-            if shared_pkg.prev_version.bare_version != shared_max.bare_version {
-                shared_pkg.version = Some(shared_max.clone());
-            }
-        }
-    }
-
-    for pkg in pkgs.values_mut() {
-        pkg.plan()?;
-    }
+    let pkgs = crate::plan::plan(pkgs)?;
 
     let pkgs: Vec<_> = pkgs
         .into_iter()
