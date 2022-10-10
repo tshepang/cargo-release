@@ -4,6 +4,12 @@ use std::path::Path;
 use crate::config::Replace;
 use crate::error::FatalError;
 
+pub static NOW: once_cell::sync::Lazy<String> = once_cell::sync::Lazy::new(|| {
+    time::OffsetDateTime::now_utc()
+        .format(time::macros::format_description!("[year]-[month]-[day]"))
+        .unwrap()
+});
+
 #[derive(Clone, Default, Debug)]
 pub struct Template<'a> {
     pub prev_version: Option<&'a str>,

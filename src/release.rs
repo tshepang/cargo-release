@@ -8,7 +8,7 @@ use indexmap::IndexSet;
 use itertools::Itertools;
 
 use crate::error::FatalError;
-use crate::replace::{do_file_replacements, Template};
+use crate::replace::{do_file_replacements, Template, NOW};
 use crate::version::VersionExt;
 use crate::*;
 
@@ -742,12 +742,6 @@ fn release_packages<'m>(
         Ok(0)
     }
 }
-
-static NOW: once_cell::sync::Lazy<String> = once_cell::sync::Lazy::new(|| {
-    time::OffsetDateTime::now_utc()
-        .format(time::macros::format_description!("[year]-[month]-[day]"))
-        .unwrap()
-});
 
 fn find_dependents<'w>(
     ws_meta: &'w cargo_metadata::Metadata,
