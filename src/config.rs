@@ -411,12 +411,12 @@ pub fn load_workspace_config(
 ) -> Result<Config, FatalError> {
     let mut release_config = Config::default();
 
-    if !args.isolated {
+    if !args.config.isolated {
         let cfg = resolve_workspace_config(ws_meta.workspace_root.as_std_path())?;
         release_config.update(&cfg);
     }
 
-    if let Some(custom_config_path) = args.custom_config.as_ref() {
+    if let Some(custom_config_path) = args.config.custom_config.as_ref() {
         // when calling with -c option
         let cfg = resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
         release_config.update(&cfg);
@@ -435,12 +435,12 @@ pub fn load_package_config(
 
     let mut release_config = Config::default();
 
-    if !args.isolated {
+    if !args.config.isolated {
         let cfg = resolve_config(ws_meta.workspace_root.as_std_path(), manifest_path)?;
         release_config.update(&cfg);
     }
 
-    if let Some(custom_config_path) = args.custom_config.as_ref() {
+    if let Some(custom_config_path) = args.config.custom_config.as_ref() {
         // when calling with -c option
         let cfg = resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
         release_config.update(&cfg);
@@ -465,6 +465,14 @@ pub fn load_package_config(
 
 #[derive(Debug, Clone, clap::Args)]
 pub struct ConfigArgs {
+    /// Custom config file
+    #[arg(short, long = "config")]
+    custom_config: Option<String>,
+
+    /// Ignore implicit configuration files.
+    #[arg(long)]
+    isolated: bool,
+
     /// Sign both git commit and tag
     #[arg(long, overrides_with("no_sign"))]
     sign: bool,

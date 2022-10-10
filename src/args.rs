@@ -40,14 +40,6 @@ pub struct ReleaseOpt {
     #[arg(short, long)]
     pub metadata: Option<String>,
 
-    /// Custom config file
-    #[arg(short, long = "config")]
-    pub custom_config: Option<String>,
-
-    /// Ignore implicit configuration files.
-    #[arg(long)]
-    pub isolated: bool,
-
     #[command(flatten)]
     pub config: crate::config::ConfigArgs,
 
