@@ -129,13 +129,11 @@ impl PackageRelease {
             template.render(config.tag_name())
         };
 
-        let version = args
-            .level_or_version
-            .bump(&prev_version.full_version, args.metadata.as_deref())?;
+        let version = None;
         let tag = None;
         let post_version = None;
 
-        let pkg = PackageRelease {
+        let mut pkg = PackageRelease {
             meta: pkg_meta.clone(),
             manifest_path: manifest_path.to_owned(),
             package_root: package_root.to_owned(),
@@ -154,7 +152,17 @@ impl PackageRelease {
             tag,
             post_version,
         };
+        pkg.bump(&args.level_or_version, args.metadata.as_deref())?;
         Ok(Some(pkg))
+    }
+
+    pub fn bump(
+        &mut self,
+        level_or_version: &crate::version::TargetVersion,
+        metadata: Option<&str>,
+    ) -> Result<(), FatalError> {
+        self.version = level_or_version.bump(&self.prev_version.full_version, metadata)?;
+        Ok(())
     }
 
     pub fn plan(&mut self) -> Result<(), FatalError> {
