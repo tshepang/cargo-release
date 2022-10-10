@@ -105,16 +105,10 @@ impl PackageRelease {
 
         let is_root = git_root == package_root;
         let prev_version = version::Version::from(pkg_meta.version.clone());
-        let prev_tag = if let Some(prev_tag) = args.prev_tag_name.as_ref() {
-            // Trust the user that the tag passed in is the latest tag for the workspace and that
-            // they don't care about any changes from before this tag.
-            prev_tag.to_owned()
-        } else {
-            let tag_name = config.tag_name();
-            let tag_prefix = config.tag_prefix(is_root);
-            let name = pkg_meta.name.as_str();
-            render_tag(tag_name, tag_prefix, name, &prev_version, &prev_version)
-        };
+        let tag_name = config.tag_name();
+        let tag_prefix = config.tag_prefix(is_root);
+        let name = pkg_meta.name.as_str();
+        let prev_tag = render_tag(tag_name, tag_prefix, name, &prev_version, &prev_version);
 
         let version = None;
         let tag = None;
@@ -139,8 +133,17 @@ impl PackageRelease {
             tag,
             post_version,
         };
+        if let Some(prev_tag) = args.prev_tag_name.as_ref() {
+            // Trust the user that the tag passed in is the latest tag for the workspace and that
+            // they don't care about any changes from before this tag.
+            pkg.set_prev_tag(prev_tag.to_owned());
+        }
         pkg.bump(&args.level_or_version, args.metadata.as_deref())?;
         Ok(Some(pkg))
+    }
+
+    pub fn set_prev_tag(&mut self, prev_tag: String) {
+        self.prev_tag = prev_tag;
     }
 
     pub fn bump(
