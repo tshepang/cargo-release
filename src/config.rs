@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::error::FatalError;
+use crate::util::resolve_bool_arg;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
@@ -460,6 +461,71 @@ pub fn load_package_config(
     }
 
     Ok(release_config)
+}
+
+#[derive(Debug, Clone, clap::Args)]
+pub struct ConfigArgs {
+    /// Sign both git commit and tag
+    #[arg(long, overrides_with("no_sign"))]
+    sign: bool,
+    #[arg(long, overrides_with("sign"), hide(true))]
+    no_sign: bool,
+
+    /// Sign git commit
+    #[arg(long, overrides_with("no_sign_commit"))]
+    sign_commit: bool,
+    #[arg(long, overrides_with("sign_commit"), hide(true))]
+    no_sign_commit: bool,
+
+    /// Specify how workspace dependencies on this crate should be handed.
+    #[arg(long, value_enum)]
+    dependent_version: Option<crate::config::DependentVersion>,
+
+    /// Pre-release identifier(s) to append to the next development version after release
+    #[arg(long)]
+    dev_version_ext: Option<String>,
+
+    /// Create dev version after release
+    #[arg(long, overrides_with("no_dev_version"))]
+    dev_version: bool,
+    #[arg(long, overrides_with("dev_version"), hide(true))]
+    no_dev_version: bool,
+
+    /// Comma-separated globs of branch names a release can happen from
+    #[arg(long, value_delimiter = ',')]
+    allow_branch: Option<Vec<String>>,
+
+    #[command(flatten)]
+    publish: crate::publish::PublishArgs,
+
+    #[command(flatten)]
+    tag: crate::tag::TagArgs,
+
+    #[command(flatten)]
+    push: crate::push::PushArgs,
+}
+
+impl ConfigArgs {
+    pub fn to_config(&self) -> crate::config::Config {
+        let mut config = crate::config::Config {
+            allow_branch: self.allow_branch.clone(),
+            sign_commit: resolve_bool_arg(self.sign_commit, self.no_sign_commit)
+                .or_else(|| self.sign()),
+            sign_tag: self.sign(),
+            dev_version_ext: self.dev_version_ext.clone(),
+            dev_version: resolve_bool_arg(self.dev_version, self.no_dev_version),
+            dependent_version: self.dependent_version,
+            ..Default::default()
+        };
+        config.update(&self.publish.to_config());
+        config.update(&self.tag.to_config());
+        config.update(&self.push.to_config());
+        config
+    }
+
+    fn sign(&self) -> Option<bool> {
+        resolve_bool_arg(self.sign, self.no_sign)
+    }
 }
 
 pub fn dump_config(
