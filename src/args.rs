@@ -10,6 +10,21 @@ pub enum Command {
 }
 
 #[derive(Debug, Clone, clap::Args)]
+#[command(help_template = "\
+{before-help}{about-with-newline}
+{usage-heading} {usage}
+
+Arguments:
+{positionals}
+
+Options:
+{options}
+
+Steps:
+{subcommands}{after-help}
+")]
+#[command(subcommand_value_name = "STEP")]
+#[command(subcommand_help_heading = "Steps")]
 pub struct ReleaseOpt {
     #[command(flatten)]
     pub manifest: clap_cargo::Manifest,
