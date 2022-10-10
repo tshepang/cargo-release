@@ -11,6 +11,7 @@ mod cmd;
 mod config;
 mod error;
 mod git;
+mod plan;
 mod publish;
 mod push;
 mod release;
