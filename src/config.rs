@@ -463,6 +463,60 @@ pub fn load_package_config(
     Ok(release_config)
 }
 
+/// Dump workspace configuration
+#[derive(Debug, Clone, clap::Args)]
+pub struct ConfigStep {
+    /// Write the current configuration to file with `-` for stdout
+    #[arg(short, long, default_value = "-")]
+    output: std::path::PathBuf,
+
+    #[command(flatten)]
+    manifest: clap_cargo::Manifest,
+
+    #[command(flatten)]
+    config: crate::config::ConfigArgs,
+}
+
+impl ConfigStep {
+    pub fn run(&self) -> Result<i32, FatalError> {
+        log::trace!("Initializing");
+        let ws_meta = self
+            .manifest
+            .metadata()
+            // When evaluating dependency ordering, we need to consider optional depednencies
+            .features(cargo_metadata::CargoOpt::AllFeatures)
+            .exec()
+            .map_err(FatalError::from)?;
+
+        let release_config =
+            if let Some(root_id) = ws_meta.resolve.as_ref().and_then(|r| r.root.as_ref()) {
+                let pkg = ws_meta
+                    .packages
+                    .iter()
+                    .find(|p| p.id == *root_id)
+                    .expect("root should always be present");
+
+                let mut release_config = Config::from_defaults();
+                release_config.update(&load_package_config(&self.config, &ws_meta, pkg)?);
+                release_config
+            } else {
+                let mut release_config = Config::from_defaults();
+                release_config.update(&load_workspace_config(&self.config, &ws_meta)?);
+                release_config
+            };
+
+        let output = toml_edit::easy::to_string_pretty(&release_config)?;
+
+        if self.output == std::path::Path::new("-") {
+            std::io::stdout().write_all(output.as_bytes())?;
+        } else {
+            std::fs::write(&self.output, &output)?;
+        }
+
+        Ok(0)
+    }
+}
+
 #[derive(Debug, Clone, clap::Args)]
 pub struct ConfigArgs {
     /// Custom config file
@@ -534,47 +588,6 @@ impl ConfigArgs {
     fn sign(&self) -> Option<bool> {
         resolve_bool_arg(self.sign, self.no_sign)
     }
-}
-
-pub fn dump_config(
-    args: &crate::args::ReleaseOpt,
-    output_path: &std::path::Path,
-) -> Result<i32, FatalError> {
-    log::trace!("Initializing");
-    let ws_meta = args
-        .manifest
-        .metadata()
-        // When evaluating dependency ordering, we need to consider optional depednencies
-        .features(cargo_metadata::CargoOpt::AllFeatures)
-        .exec()
-        .map_err(FatalError::from)?;
-
-    let release_config =
-        if let Some(root_id) = ws_meta.resolve.as_ref().and_then(|r| r.root.as_ref()) {
-            let pkg = ws_meta
-                .packages
-                .iter()
-                .find(|p| p.id == *root_id)
-                .expect("root should always be present");
-
-            let mut release_config = Config::from_defaults();
-            release_config.update(&load_package_config(&args.config, &ws_meta, pkg)?);
-            release_config
-        } else {
-            let mut release_config = Config::from_defaults();
-            release_config.update(&load_workspace_config(&args.config, &ws_meta)?);
-            release_config
-        };
-
-    let output = toml_edit::easy::to_string_pretty(&release_config)?;
-
-    if output_path == std::path::Path::new("-") {
-        std::io::stdout().write_all(output.as_bytes())?;
-    } else {
-        std::fs::write(output_path, &output)?;
-    }
-
-    Ok(0)
 }
 
 fn get_pkg_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {

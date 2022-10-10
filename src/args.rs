@@ -25,6 +25,7 @@ Steps:
 ")]
 #[command(subcommand_value_name = "STEP")]
 #[command(subcommand_help_heading = "Steps")]
+#[command(args_conflicts_with_subcommands = true)]
 pub struct ReleaseOpt {
     #[command(flatten)]
     pub manifest: clap_cargo::Manifest,
@@ -59,18 +60,22 @@ pub struct ReleaseOpt {
     #[arg(long)]
     pub prev_tag_name: Option<String>,
 
-    /// Write the current configuration to file with `-` for stdout
-    #[arg(long)]
-    pub dump_config: Option<std::path::PathBuf>,
-
     #[command(flatten)]
     pub logging: Verbosity,
+
+    #[command(subcommand)]
+    pub step: Option<Step>,
 }
 
 impl ReleaseOpt {
     pub fn dry_run(&self) -> bool {
         !self.execute
     }
+}
+
+#[derive(Clone, Debug, clap::Subcommand)]
+pub enum Step {
+    Config(crate::config::ConfigStep),
 }
 
 #[derive(clap::Args, Debug, Clone)]
