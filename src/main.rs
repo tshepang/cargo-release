@@ -28,6 +28,7 @@ fn main() {
     builder.init();
 
     let res = match &release_matches.step {
+        Some(args::Step::Push(config)) => config.run(),
         Some(args::Step::Config(config)) => config.run(),
         None => release::release_workspace(release_matches),
     };

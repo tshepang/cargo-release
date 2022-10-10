@@ -517,54 +517,54 @@ impl ConfigStep {
     }
 }
 
-#[derive(Debug, Clone, clap::Args)]
+#[derive(Clone, Default, Debug, clap::Args)]
 pub struct ConfigArgs {
     /// Custom config file
     #[arg(short, long = "config")]
-    custom_config: Option<String>,
+    pub custom_config: Option<String>,
 
     /// Ignore implicit configuration files.
     #[arg(long)]
-    isolated: bool,
+    pub isolated: bool,
 
     /// Sign both git commit and tag
     #[arg(long, overrides_with("no_sign"))]
-    sign: bool,
+    pub sign: bool,
     #[arg(long, overrides_with("sign"), hide(true))]
-    no_sign: bool,
+    pub no_sign: bool,
 
     /// Sign git commit
     #[arg(long, overrides_with("no_sign_commit"))]
-    sign_commit: bool,
+    pub sign_commit: bool,
     #[arg(long, overrides_with("sign_commit"), hide(true))]
-    no_sign_commit: bool,
+    pub no_sign_commit: bool,
 
     /// Specify how workspace dependencies on this crate should be handed.
     #[arg(long, value_enum)]
-    dependent_version: Option<crate::config::DependentVersion>,
+    pub dependent_version: Option<crate::config::DependentVersion>,
 
     /// Pre-release identifier(s) to append to the next development version after release
     #[arg(long)]
-    dev_version_ext: Option<String>,
+    pub dev_version_ext: Option<String>,
 
     /// Create dev version after release
     #[arg(long, overrides_with("no_dev_version"))]
-    dev_version: bool,
+    pub dev_version: bool,
     #[arg(long, overrides_with("dev_version"), hide(true))]
-    no_dev_version: bool,
+    pub no_dev_version: bool,
 
     /// Comma-separated globs of branch names a release can happen from
     #[arg(long, value_delimiter = ',')]
-    allow_branch: Option<Vec<String>>,
+    pub allow_branch: Option<Vec<String>>,
 
     #[command(flatten)]
-    publish: crate::publish::PublishArgs,
+    pub publish: crate::publish::PublishArgs,
 
     #[command(flatten)]
-    tag: crate::tag::TagArgs,
+    pub tag: crate::tag::TagArgs,
 
     #[command(flatten)]
-    push: crate::push::PushArgs,
+    pub push: crate::push::PushArgs,
 }
 
 impl ConfigArgs {

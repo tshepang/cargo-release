@@ -1,6 +1,6 @@
 use crate::util::resolve_bool_arg;
 
-#[derive(Clone, Debug, clap::Args)]
+#[derive(Clone, Default, Debug, clap::Args)]
 #[command(next_help_heading = "Tag")]
 pub struct TagArgs {
     #[arg(long, overrides_with("no_tag"), hide(true))]
