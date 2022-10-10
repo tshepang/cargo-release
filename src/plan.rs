@@ -110,23 +110,10 @@ impl PackageRelease {
             // they don't care about any changes from before this tag.
             prev_tag.to_owned()
         } else {
-            let prev_version_var = prev_version.bare_version_string.as_str();
-            let prev_metadata_var = prev_version.full_version.build.as_str();
-            let version_var = prev_version.bare_version_string.as_str();
-            let metadata_var = prev_version.full_version.build.as_str();
-            let mut template = Template {
-                prev_version: Some(prev_version_var),
-                prev_metadata: Some(prev_metadata_var),
-                version: Some(version_var),
-                metadata: Some(metadata_var),
-                crate_name: Some(pkg_meta.name.as_str()),
-                ..Default::default()
-            };
-
+            let tag_name = config.tag_name();
             let tag_prefix = config.tag_prefix(is_root);
-            let tag_prefix = template.render(tag_prefix);
-            template.prefix = Some(&tag_prefix);
-            template.render(config.tag_name())
+            let name = pkg_meta.name.as_str();
+            render_tag(tag_name, tag_prefix, name, &prev_version, &prev_version)
         };
 
         let version = None;
@@ -168,23 +155,16 @@ impl PackageRelease {
     pub fn plan(&mut self) -> Result<(), FatalError> {
         let base = self.version.as_ref().unwrap_or(&self.prev_version);
         let tag = if self.config.tag() {
-            let prev_version_var = self.prev_version.bare_version_string.as_str();
-            let prev_metadata_var = self.prev_version.full_version.build.as_str();
-            let version_var = base.bare_version_string.as_str();
-            let metadata_var = base.full_version.build.as_str();
-            let mut template = Template {
-                prev_version: Some(prev_version_var),
-                prev_metadata: Some(prev_metadata_var),
-                version: Some(version_var),
-                metadata: Some(metadata_var),
-                crate_name: Some(self.meta.name.as_str()),
-                ..Default::default()
-            };
-
+            let tag_name = self.config.tag_name();
             let tag_prefix = self.config.tag_prefix(self.is_root);
-            let tag_prefix = template.render(tag_prefix);
-            template.prefix = Some(&tag_prefix);
-            Some(template.render(self.config.tag_name()))
+            let name = self.meta.name.as_str();
+            Some(render_tag(
+                tag_name,
+                tag_prefix,
+                name,
+                &self.prev_version,
+                &base,
+            ))
         } else {
             None
         };
@@ -205,6 +185,31 @@ impl PackageRelease {
 
         Ok(())
     }
+}
+
+fn render_tag(
+    tag_name: &str,
+    tag_prefix: &str,
+    name: &str,
+    prev: &version::Version,
+    base: &version::Version,
+) -> String {
+    let prev_version_var = prev.bare_version_string.as_str();
+    let prev_metadata_var = prev.full_version.build.as_str();
+    let version_var = base.bare_version_string.as_str();
+    let metadata_var = base.full_version.build.as_str();
+    let mut template = Template {
+        prev_version: Some(prev_version_var),
+        prev_metadata: Some(prev_metadata_var),
+        version: Some(version_var),
+        metadata: Some(metadata_var),
+        crate_name: Some(name),
+        ..Default::default()
+    };
+
+    let tag_prefix = template.render(tag_prefix);
+    template.prefix = Some(&tag_prefix);
+    template.render(tag_name)
 }
 
 fn find_dependents<'w>(
