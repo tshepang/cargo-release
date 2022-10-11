@@ -15,8 +15,20 @@ pub(crate) fn load(
     let member_ids = cargo::sort_workspace(&ws_meta);
     member_ids
         .iter()
-        .filter_map(|p| PackageRelease::load(args, &root, &ws_meta, &ws_meta[p]).transpose())
-        .map(|p| p.map(|p| (p.meta.id.clone(), p)))
+        .filter_map(|p| {
+            PackageRelease::load(&args.config, &root, &ws_meta, &ws_meta[p]).transpose()
+        })
+        .map(|p| {
+            p.and_then(|mut p| {
+                if let Some(prev_tag) = args.prev_tag_name.as_ref() {
+                    // Trust the user that the tag passed in is the latest tag for the workspace and that
+                    // they don't care about any changes from before this tag.
+                    p.set_prev_tag(prev_tag.to_owned());
+                }
+                p.bump(&args.level_or_version, args.metadata.as_deref())?;
+                Ok((p.meta.id.clone(), p))
+            })
+        })
         .collect()
 }
 
@@ -76,14 +88,14 @@ pub struct PackageRelease {
 
 impl PackageRelease {
     pub fn load(
-        args: &args::ReleaseOpt,
+        args: &config::ConfigArgs,
         git_root: &Path,
         ws_meta: &cargo_metadata::Metadata,
         pkg_meta: &cargo_metadata::Package,
     ) -> Result<Option<Self>, error::FatalError> {
         let manifest_path = pkg_meta.manifest_path.as_std_path();
         let package_root = manifest_path.parent().unwrap_or_else(|| Path::new("."));
-        let config = config::load_package_config(&args.config, ws_meta, pkg_meta)?;
+        let config = config::load_package_config(&args, ws_meta, pkg_meta)?;
         if !config.release() {
             log::trace!("Disabled in config, skipping {}", manifest_path.display());
             return Ok(None);
@@ -114,7 +126,7 @@ impl PackageRelease {
         let tag = None;
         let post_version = None;
 
-        let mut pkg = PackageRelease {
+        let pkg = PackageRelease {
             meta: pkg_meta.clone(),
             manifest_path: manifest_path.to_owned(),
             package_root: package_root.to_owned(),
@@ -133,12 +145,6 @@ impl PackageRelease {
             tag,
             post_version,
         };
-        if let Some(prev_tag) = args.prev_tag_name.as_ref() {
-            // Trust the user that the tag passed in is the latest tag for the workspace and that
-            // they don't care about any changes from before this tag.
-            pkg.set_prev_tag(prev_tag.to_owned());
-        }
-        pkg.bump(&args.level_or_version, args.metadata.as_deref())?;
         Ok(Some(pkg))
     }
 
