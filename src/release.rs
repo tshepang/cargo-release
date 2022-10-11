@@ -19,7 +19,16 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
         .exec()
         .map_err(FatalError::from)?;
     let ws_config = config::load_workspace_config(&args.config, &ws_meta)?;
-    let mut pkgs = crate::plan::load(args, &ws_meta)?;
+    let mut pkgs = crate::plan::load(&args.config, &ws_meta)?;
+
+    for pkg in pkgs.values_mut() {
+        if let Some(prev_tag) = args.prev_tag_name.as_ref() {
+            // Trust the user that the tag passed in is the latest tag for the workspace and that
+            // they don't care about any changes from before this tag.
+            pkg.set_prev_tag(prev_tag.to_owned());
+        }
+        pkg.bump(&args.level_or_version, args.metadata.as_deref())?;
+    }
 
     let (_selected_pkgs, excluded_pkgs) = args.workspace.partition_packages(&ws_meta);
     for excluded_pkg in excluded_pkgs {
