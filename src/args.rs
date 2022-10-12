@@ -24,6 +24,8 @@ Options:
 
 Steps:
 {subcommands}{after-help}
+
+(release steps broken out for custom behavior and/or recovering from failures)
 ")]
 #[command(subcommand_value_name = "STEP")]
 #[command(subcommand_help_heading = "Steps")]
