@@ -3,8 +3,8 @@ use std::path::Path;
 
 use bstr::ByteSlice;
 
-use crate::cmd::call;
 use crate::error::FatalError;
+use crate::ops::cmd::call;
 
 /// Expresses what features flags should be used
 pub enum Features {

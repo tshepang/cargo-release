@@ -5,8 +5,9 @@ use itertools::Itertools;
 
 use crate::error::FatalError;
 use crate::error::ProcessError;
-use crate::git;
-use crate::shell;
+use crate::ops::git;
+use crate::ops::shell;
+use crate::steps::plan;
 
 /// Push tags/commits to remote
 #[derive(Debug, Clone, clap::Args)]
@@ -55,7 +56,7 @@ impl PushStep {
             .map_err(FatalError::from)?;
         let config = self.to_config();
         let ws_config = crate::config::load_workspace_config(&config, &ws_meta)?;
-        let mut pkgs = crate::plan::load(&config, &ws_meta)?;
+        let mut pkgs = plan::load(&config, &ws_meta)?;
 
         let (_selected_pkgs, excluded_pkgs) = self.workspace.partition_packages(&ws_meta);
         for excluded_pkg in excluded_pkgs {
@@ -71,7 +72,7 @@ impl PushStep {
             log::debug!("Disabled by user, skipping {}", crate_name,);
         }
 
-        let pkgs = crate::plan::plan(pkgs)?;
+        let pkgs = plan::plan(pkgs)?;
 
         let pkgs: Vec<_> = pkgs
             .into_iter()

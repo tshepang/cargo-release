@@ -1,5 +1,7 @@
 use clap::Parser;
 
+use crate::ops::version;
+
 #[derive(Debug, Parser)]
 #[command(name = "cargo")]
 #[command(bin_name = "cargo")]
@@ -35,7 +37,7 @@ pub struct ReleaseOpt {
 
     /// Release level or version: bumping specified version field or remove prerelease extensions by default. Possible level value: major, minor, patch, release, rc, beta, alpha or any valid semver version that is greater than current version
     #[arg(default_value_t)]
-    pub level_or_version: crate::version::TargetVersion,
+    pub level_or_version: version::TargetVersion,
 
     /// Semver metadata
     #[arg(short, long)]
@@ -75,8 +77,8 @@ impl ReleaseOpt {
 
 #[derive(Clone, Debug, clap::Subcommand)]
 pub enum Step {
-    Push(crate::push::PushStep),
-    Config(crate::config::ConfigStep),
+    Push(crate::steps::push::PushStep),
+    Config(crate::steps::config::ConfigStep),
 }
 
 #[derive(clap::Args, Debug, Clone)]

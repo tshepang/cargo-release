@@ -1,10 +1,14 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use crate::config;
+use crate::error;
 use crate::error::FatalError;
-use crate::replace::Template;
-use crate::version::VersionExt as _;
-use crate::*;
+use crate::ops::cargo;
+use crate::ops::git;
+use crate::ops::replace::Template;
+use crate::ops::version;
+use crate::ops::version::VersionExt as _;
 
 pub(crate) fn load(
     args: &config::ConfigArgs,
@@ -142,7 +146,7 @@ impl PackageRelease {
 
     pub fn bump(
         &mut self,
-        level_or_version: &crate::version::TargetVersion,
+        level_or_version: &version::TargetVersion,
         metadata: Option<&str>,
     ) -> Result<(), FatalError> {
         self.version = level_or_version.bump(&self.prev_version.full_version, metadata)?;

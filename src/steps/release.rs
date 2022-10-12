@@ -5,11 +5,19 @@ use std::path::Path;
 
 use itertools::Itertools;
 
+use crate::args;
+use crate::config;
+use crate::error;
 use crate::error::FatalError;
 use crate::error::ProcessError;
-use crate::plan::PackageRelease;
-use crate::replace::{do_file_replacements, Template, NOW};
-use crate::*;
+use crate::ops::cargo;
+use crate::ops::cmd;
+use crate::ops::git;
+use crate::ops::replace::{do_file_replacements, Template, NOW};
+use crate::ops::shell;
+use crate::ops::version;
+use crate::steps::plan;
+use crate::steps::plan::PackageRelease;
 
 pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<(), ProcessError> {
     let ws_meta = args
@@ -20,7 +28,7 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<(), ProcessEr
         .exec()
         .map_err(FatalError::from)?;
     let ws_config = config::load_workspace_config(&args.config, &ws_meta)?;
-    let mut pkgs = crate::plan::load(&args.config, &ws_meta)?;
+    let mut pkgs = plan::load(&args.config, &ws_meta)?;
 
     for pkg in pkgs.values_mut() {
         if let Some(prev_tag) = args.prev_tag_name.as_ref() {
@@ -74,7 +82,7 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<(), ProcessEr
         }
     }
 
-    let pkgs = crate::plan::plan(pkgs)?;
+    let pkgs = plan::plan(pkgs)?;
 
     let pkgs: Vec<_> = pkgs
         .into_iter()

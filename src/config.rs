@@ -1,10 +1,9 @@
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use crate::error::FatalError;
-use crate::error::ProcessError;
+use crate::ops::cargo;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
@@ -304,15 +303,15 @@ impl Config {
         self.enable_all_features.unwrap_or(false)
     }
 
-    pub fn features(&self) -> crate::cargo::Features {
+    pub fn features(&self) -> cargo::Features {
         if self.enable_all_features() {
-            crate::cargo::Features::All
+            cargo::Features::All
         } else {
             let features = self.enable_features();
             if features.is_empty() {
-                crate::cargo::Features::None
+                cargo::Features::None
             } else {
-                crate::cargo::Features::Selective(features.to_owned())
+                cargo::Features::Selective(features.to_owned())
             }
         }
     }
@@ -449,7 +448,7 @@ pub fn load_package_config(
     release_config.update(&args.to_config());
 
     // the publish flag in cargo file
-    let cargo_file = crate::cargo::parse_cargo_config(manifest_path)?;
+    let cargo_file = cargo::parse_cargo_config(manifest_path)?;
     if !cargo_file
         .get("package")
         .and_then(|f| f.as_table())
@@ -461,60 +460,6 @@ pub fn load_package_config(
     }
 
     Ok(release_config)
-}
-
-/// Dump workspace configuration
-#[derive(Debug, Clone, clap::Args)]
-pub struct ConfigStep {
-    /// Write the current configuration to file with `-` for stdout
-    #[arg(short, long, default_value = "-")]
-    output: std::path::PathBuf,
-
-    #[command(flatten)]
-    manifest: clap_cargo::Manifest,
-
-    #[command(flatten)]
-    config: crate::config::ConfigArgs,
-}
-
-impl ConfigStep {
-    pub fn run(&self) -> Result<(), ProcessError> {
-        log::trace!("Initializing");
-        let ws_meta = self
-            .manifest
-            .metadata()
-            // When evaluating dependency ordering, we need to consider optional depednencies
-            .features(cargo_metadata::CargoOpt::AllFeatures)
-            .exec()
-            .map_err(FatalError::from)?;
-
-        let release_config =
-            if let Some(root_id) = ws_meta.resolve.as_ref().and_then(|r| r.root.as_ref()) {
-                let pkg = ws_meta
-                    .packages
-                    .iter()
-                    .find(|p| p.id == *root_id)
-                    .expect("root should always be present");
-
-                let mut release_config = Config::from_defaults();
-                release_config.update(&load_package_config(&self.config, &ws_meta, pkg)?);
-                release_config
-            } else {
-                let mut release_config = Config::from_defaults();
-                release_config.update(&load_workspace_config(&self.config, &ws_meta)?);
-                release_config
-            };
-
-        let output = toml_edit::easy::to_string_pretty(&release_config)?;
-
-        if self.output == std::path::Path::new("-") {
-            std::io::stdout().write_all(output.as_bytes())?;
-        } else {
-            std::fs::write(&self.output, &output)?;
-        }
-
-        Ok(())
-    }
 }
 
 #[derive(Clone, Default, Debug, clap::Args)]

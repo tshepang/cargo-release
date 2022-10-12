@@ -4,17 +4,10 @@
 use clap::Parser;
 
 mod args;
-mod cargo;
-mod cmd;
 mod config;
 mod error;
-mod git;
-mod plan;
-mod push;
-mod release;
-mod replace;
-mod shell;
-mod version;
+mod ops;
+mod steps;
 
 fn main() {
     let res = run();
@@ -30,7 +23,7 @@ fn run() -> Result<(), error::ProcessError> {
     match &release_matches.step {
         Some(args::Step::Push(config)) => config.run(),
         Some(args::Step::Config(config)) => config.run(),
-        None => release::release_workspace(release_matches),
+        None => steps::release::release_workspace(release_matches),
     }
 }
 

@@ -4,8 +4,8 @@ use std::process::Command;
 
 use bstr::ByteSlice;
 
-use crate::cmd::call_on_path;
 use crate::error::FatalError;
+use crate::ops::cmd::call_on_path;
 
 pub fn fetch(dir: &Path, remote: &str, branch: &str) -> Result<(), FatalError> {
     Command::new("git")
