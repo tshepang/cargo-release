@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::FatalError;
 use crate::error::ProcessError;
-use crate::util::resolve_bool_arg;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
@@ -559,10 +558,10 @@ pub struct ConfigArgs {
     pub allow_branch: Option<Vec<String>>,
 
     #[command(flatten)]
-    pub publish: crate::publish::PublishArgs,
+    pub publish: PublishArgs,
 
     #[command(flatten)]
-    pub tag: crate::tag::TagArgs,
+    pub tag: TagArgs,
 
     #[command(flatten)]
     pub push: PushArgs,
@@ -588,6 +587,88 @@ impl ConfigArgs {
 
     fn sign(&self) -> Option<bool> {
         resolve_bool_arg(self.sign, self.no_sign)
+    }
+}
+
+#[derive(Clone, Default, Debug, clap::Args)]
+#[command(next_help_heading = "Publish")]
+pub struct PublishArgs {
+    #[arg(long, overrides_with("no_publish"), hide(true))]
+    publish: bool,
+    /// Do not run cargo publish on release
+    #[arg(long, overrides_with("publish"))]
+    no_publish: bool,
+
+    /// Cargo registry to upload to
+    #[arg(long)]
+    registry: Option<String>,
+
+    #[arg(long, overrides_with("no_verify"), hide(true))]
+    verify: bool,
+    /// Don't verify the contents by building them
+    #[arg(long, overrides_with("verify"))]
+    no_verify: bool,
+
+    /// Provide a set of features that need to be enabled
+    #[arg(long)]
+    features: Vec<String>,
+
+    /// Enable all features via `all-features`. Overrides `features`
+    #[arg(long)]
+    all_features: bool,
+
+    /// Build for the target triple
+    #[arg(long)]
+    target: Option<String>,
+}
+
+impl PublishArgs {
+    pub fn to_config(&self) -> crate::config::Config {
+        crate::config::Config {
+            publish: resolve_bool_arg(self.publish, self.no_publish),
+            registry: self.registry.clone(),
+            verify: resolve_bool_arg(self.verify, self.no_verify),
+            enable_features: (!self.features.is_empty()).then(|| self.features.clone()),
+            enable_all_features: self.all_features.then(|| true),
+            target: self.target.clone(),
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Clone, Default, Debug, clap::Args)]
+#[command(next_help_heading = "Tag")]
+pub struct TagArgs {
+    #[arg(long, overrides_with("no_tag"), hide(true))]
+    tag: bool,
+    /// Do not create git tag
+    #[arg(long, overrides_with("tag"))]
+    no_tag: bool,
+
+    /// Sign git tag
+    #[arg(long, overrides_with("no_sign_tag"))]
+    sign_tag: bool,
+    #[arg(long, overrides_with("sign_tag"), hide(true))]
+    no_sign_tag: bool,
+
+    /// Prefix of git tag, note that this will override default prefix based on sub-directory
+    #[arg(long)]
+    tag_prefix: Option<String>,
+
+    /// The name of the git tag.
+    #[arg(long)]
+    tag_name: Option<String>,
+}
+
+impl TagArgs {
+    pub fn to_config(&self) -> crate::config::Config {
+        crate::config::Config {
+            tag: resolve_bool_arg(self.tag, self.no_tag),
+            sign_tag: resolve_bool_arg(self.sign_tag, self.no_sign_tag),
+            tag_prefix: self.tag_prefix.clone(),
+            tag_name: self.tag_name.clone(),
+            ..Default::default()
+        }
     }
 }
 
@@ -756,6 +837,15 @@ pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Con
     };
 
     Ok(config)
+}
+
+fn resolve_bool_arg(yes: bool, no: bool) -> Option<bool> {
+    match (yes, no) {
+        (true, false) => Some(true),
+        (false, true) => Some(false),
+        (false, false) => None,
+        (_, _) => unreachable!("clap should make this impossible"),
+    }
 }
 
 #[cfg(test)]

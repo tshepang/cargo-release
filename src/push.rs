@@ -30,7 +30,7 @@ pub struct PushStep {
     allow_branch: Option<Vec<String>>,
 
     #[command(flatten)]
-    tag: crate::tag::TagArgs,
+    tag: crate::config::TagArgs,
 
     #[command(flatten)]
     push: crate::config::PushArgs,
