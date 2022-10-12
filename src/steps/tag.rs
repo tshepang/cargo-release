@@ -3,11 +3,13 @@ use std::collections::HashSet;
 use crate::error::FatalError;
 use crate::error::ProcessError;
 use crate::ops::git;
+use crate::ops::replace::Template;
+use crate::ops::replace::NOW;
 use crate::steps::plan;
 
-/// Push tags/commits to remote
+/// Tag the released commits
 #[derive(Debug, Clone, clap::Args)]
-pub struct PushStep {
+pub struct TagStep {
     #[command(flatten)]
     manifest: clap_cargo::Manifest,
 
@@ -36,12 +38,9 @@ pub struct PushStep {
 
     #[command(flatten)]
     tag: crate::config::TagArgs,
-
-    #[command(flatten)]
-    push: crate::config::PushArgs,
 }
 
-impl PushStep {
+impl TagStep {
     pub fn run(&self) -> Result<(), ProcessError> {
         let ws_meta = self
             .manifest
@@ -68,7 +67,23 @@ impl PushStep {
             log::debug!("Disabled by user, skipping {}", crate_name,);
         }
 
-        let pkgs = plan::plan(pkgs)?;
+        let mut pkgs = plan::plan(pkgs)?;
+
+        for pkg in pkgs.values_mut() {
+            if let Some(tag_name) = pkg.tag.as_ref() {
+                if crate::ops::git::tag_exists(ws_meta.workspace_root.as_std_path(), tag_name)? {
+                    let crate_name = pkg.meta.name.as_str();
+                    log::warn!(
+                        "Disabled due to existing tag ({}), skipping {}",
+                        tag_name,
+                        crate_name
+                    );
+                    pkg.tag = None;
+                    pkg.config.tag = Some(false);
+                    pkg.config.release = Some(false);
+                }
+            }
+        }
 
         let pkgs: Vec<_> = pkgs
             .into_iter()
@@ -88,18 +103,16 @@ impl PushStep {
 
         failed |= !super::verify_git_is_clean(ws_meta.workspace_root.as_std_path(), dry_run)?;
 
-        failed |= !super::verify_tags_exist(&pkgs, dry_run)?;
-
         failed |=
             !super::verify_git_branch(ws_meta.workspace_root.as_std_path(), &ws_config, dry_run)?;
 
         super::warn_if_behind(ws_meta.workspace_root.as_std_path(), &ws_config)?;
 
         // STEP 1: Release Confirmation
-        super::confirm("Push", &pkgs, self.no_confirm, dry_run)?;
+        super::confirm("Tag", &pkgs, self.no_confirm, dry_run)?;
 
-        // STEP 7: git push
-        push(&ws_config, &ws_meta, &pkgs, dry_run)?;
+        // STEP 5: Tag
+        tag(&pkgs, dry_run)?;
 
         super::finish(failed, dry_run)
     }
@@ -110,57 +123,41 @@ impl PushStep {
             isolated: self.isolated,
             allow_branch: self.allow_branch.clone(),
             tag: self.tag.clone(),
-            push: self.push.clone(),
             ..Default::default()
         }
     }
 }
 
-pub fn push(
-    ws_config: &crate::config::Config,
-    ws_meta: &cargo_metadata::Metadata,
-    pkgs: &[plan::PackageRelease],
-    dry_run: bool,
-) -> Result<(), ProcessError> {
-    if ws_config.push() {
-        let git_remote = ws_config.push_remote();
-        let branch = crate::ops::git::current_branch(ws_meta.workspace_root.as_std_path())?;
-
-        let mut shared_refs = HashSet::new();
-        for pkg in pkgs {
-            if !pkg.config.push() {
-                continue;
-            }
-
-            if pkg.config.consolidate_pushes() {
-                shared_refs.insert(branch.as_str());
-                if let Some(tag_name) = pkg.tag.as_deref() {
-                    shared_refs.insert(tag_name);
-                }
-            } else {
-                let mut refs = vec![branch.as_str()];
-                if let Some(tag_name) = pkg.tag.as_deref() {
-                    refs.push(tag_name)
-                }
-                log::info!("Pushing {} to {}", refs.join(", "), git_remote);
+pub fn tag(pkgs: &[plan::PackageRelease], dry_run: bool) -> Result<(), ProcessError> {
+    let mut seen_tags = HashSet::new();
+    for pkg in pkgs {
+        if let Some(tag_name) = pkg.tag.as_ref() {
+            if seen_tags.insert(tag_name) {
                 let cwd = &pkg.package_root;
-                if !git::push(cwd, git_remote, refs, pkg.config.push_options(), dry_run)? {
-                    return Err(106.into());
+                let crate_name = pkg.meta.name.as_str();
+
+                let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+                let prev_version_var = pkg.prev_version.bare_version_string.as_str();
+                let prev_metadata_var = pkg.prev_version.full_version.build.as_str();
+                let version_var = version.bare_version_string.as_str();
+                let metadata_var = version.full_version.build.as_str();
+                let template = Template {
+                    prev_version: Some(prev_version_var),
+                    prev_metadata: Some(prev_metadata_var),
+                    version: Some(version_var),
+                    metadata: Some(metadata_var),
+                    crate_name: Some(crate_name),
+                    tag_name: Some(tag_name),
+                    date: Some(NOW.as_str()),
+                    ..Default::default()
+                };
+                let tag_message = template.render(pkg.config.tag_message());
+
+                log::debug!("Creating git tag {}", tag_name);
+                if !git::tag(cwd, tag_name, &tag_message, pkg.config.sign_tag(), dry_run)? {
+                    // tag failed, abort release
+                    return Err(104.into());
                 }
-            }
-        }
-        if !shared_refs.is_empty() {
-            let mut shared_refs = shared_refs.into_iter().collect::<Vec<_>>();
-            shared_refs.sort_unstable();
-            log::info!("Pushing {} to {}", shared_refs.join(", "), git_remote);
-            if !git::push(
-                ws_meta.workspace_root.as_std_path(),
-                git_remote,
-                shared_refs,
-                ws_config.push_options(),
-                dry_run,
-            )? {
-                return Err(106.into());
             }
         }
     }

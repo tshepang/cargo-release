@@ -21,6 +21,7 @@ fn run() -> Result<(), error::ProcessError> {
     builder.init();
 
     match &release_matches.step {
+        Some(args::Step::Tag(config)) => config.run(),
         Some(args::Step::Push(config)) => config.run(),
         Some(args::Step::Config(config)) => config.run(),
         None => steps::release::release_workspace(release_matches),

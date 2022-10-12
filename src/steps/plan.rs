@@ -154,6 +154,10 @@ impl PackageRelease {
     }
 
     pub fn plan(&mut self) -> Result<(), FatalError> {
+        if !self.config.release() {
+            return Ok(());
+        }
+
         let base = self.version.as_ref().unwrap_or(&self.prev_version);
         let tag = if self.config.tag() {
             let tag_name = self.config.tag_name();

@@ -77,11 +77,13 @@ impl ReleaseOpt {
 
 #[derive(Clone, Debug, clap::Subcommand)]
 pub enum Step {
+    Tag(crate::steps::tag::TagStep),
     Push(crate::steps::push::PushStep),
     Config(crate::steps::config::ConfigStep),
 }
 
 #[derive(clap::Args, Debug, Clone)]
+#[command(next_help_heading = None)]
 pub struct Verbosity {
     /// Pass many times for less log output
     #[arg(long, short, action = clap::ArgAction::Count, global = true)]

@@ -2,6 +2,7 @@ pub mod config;
 pub mod plan;
 pub mod push;
 pub mod release;
+pub mod tag;
 
 pub fn verify_git_is_clean(
     path: &std::path::Path,

@@ -435,38 +435,7 @@ fn release_packages<'m>(
     }
 
     // STEP 5: Tag
-    let mut seen_tags = HashSet::new();
-    for pkg in pkgs {
-        if let Some(tag_name) = pkg.tag.as_ref() {
-            if seen_tags.insert(tag_name) {
-                let cwd = &pkg.package_root;
-                let crate_name = pkg.meta.name.as_str();
-
-                let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-                let prev_version_var = pkg.prev_version.bare_version_string.as_str();
-                let prev_metadata_var = pkg.prev_version.full_version.build.as_str();
-                let version_var = version.bare_version_string.as_str();
-                let metadata_var = version.full_version.build.as_str();
-                let template = Template {
-                    prev_version: Some(prev_version_var),
-                    prev_metadata: Some(prev_metadata_var),
-                    version: Some(version_var),
-                    metadata: Some(metadata_var),
-                    crate_name: Some(crate_name),
-                    tag_name: Some(tag_name),
-                    date: Some(NOW.as_str()),
-                    ..Default::default()
-                };
-                let tag_message = template.render(pkg.config.tag_message());
-
-                log::debug!("Creating git tag {}", tag_name);
-                if !git::tag(cwd, tag_name, &tag_message, pkg.config.sign_tag(), dry_run)? {
-                    // tag failed, abort release
-                    return Err(104.into());
-                }
-            }
-        }
-    }
+    super::tag::tag(&pkgs, dry_run)?;
 
     // STEP 6: bump version
     let mut shared_commit = false;
