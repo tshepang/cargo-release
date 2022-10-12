@@ -6,7 +6,6 @@ use itertools::Itertools;
 use crate::error::FatalError;
 use crate::git;
 use crate::shell;
-use crate::util::resolve_bool_arg;
 
 /// Push tags/commits to remote
 #[derive(Debug, Clone, clap::Args)]
@@ -33,7 +32,7 @@ pub struct PushStep {
     tag: crate::tag::TagArgs,
 
     #[command(flatten)]
-    push: PushArgs,
+    push: crate::config::PushArgs,
 
     /// Actually perform a release. Dry-run mode is the default
     #[arg(short = 'x', long)]
@@ -220,30 +219,6 @@ impl PushStep {
             allow_branch: self.allow_branch.clone(),
             tag: self.tag.clone(),
             push: self.push.clone(),
-            ..Default::default()
-        }
-    }
-}
-
-#[derive(Clone, Default, Debug, clap::Args)]
-#[command(next_help_heading = "Push")]
-pub struct PushArgs {
-    #[arg(long, overrides_with("no_push"), hide(true))]
-    push: bool,
-    /// Do not run git push in the last step
-    #[arg(long, overrides_with("push"))]
-    no_push: bool,
-
-    /// Git remote to push
-    #[arg(long)]
-    push_remote: Option<String>,
-}
-
-impl PushArgs {
-    pub fn to_config(&self) -> crate::config::Config {
-        crate::config::Config {
-            push: resolve_bool_arg(self.push, self.no_push),
-            push_remote: self.push_remote.clone(),
             ..Default::default()
         }
     }
