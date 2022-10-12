@@ -81,14 +81,14 @@ pub enum Step {
 #[derive(clap::Args, Debug, Clone)]
 pub struct Verbosity {
     /// Pass many times for less log output
-    #[arg(long, short, action = clap::ArgAction::Count)]
+    #[arg(long, short, action = clap::ArgAction::Count, global = true)]
     quiet: u8,
 
     /// Pass many times for more log output
     ///
     /// By default, it'll report info. Passing `-v` one time adds debug
     /// logs, `-vv` adds trace logs.
-    #[arg(long, short, action = clap::ArgAction::Count)]
+    #[arg(long, short, action = clap::ArgAction::Count, global = true)]
     verbose: u8,
 }
 
