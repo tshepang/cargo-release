@@ -355,84 +355,8 @@ fn release_packages<'m>(
     }
 
     // STEP 3: cargo publish
-    for pkg in pkgs {
-        if !pkg.config.publish() {
-            continue;
-        }
-
-        let crate_name = pkg.meta.name.as_str();
-        if pkg.config.registry().is_none() && pkg.version.is_none() {
-            let version = &pkg.prev_version;
-            let index = crates_index::Index::new_cargo_default()?;
-            if cargo::is_published(&index, crate_name, &version.full_version_string) {
-                log::warn!("Skipping publish of {} {}, assuming we are recovering from a prior failed release", crate_name, version.full_version_string);
-                continue;
-            }
-        }
-
-        log::info!("Publishing {}", crate_name);
-
-        let verify = if !pkg.config.verify() {
-            false
-        } else if dry_run && pkgs.len() != 1 {
-            log::debug!("Skipping verification to avoid unpublished dependencies from dry-run");
-            false
-        } else {
-            true
-        };
-        // feature list to release
-        let features = &pkg.features;
-        let pkgid = if 1 < ws_meta.workspace_members.len() {
-            // Override `workspace.default-members`
-            Some(crate_name)
-        } else {
-            // `-p` is not recommended outside of a workspace
-            None
-        };
-        if !cargo::publish(
-            dry_run,
-            verify,
-            &pkg.manifest_path,
-            pkgid,
-            features,
-            pkg.config.registry(),
-            args.token.as_ref().map(AsRef::as_ref),
-            pkg.config.target.as_ref().map(AsRef::as_ref),
-        )? {
-            return Err(103.into());
-        }
-
-        if pkg.config.registry().is_none() {
-            let mut index = crates_index::Index::new_cargo_default()?;
-
-            let timeout = std::time::Duration::from_secs(300);
-            let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-            cargo::wait_for_publish(
-                &mut index,
-                crate_name,
-                &version.full_version_string,
-                timeout,
-                dry_run,
-            )?;
-            // HACK: Even once the index is updated, there seems to be another step before the publish is fully ready.
-            // We don't have a way yet to check for that, so waiting for now in hopes everything is ready
-            if !dry_run {
-                let publish_grace_sleep = std::env::var("PUBLISH_GRACE_SLEEP")
-                    .unwrap_or_else(|_| Default::default())
-                    .parse()
-                    .unwrap_or(0);
-                if 0 < publish_grace_sleep {
-                    log::info!(
-                        "Waiting an additional {} seconds for crates.io to update its indices...",
-                        publish_grace_sleep
-                    );
-                    std::thread::sleep(std::time::Duration::from_secs(publish_grace_sleep));
-                }
-            }
-        } else {
-            log::debug!("Not waiting for publish because the registry is not crates.io and doesn't get updated automatically");
-        }
-    }
+    let token = args.token.as_ref().map(AsRef::as_ref);
+    super::publish::publish(&ws_meta, &pkgs, token, dry_run)?;
 
     // STEP 5: Tag
     super::tag::tag(&pkgs, dry_run)?;

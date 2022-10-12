@@ -1,5 +1,6 @@
 pub mod config;
 pub mod plan;
+pub mod publish;
 pub mod push;
 pub mod release;
 pub mod tag;

@@ -77,6 +77,7 @@ impl ReleaseOpt {
 
 #[derive(Clone, Debug, clap::Subcommand)]
 pub enum Step {
+    Publish(crate::steps::publish::PublishStep),
     Tag(crate::steps::tag::TagStep),
     Push(crate::steps::push::PushStep),
     Config(crate::steps::config::ConfigStep),
