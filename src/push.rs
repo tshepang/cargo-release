@@ -54,7 +54,21 @@ impl PushStep {
             .map_err(FatalError::from)?;
         let config = self.to_config();
         let ws_config = crate::config::load_workspace_config(&config, &ws_meta)?;
-        let pkgs = crate::plan::load(&config, &ws_meta)?;
+        let mut pkgs = crate::plan::load(&config, &ws_meta)?;
+
+        let (_selected_pkgs, excluded_pkgs) = self.workspace.partition_packages(&ws_meta);
+        for excluded_pkg in excluded_pkgs {
+            let pkg = if let Some(pkg) = pkgs.get_mut(&excluded_pkg.id) {
+                pkg
+            } else {
+                // Either not in workspace or marked as `release = false`.
+                continue;
+            };
+            pkg.config.release = Some(false);
+
+            let crate_name = pkg.meta.name.as_str();
+            log::debug!("Disabled by user, skipping {}", crate_name,);
+        }
 
         let pkgs = crate::plan::plan(pkgs)?;
 
