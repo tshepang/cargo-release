@@ -4,6 +4,7 @@ use std::io::Write;
 use itertools::Itertools;
 
 use crate::error::FatalError;
+use crate::error::ProcessError;
 use crate::git;
 use crate::shell;
 
@@ -44,7 +45,7 @@ pub struct PushStep {
 }
 
 impl PushStep {
-    pub fn run(&self) -> Result<i32, FatalError> {
+    pub fn run(&self) -> Result<(), ProcessError> {
         let ws_meta = self
             .manifest
             .metadata()
@@ -79,7 +80,7 @@ impl PushStep {
             .collect();
         if pkgs.is_empty() {
             log::info!("No packages selected.");
-            return Ok(0);
+            return Err(0.into());
         }
 
         let dry_run = !self.execute;
@@ -92,7 +93,7 @@ impl PushStep {
             log::error!("Uncommitted changes detected, please commit before release.");
             failed = true;
             if !dry_run {
-                return Ok(101);
+                return Err(101.into());
             }
         }
 
@@ -113,7 +114,7 @@ impl PushStep {
         if tag_missing {
             failed = true;
             if !dry_run {
-                return Ok(101);
+                return Err(101.into());
             }
         }
 
@@ -134,7 +135,7 @@ impl PushStep {
             log::trace!("Due to {:?}", good_branch_match);
             failed = true;
             if !dry_run {
-                return Ok(101);
+                return Err(101.into());
             }
         }
         git::fetch(ws_meta.workspace_root.as_std_path(), git_remote, &branch)?;
@@ -168,7 +169,7 @@ impl PushStep {
 
             let confirmed = shell::confirm(&prompt);
             if !confirmed {
-                return Ok(0);
+                return Err(0.into());
             }
         }
 
@@ -193,7 +194,7 @@ impl PushStep {
                     log::info!("Pushing {} to {}", refs.join(", "), git_remote);
                     let cwd = &pkg.package_root;
                     if !git::push(cwd, git_remote, refs, pkg.config.push_options(), dry_run)? {
-                        return Ok(106);
+                        return Err(106.into());
                     }
                 }
             }
@@ -208,7 +209,7 @@ impl PushStep {
                     ws_config.push_options(),
                     dry_run,
                 )? {
-                    return Ok(106);
+                    return Err(106.into());
                 }
             }
         }
@@ -216,13 +217,13 @@ impl PushStep {
         if dry_run {
             if failed {
                 log::error!("Dry-run failed, resolve the above errors and try again.");
-                Ok(107)
+                Err(107.into())
             } else {
                 log::warn!("Ran a `dry-run`, re-run with `--execute` if all looked good.");
-                Ok(0)
+                Ok(())
             }
         } else {
-            Ok(0)
+            Ok(())
         }
     }
 

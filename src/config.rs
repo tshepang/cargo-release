@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::error::FatalError;
+use crate::error::ProcessError;
 use crate::util::resolve_bool_arg;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -478,7 +479,7 @@ pub struct ConfigStep {
 }
 
 impl ConfigStep {
-    pub fn run(&self) -> Result<i32, FatalError> {
+    pub fn run(&self) -> Result<(), ProcessError> {
         log::trace!("Initializing");
         let ws_meta = self
             .manifest
@@ -513,7 +514,7 @@ impl ConfigStep {
             std::fs::write(&self.output, &output)?;
         }
 
-        Ok(0)
+        Ok(())
     }
 }
 

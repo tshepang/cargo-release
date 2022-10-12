@@ -6,11 +6,12 @@ use std::path::Path;
 use itertools::Itertools;
 
 use crate::error::FatalError;
+use crate::error::ProcessError;
 use crate::plan::PackageRelease;
 use crate::replace::{do_file_replacements, Template, NOW};
 use crate::*;
 
-pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::FatalError> {
+pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<(), ProcessError> {
     let ws_meta = args
         .manifest
         .metadata()
@@ -82,7 +83,7 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<i32, error::F
         .collect();
     if pkgs.is_empty() {
         log::info!("No packages selected.");
-        return Ok(0);
+        return Err(0.into());
     }
     release_packages(args, &ws_meta, &ws_config, pkgs.as_slice())
 }
@@ -92,7 +93,7 @@ fn release_packages<'m>(
     ws_meta: &cargo_metadata::Metadata,
     ws_config: &config::Config,
     pkgs: &'m [PackageRelease],
-) -> Result<i32, error::FatalError> {
+) -> Result<(), ProcessError> {
     let dry_run = args.dry_run();
     let mut failed = false;
 
@@ -103,7 +104,7 @@ fn release_packages<'m>(
         log::error!("Uncommitted changes detected, please commit before release.");
         failed = true;
         if !dry_run {
-            return Ok(101);
+            return Err(101.into());
         }
     }
 
@@ -124,7 +125,7 @@ fn release_packages<'m>(
     if tag_exists {
         failed = true;
         if !dry_run {
-            return Ok(101);
+            return Err(101.into());
         }
     }
 
@@ -146,7 +147,7 @@ fn release_packages<'m>(
     if downgrades_present {
         failed = true;
         if !dry_run {
-            return Ok(101);
+            return Err(101.into());
         }
     }
 
@@ -175,7 +176,7 @@ fn release_packages<'m>(
     if double_publish {
         failed = true;
         if !dry_run {
-            return Ok(101);
+            return Err(101.into());
         }
     }
 
@@ -246,7 +247,7 @@ fn release_packages<'m>(
         log::trace!("Due to {:?}", good_branch_match);
         failed = true;
         if !dry_run {
-            return Ok(101);
+            return Err(101.into());
         }
     }
     git::fetch(ws_meta.workspace_root.as_std_path(), git_remote, &branch)?;
@@ -277,7 +278,7 @@ fn release_packages<'m>(
     }
     if !is_shared {
         log::error!("Crate versions deviated, aborting");
-        return Ok(110);
+        return Err(110.into());
     }
 
     // STEP 1: Release Confirmation
@@ -306,7 +307,7 @@ fn release_packages<'m>(
 
         let confirmed = shell::confirm(&prompt);
         if !confirmed {
-            return Ok(0);
+            return Err(0.into());
         }
     }
 
@@ -394,7 +395,7 @@ fn release_packages<'m>(
                         "Release of {} aborted by non-zero return of prerelease hook.",
                         crate_name
                     );
-                    return Ok(107);
+                    return Err(107.into());
                 }
             }
 
@@ -414,7 +415,7 @@ fn release_packages<'m>(
                 let sign = pkg.config.sign_commit();
                 if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
                     // commit failed, abort release
-                    return Ok(102);
+                    return Err(102.into());
                 }
             }
         }
@@ -442,7 +443,7 @@ fn release_packages<'m>(
             dry_run,
         )? {
             // commit failed, abort release
-            return Ok(102);
+            return Err(102.into());
         }
     }
 
@@ -491,7 +492,7 @@ fn release_packages<'m>(
             args.token.as_ref().map(AsRef::as_ref),
             pkg.config.target.as_ref().map(AsRef::as_ref),
         )? {
-            return Ok(103);
+            return Err(103.into());
         }
 
         if pkg.config.registry().is_none() {
@@ -554,7 +555,7 @@ fn release_packages<'m>(
                 log::debug!("Creating git tag {}", tag_name);
                 if !git::tag(cwd, tag_name, &tag_message, pkg.config.sign_tag(), dry_run)? {
                     // tag failed, abort release
-                    return Ok(104);
+                    return Err(104.into());
                 }
             }
         }
@@ -622,7 +623,7 @@ fn release_packages<'m>(
 
                 let commit_msg = template.render(pkg.config.post_release_commit_message());
                 if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
-                    return Ok(105);
+                    return Err(105.into());
                 }
             }
         }
@@ -658,7 +659,7 @@ fn release_packages<'m>(
             dry_run,
         )? {
             // commit failed, abort release
-            return Ok(102);
+            return Err(102.into());
         }
     }
 
@@ -683,7 +684,7 @@ fn release_packages<'m>(
                 log::info!("Pushing {} to {}", refs.join(", "), git_remote);
                 let cwd = &pkg.package_root;
                 if !git::push(cwd, git_remote, refs, pkg.config.push_options(), dry_run)? {
-                    return Ok(106);
+                    return Err(106.into());
                 }
             }
         }
@@ -698,7 +699,7 @@ fn release_packages<'m>(
                 ws_config.push_options(),
                 dry_run,
             )? {
-                return Ok(106);
+                return Err(106.into());
             }
         }
     }
@@ -706,13 +707,13 @@ fn release_packages<'m>(
     if dry_run {
         if failed {
             log::error!("Dry-run failed, resolve the above errors and try again.");
-            Ok(107)
+            Err(107.into())
         } else {
             log::warn!("Ran a `dry-run`, re-run with `--execute` if all looked good.");
-            Ok(0)
+            Ok(())
         }
     } else {
-        Ok(0)
+        Ok(())
     }
 }
 

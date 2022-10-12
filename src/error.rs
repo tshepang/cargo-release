@@ -12,6 +12,69 @@ use toml_edit::easy::de::Error as TomlDeError;
 use toml_edit::easy::ser::Error as TomlSerError;
 use toml_edit::TomlError as TomlEditError;
 
+#[derive(Debug)]
+pub struct ProcessError {
+    error: Option<FatalError>,
+    code: i32,
+}
+
+impl ProcessError {
+    pub fn silent(code: i32) -> Self {
+        Self { error: None, code }
+    }
+
+    pub fn message(e: impl Into<FatalError>) -> Self {
+        Self {
+            error: Some(e.into()),
+            code: 1,
+        }
+    }
+}
+
+impl<E: Into<FatalError>> From<E> for ProcessError {
+    fn from(error: E) -> Self {
+        Self::message(error)
+    }
+}
+
+impl From<i32> for ProcessError {
+    fn from(code: i32) -> Self {
+        Self::silent(code)
+    }
+}
+
+impl std::fmt::Display for ProcessError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let Some(error) = self.error.as_ref() {
+            error.fmt(f)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+/// Report any error message and exit.
+pub fn exit(result: Result<(), ProcessError>) -> ! {
+    let code = report(result);
+    std::process::exit(code)
+}
+
+/// Report, delegating exiting to the caller.
+pub fn report(result: Result<(), ProcessError>) -> i32 {
+    match result {
+        Ok(()) => 0,
+        Err(err) => {
+            if let Some(error) = err.error {
+                use std::io::Write;
+                // At this point, we might be exiting due to a broken pipe, just do our best and
+                // move on.
+                let _ = writeln!(std::io::stderr(), "{}", error);
+            }
+            err.code
+        }
+    }
+}
+
 quick_error! {
     #[derive(Debug)]
     pub enum FatalError {

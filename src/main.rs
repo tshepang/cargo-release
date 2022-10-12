@@ -1,8 +1,6 @@
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::comparison_chain)]
 
-use std::process::exit;
-
 use clap::Parser;
 
 mod args;
@@ -22,23 +20,20 @@ mod util;
 mod version;
 
 fn main() {
+    let res = run();
+    error::exit(res)
+}
+
+fn run() -> Result<(), error::ProcessError> {
     let args::Command::Release(ref release_matches) = args::Command::parse();
 
     let mut builder = get_logging(release_matches.logging.log_level());
     builder.init();
 
-    let res = match &release_matches.step {
+    match &release_matches.step {
         Some(args::Step::Push(config)) => config.run(),
         Some(args::Step::Config(config)) => config.run(),
         None => release::release_workspace(release_matches),
-    };
-
-    match res {
-        Ok(code) => exit(code),
-        Err(e) => {
-            log::error!("Fatal: {}", e);
-            exit(128);
-        }
     }
 }
 
