@@ -124,6 +124,38 @@ pub fn warn_if_behind(
     Ok(())
 }
 
+pub fn find_shared_versions(
+    pkgs: &[plan::PackageRelease],
+) -> Result<Option<crate::ops::version::Version>, crate::error::ProcessError> {
+    let mut is_shared = true;
+    let mut shared_version: Option<crate::ops::version::Version> = None;
+    for pkg in pkgs {
+        if let Some(version) = pkg.version.as_ref() {
+            if pkg.config.shared_version() && pkg.version.is_some() {
+                if let Some(shared_version) = shared_version.as_ref() {
+                    if shared_version.bare_version != version.bare_version {
+                        is_shared = false;
+                        log::error!(
+                            "{} has version {}, should be {}",
+                            pkg.meta.name,
+                            version.bare_version,
+                            shared_version.bare_version_string
+                        );
+                    }
+                } else {
+                    shared_version = Some(version.clone());
+                }
+            }
+        }
+    }
+    if !is_shared {
+        log::error!("Crate versions deviated, aborting");
+        return Err(110.into());
+    }
+
+    Ok(shared_version)
+}
+
 pub fn confirm(
     step: &str,
     pkgs: &[plan::PackageRelease],

@@ -213,31 +213,7 @@ fn release_packages<'m>(
 
     super::warn_if_behind(ws_meta.workspace_root.as_std_path(), &ws_config)?;
 
-    let mut is_shared = true;
-    let mut shared_version: Option<version::Version> = None;
-    for pkg in pkgs {
-        if let Some(version) = pkg.version.as_ref() {
-            if pkg.config.shared_version() && pkg.version.is_some() {
-                if let Some(shared_version) = shared_version.as_ref() {
-                    if shared_version.bare_version != version.bare_version {
-                        is_shared = false;
-                        log::error!(
-                            "{} has version {}, should be {}",
-                            pkg.meta.name,
-                            version.bare_version,
-                            shared_version.bare_version_string
-                        );
-                    }
-                } else {
-                    shared_version = Some(version.clone());
-                }
-            }
-        }
-    }
-    if !is_shared {
-        log::error!("Crate versions deviated, aborting");
-        return Err(110.into());
-    }
+    let shared_version = super::find_shared_versions(&pkgs)?;
 
     // STEP 1: Release Confirmation
     super::confirm("Release", &pkgs, args.no_confirm, dry_run)?;
