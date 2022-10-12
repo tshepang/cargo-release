@@ -1,12 +1,8 @@
 use std::collections::HashSet;
-use std::io::Write;
-
-use itertools::Itertools;
 
 use crate::error::FatalError;
 use crate::error::ProcessError;
 use crate::ops::git;
-use crate::ops::shell;
 use crate::steps::plan;
 
 /// Push tags/commits to remote
@@ -90,142 +86,22 @@ impl PushStep {
         // STEP 0: Help the user make the right decisions.
         git::git_version()?;
 
-        if git::is_dirty(ws_meta.workspace_root.as_std_path())? {
-            log::error!("Uncommitted changes detected, please commit before release.");
-            failed = true;
-            if !dry_run {
-                return Err(101.into());
-            }
-        }
+        failed |= !super::verify_git_is_clean(ws_meta.workspace_root.as_std_path(), dry_run)?;
 
-        let mut tag_missing = false;
-        let mut seen_tags = HashSet::new();
-        for pkg in &pkgs {
-            if let Some(tag_name) = pkg.tag.as_ref() {
-                if seen_tags.insert(tag_name) {
-                    let cwd = &pkg.package_root;
-                    if !git::tag_exists(cwd, tag_name)? {
-                        let crate_name = pkg.meta.name.as_str();
-                        log::error!("Tag `{}` doesn't exist (for `{}`)", tag_name, crate_name);
-                        tag_missing = true;
-                    }
-                }
-            }
-        }
-        if tag_missing {
-            failed = true;
-            if !dry_run {
-                return Err(101.into());
-            }
-        }
+        failed |= !super::verify_tags_exist(&pkgs, dry_run)?;
 
-        let git_remote = ws_config.push_remote();
-        let branch = git::current_branch(ws_meta.workspace_root.as_std_path())?;
-        let mut good_branches = ignore::gitignore::GitignoreBuilder::new(".");
-        for pattern in ws_config.allow_branch() {
-            good_branches.add_line(None, pattern)?;
-        }
-        let good_branches = good_branches.build()?;
-        let good_branch_match = good_branches.matched_path_or_any_parents(&branch, false);
-        if !good_branch_match.is_ignore() {
-            log::error!(
-                "Cannot release from branch {:?}, instead switch to {:?}",
-                branch,
-                ws_config.allow_branch().join(", ")
-            );
-            log::trace!("Due to {:?}", good_branch_match);
-            failed = true;
-            if !dry_run {
-                return Err(101.into());
-            }
-        }
-        git::fetch(ws_meta.workspace_root.as_std_path(), git_remote, &branch)?;
-        if git::is_behind_remote(ws_meta.workspace_root.as_std_path(), git_remote, &branch)? {
-            log::warn!("{} is behind {}/{}", branch, git_remote, branch);
-        }
+        failed |=
+            !super::verify_git_branch(ws_meta.workspace_root.as_std_path(), &ws_config, dry_run)?;
+
+        super::warn_if_behind(ws_meta.workspace_root.as_std_path(), &ws_config)?;
 
         // STEP 1: Release Confirmation
-        if !dry_run && !self.no_confirm {
-            let prompt = if pkgs.len() == 1 {
-                let pkg = &pkgs[0];
-                let crate_name = pkg.meta.name.as_str();
-                let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-                format!("Push {} {}?", crate_name, version.full_version_string)
-            } else {
-                let mut buffer: Vec<u8> = vec![];
-                writeln!(&mut buffer, "Push").unwrap();
-                for pkg in &pkgs {
-                    let crate_name = pkg.meta.name.as_str();
-                    let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-                    writeln!(
-                        &mut buffer,
-                        "  {} {}",
-                        crate_name, version.full_version_string
-                    )
-                    .unwrap();
-                }
-                write!(&mut buffer, "?").unwrap();
-                String::from_utf8(buffer).expect("Only valid UTF-8 has been written")
-            };
-
-            let confirmed = shell::confirm(&prompt);
-            if !confirmed {
-                return Err(0.into());
-            }
-        }
+        super::confirm("Push", &pkgs, self.no_confirm, dry_run)?;
 
         // STEP 7: git push
-        if ws_config.push() {
-            let mut shared_refs = HashSet::new();
-            for pkg in &pkgs {
-                if !pkg.config.push() {
-                    continue;
-                }
+        push(&ws_config, &ws_meta, &pkgs, dry_run)?;
 
-                if pkg.config.consolidate_pushes() {
-                    shared_refs.insert(branch.as_str());
-                    if let Some(tag_name) = pkg.tag.as_deref() {
-                        shared_refs.insert(tag_name);
-                    }
-                } else {
-                    let mut refs = vec![branch.as_str()];
-                    if let Some(tag_name) = pkg.tag.as_deref() {
-                        refs.push(tag_name)
-                    }
-                    log::info!("Pushing {} to {}", refs.join(", "), git_remote);
-                    let cwd = &pkg.package_root;
-                    if !git::push(cwd, git_remote, refs, pkg.config.push_options(), dry_run)? {
-                        return Err(106.into());
-                    }
-                }
-            }
-            if !shared_refs.is_empty() {
-                let mut shared_refs = shared_refs.into_iter().collect::<Vec<_>>();
-                shared_refs.sort_unstable();
-                log::info!("Pushing {} to {}", shared_refs.join(", "), git_remote);
-                if !git::push(
-                    ws_meta.workspace_root.as_std_path(),
-                    git_remote,
-                    shared_refs,
-                    ws_config.push_options(),
-                    dry_run,
-                )? {
-                    return Err(106.into());
-                }
-            }
-        }
-
-        if dry_run {
-            if failed {
-                log::error!("Dry-run failed, resolve the above errors and try again.");
-                Err(107.into())
-            } else {
-                log::warn!("Ran a `dry-run`, re-run with `--execute` if all looked good.");
-                Ok(())
-            }
-        } else {
-            Ok(())
-        }
+        super::finish(failed, dry_run)
     }
 
     fn to_config(&self) -> crate::config::ConfigArgs {
@@ -238,4 +114,56 @@ impl PushStep {
             ..Default::default()
         }
     }
+}
+
+pub fn push(
+    ws_config: &crate::config::Config,
+    ws_meta: &cargo_metadata::Metadata,
+    pkgs: &[plan::PackageRelease],
+    dry_run: bool,
+) -> Result<(), ProcessError> {
+    if ws_config.push() {
+        let git_remote = ws_config.push_remote();
+        let branch = crate::ops::git::current_branch(ws_meta.workspace_root.as_std_path())?;
+
+        let mut shared_refs = HashSet::new();
+        for pkg in pkgs {
+            if !pkg.config.push() {
+                continue;
+            }
+
+            if pkg.config.consolidate_pushes() {
+                shared_refs.insert(branch.as_str());
+                if let Some(tag_name) = pkg.tag.as_deref() {
+                    shared_refs.insert(tag_name);
+                }
+            } else {
+                let mut refs = vec![branch.as_str()];
+                if let Some(tag_name) = pkg.tag.as_deref() {
+                    refs.push(tag_name)
+                }
+                log::info!("Pushing {} to {}", refs.join(", "), git_remote);
+                let cwd = &pkg.package_root;
+                if !git::push(cwd, git_remote, refs, pkg.config.push_options(), dry_run)? {
+                    return Err(106.into());
+                }
+            }
+        }
+        if !shared_refs.is_empty() {
+            let mut shared_refs = shared_refs.into_iter().collect::<Vec<_>>();
+            shared_refs.sort_unstable();
+            log::info!("Pushing {} to {}", shared_refs.join(", "), git_remote);
+            if !git::push(
+                ws_meta.workspace_root.as_std_path(),
+                git_remote,
+                shared_refs,
+                ws_config.push_options(),
+                dry_run,
+            )? {
+                return Err(106.into());
+            }
+        }
+    }
+
+    Ok(())
 }
