@@ -3,8 +3,8 @@ use std::path::Path;
 
 use bstr::ByteSlice;
 
-use crate::cmd::call;
 use crate::error::FatalError;
+use crate::ops::cmd::call;
 
 /// Expresses what features flags should be used
 pub enum Features {
@@ -232,9 +232,9 @@ pub fn set_dependency_version(
     Ok(())
 }
 
-fn find_dependency_tables<'r>(
-    root: &'r mut toml_edit::Table,
-) -> impl Iterator<Item = &mut dyn toml_edit::TableLike> + 'r {
+fn find_dependency_tables(
+    root: &mut toml_edit::Table,
+) -> impl Iterator<Item = &mut dyn toml_edit::TableLike> + '_ {
     const DEP_TABLES: &[&str] = &["dependencies", "dev-dependencies", "build-dependencies"];
 
     root.iter_mut().flat_map(|(k, v)| {

@@ -1,9 +1,9 @@
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use crate::error::FatalError;
+use crate::ops::cargo;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
@@ -303,15 +303,15 @@ impl Config {
         self.enable_all_features.unwrap_or(false)
     }
 
-    pub fn features(&self) -> crate::cargo::Features {
+    pub fn features(&self) -> cargo::Features {
         if self.enable_all_features() {
-            crate::cargo::Features::All
+            cargo::Features::All
         } else {
             let features = self.enable_features();
             if features.is_empty() {
-                crate::cargo::Features::None
+                cargo::Features::None
             } else {
-                crate::cargo::Features::Selective(features.to_owned())
+                cargo::Features::Selective(features.to_owned())
             }
         }
     }
@@ -405,7 +405,7 @@ struct CargoMetadata {
 }
 
 pub fn load_workspace_config(
-    args: &crate::args::ReleaseOpt,
+    args: &ConfigArgs,
     ws_meta: &cargo_metadata::Metadata,
 ) -> Result<Config, FatalError> {
     let mut release_config = Config::default();
@@ -421,12 +421,12 @@ pub fn load_workspace_config(
         release_config.update(&cfg);
     }
 
-    release_config.update(&args.config.to_config());
+    release_config.update(&args.to_config());
     Ok(release_config)
 }
 
 pub fn load_package_config(
-    args: &crate::args::ReleaseOpt,
+    args: &ConfigArgs,
     ws_meta: &cargo_metadata::Metadata,
     pkg: &cargo_metadata::Package,
 ) -> Result<Config, FatalError> {
@@ -445,10 +445,10 @@ pub fn load_package_config(
         release_config.update(&cfg);
     }
 
-    release_config.update(&args.config.to_config());
+    release_config.update(&args.to_config());
 
     // the publish flag in cargo file
-    let cargo_file = crate::cargo::parse_cargo_config(manifest_path)?;
+    let cargo_file = cargo::parse_cargo_config(manifest_path)?;
     if !cargo_file
         .get("package")
         .and_then(|f| f.as_table())
@@ -462,45 +462,183 @@ pub fn load_package_config(
     Ok(release_config)
 }
 
-pub fn dump_config(
-    args: &crate::args::ReleaseOpt,
-    output_path: &std::path::Path,
-) -> Result<i32, FatalError> {
-    log::trace!("Initializing");
-    let ws_meta = args
-        .manifest
-        .metadata()
-        // When evaluating dependency ordering, we need to consider optional depednencies
-        .features(cargo_metadata::CargoOpt::AllFeatures)
-        .exec()
-        .map_err(FatalError::from)?;
+#[derive(Clone, Default, Debug, clap::Args)]
+pub struct ConfigArgs {
+    /// Custom config file
+    #[arg(short, long = "config")]
+    pub custom_config: Option<String>,
 
-    let release_config =
-        if let Some(root_id) = ws_meta.resolve.as_ref().and_then(|r| r.root.as_ref()) {
-            let pkg = ws_meta
-                .packages
-                .iter()
-                .find(|p| p.id == *root_id)
-                .expect("root should always be present");
+    /// Ignore implicit configuration files.
+    #[arg(long)]
+    pub isolated: bool,
 
-            let mut release_config = Config::from_defaults();
-            release_config.update(&load_package_config(args, &ws_meta, pkg)?);
-            release_config
-        } else {
-            let mut release_config = Config::from_defaults();
-            release_config.update(&load_workspace_config(args, &ws_meta)?);
-            release_config
+    /// Sign both git commit and tag
+    #[arg(long, overrides_with("no_sign"))]
+    pub sign: bool,
+    #[arg(long, overrides_with("sign"), hide(true))]
+    pub no_sign: bool,
+
+    /// Sign git commit
+    #[arg(long, overrides_with("no_sign_commit"))]
+    pub sign_commit: bool,
+    #[arg(long, overrides_with("sign_commit"), hide(true))]
+    pub no_sign_commit: bool,
+
+    /// Specify how workspace dependencies on this crate should be handed.
+    #[arg(long, value_enum)]
+    pub dependent_version: Option<crate::config::DependentVersion>,
+
+    /// Pre-release identifier(s) to append to the next development version after release
+    #[arg(long)]
+    pub dev_version_ext: Option<String>,
+
+    /// Create dev version after release
+    #[arg(long, overrides_with("no_dev_version"))]
+    pub dev_version: bool,
+    #[arg(long, overrides_with("dev_version"), hide(true))]
+    pub no_dev_version: bool,
+
+    /// Comma-separated globs of branch names a release can happen from
+    #[arg(long, value_delimiter = ',')]
+    pub allow_branch: Option<Vec<String>>,
+
+    #[command(flatten)]
+    pub publish: PublishArgs,
+
+    #[command(flatten)]
+    pub tag: TagArgs,
+
+    #[command(flatten)]
+    pub push: PushArgs,
+}
+
+impl ConfigArgs {
+    pub fn to_config(&self) -> crate::config::Config {
+        let mut config = crate::config::Config {
+            allow_branch: self.allow_branch.clone(),
+            sign_commit: resolve_bool_arg(self.sign_commit, self.no_sign_commit)
+                .or_else(|| self.sign()),
+            sign_tag: self.sign(),
+            dev_version_ext: self.dev_version_ext.clone(),
+            dev_version: resolve_bool_arg(self.dev_version, self.no_dev_version),
+            dependent_version: self.dependent_version,
+            ..Default::default()
         };
-
-    let output = toml_edit::easy::to_string_pretty(&release_config)?;
-
-    if output_path == std::path::Path::new("-") {
-        std::io::stdout().write_all(output.as_bytes())?;
-    } else {
-        std::fs::write(output_path, &output)?;
+        config.update(&self.publish.to_config());
+        config.update(&self.tag.to_config());
+        config.update(&self.push.to_config());
+        config
     }
 
-    Ok(0)
+    fn sign(&self) -> Option<bool> {
+        resolve_bool_arg(self.sign, self.no_sign)
+    }
+}
+
+#[derive(Clone, Default, Debug, clap::Args)]
+#[command(next_help_heading = "Publish")]
+pub struct PublishArgs {
+    #[arg(long, overrides_with("no_publish"), hide(true))]
+    publish: bool,
+    /// Do not run cargo publish on release
+    #[arg(long, overrides_with("publish"))]
+    no_publish: bool,
+
+    /// Cargo registry to upload to
+    #[arg(long)]
+    registry: Option<String>,
+
+    #[arg(long, overrides_with("no_verify"), hide(true))]
+    verify: bool,
+    /// Don't verify the contents by building them
+    #[arg(long, overrides_with("verify"))]
+    no_verify: bool,
+
+    /// Provide a set of features that need to be enabled
+    #[arg(long)]
+    features: Vec<String>,
+
+    /// Enable all features via `all-features`. Overrides `features`
+    #[arg(long)]
+    all_features: bool,
+
+    /// Build for the target triple
+    #[arg(long)]
+    target: Option<String>,
+}
+
+impl PublishArgs {
+    pub fn to_config(&self) -> crate::config::Config {
+        crate::config::Config {
+            publish: resolve_bool_arg(self.publish, self.no_publish),
+            registry: self.registry.clone(),
+            verify: resolve_bool_arg(self.verify, self.no_verify),
+            enable_features: (!self.features.is_empty()).then(|| self.features.clone()),
+            enable_all_features: self.all_features.then(|| true),
+            target: self.target.clone(),
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Clone, Default, Debug, clap::Args)]
+#[command(next_help_heading = "Tag")]
+pub struct TagArgs {
+    #[arg(long, overrides_with("no_tag"), hide(true))]
+    tag: bool,
+    /// Do not create git tag
+    #[arg(long, overrides_with("tag"))]
+    no_tag: bool,
+
+    /// Sign git tag
+    #[arg(long, overrides_with("no_sign_tag"))]
+    sign_tag: bool,
+    #[arg(long, overrides_with("sign_tag"), hide(true))]
+    no_sign_tag: bool,
+
+    /// Prefix of git tag, note that this will override default prefix based on sub-directory
+    #[arg(long)]
+    tag_prefix: Option<String>,
+
+    /// The name of the git tag.
+    #[arg(long)]
+    tag_name: Option<String>,
+}
+
+impl TagArgs {
+    pub fn to_config(&self) -> crate::config::Config {
+        crate::config::Config {
+            tag: resolve_bool_arg(self.tag, self.no_tag),
+            sign_tag: resolve_bool_arg(self.sign_tag, self.no_sign_tag),
+            tag_prefix: self.tag_prefix.clone(),
+            tag_name: self.tag_name.clone(),
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Clone, Default, Debug, clap::Args)]
+#[command(next_help_heading = "Push")]
+pub struct PushArgs {
+    #[arg(long, overrides_with("no_push"), hide(true))]
+    push: bool,
+    /// Do not run git push in the last step
+    #[arg(long, overrides_with("push"))]
+    no_push: bool,
+
+    /// Git remote to push
+    #[arg(long)]
+    push_remote: Option<String>,
+}
+
+impl PushArgs {
+    pub fn to_config(&self) -> crate::config::Config {
+        crate::config::Config {
+            push: resolve_bool_arg(self.push, self.no_push),
+            push_remote: self.push_remote.clone(),
+            ..Default::default()
+        }
+    }
 }
 
 fn get_pkg_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
@@ -644,6 +782,15 @@ pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Con
     };
 
     Ok(config)
+}
+
+fn resolve_bool_arg(yes: bool, no: bool) -> Option<bool> {
+    match (yes, no) {
+        (true, false) => Some(true),
+        (false, true) => Some(false),
+        (false, false) => None,
+        (_, _) => unreachable!("clap should make this impossible"),
+    }
 }
 
 #[cfg(test)]
