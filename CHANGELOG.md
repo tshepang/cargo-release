@@ -3,6 +3,13 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+- Expose release steps as subcommands, useful for
+  - Custom release processes
+  - Verify configuration / cargo-release behavior
+  - Recovering on failure
+
 ## [0.21.2] - 2022-09-28
 
 ### Fixes
