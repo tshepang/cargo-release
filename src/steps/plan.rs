@@ -16,10 +16,10 @@ pub(crate) fn load(
 ) -> Result<indexmap::IndexMap<cargo_metadata::PackageId, PackageRelease>, error::FatalError> {
     let root = git::top_level(ws_meta.workspace_root.as_std_path())?;
 
-    let member_ids = cargo::sort_workspace(&ws_meta);
+    let member_ids = cargo::sort_workspace(ws_meta);
     member_ids
         .iter()
-        .filter_map(|p| PackageRelease::load(args, &root, &ws_meta, &ws_meta[p]).transpose())
+        .filter_map(|p| PackageRelease::load(args, &root, ws_meta, &ws_meta[p]).transpose())
         .map(|p| p.map(|p| (p.meta.id.clone(), p)))
         .collect()
 }
@@ -87,7 +87,7 @@ impl PackageRelease {
     ) -> Result<Option<Self>, error::FatalError> {
         let manifest_path = pkg_meta.manifest_path.as_std_path();
         let package_root = manifest_path.parent().unwrap_or_else(|| Path::new("."));
-        let config = config::load_package_config(&args, ws_meta, pkg_meta)?;
+        let config = config::load_package_config(args, ws_meta, pkg_meta)?;
         if !config.release() {
             log::trace!("Disabled in config, skipping {}", manifest_path.display());
             return Ok(None);
@@ -168,7 +168,7 @@ impl PackageRelease {
                 tag_prefix,
                 name,
                 &self.prev_version,
-                &base,
+                base,
             ))
         } else {
             None

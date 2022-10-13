@@ -106,9 +106,9 @@ fn release_packages<'m>(
 
     failed |= !super::verify_git_is_clean(ws_meta.workspace_root.as_std_path(), dry_run)?;
 
-    failed |= !super::verify_tags_missing(&pkgs, dry_run)?;
+    failed |= !super::verify_tags_missing(pkgs, dry_run)?;
 
-    failed |= !super::verify_monotonically_increasing(&pkgs, dry_run)?;
+    failed |= !super::verify_monotonically_increasing(pkgs, dry_run)?;
 
     let mut double_publish = false;
     for pkg in pkgs {
@@ -141,14 +141,14 @@ fn release_packages<'m>(
 
     super::warn_changed(ws_meta, pkgs)?;
 
-    failed |= !super::verify_git_branch(ws_meta.workspace_root.as_std_path(), &ws_config, dry_run)?;
+    failed |= !super::verify_git_branch(ws_meta.workspace_root.as_std_path(), ws_config, dry_run)?;
 
-    super::warn_if_behind(ws_meta.workspace_root.as_std_path(), &ws_config)?;
+    super::warn_if_behind(ws_meta.workspace_root.as_std_path(), ws_config)?;
 
-    let shared_version = super::find_shared_versions(&pkgs)?;
+    let shared_version = super::find_shared_versions(pkgs)?;
 
     // STEP 1: Release Confirmation
-    super::confirm("Release", &pkgs, args.no_confirm, dry_run)?;
+    super::confirm("Release", pkgs, args.no_confirm, dry_run)?;
 
     // STEP 2: update current version, save and commit
     let mut shared_commit = false;
@@ -290,10 +290,10 @@ fn release_packages<'m>(
 
     // STEP 3: cargo publish
     let token = args.token.as_ref().map(AsRef::as_ref);
-    super::publish::publish(&ws_meta, &pkgs, token, dry_run)?;
+    super::publish::publish(ws_meta, pkgs, token, dry_run)?;
 
     // STEP 5: Tag
-    super::tag::tag(&pkgs, dry_run)?;
+    super::tag::tag(pkgs, dry_run)?;
 
     // STEP 6: bump version
     let mut shared_commit = false;
