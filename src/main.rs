@@ -22,6 +22,7 @@ fn run() -> Result<(), error::ProcessError> {
 
     match &release_matches.step {
         Some(args::Step::Version(config)) => config.run(),
+        Some(args::Step::Replace(config)) => config.run(),
         Some(args::Step::Publish(config)) => config.run(),
         Some(args::Step::Tag(config)) => config.run(),
         Some(args::Step::Push(config)) => config.run(),

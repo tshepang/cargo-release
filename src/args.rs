@@ -80,6 +80,7 @@ impl ReleaseOpt {
 #[derive(Clone, Debug, clap::Subcommand)]
 pub enum Step {
     Version(crate::steps::version::VersionStep),
+    Replace(crate::steps::replace::ReplaceStep),
     Publish(crate::steps::publish::PublishStep),
     Tag(crate::steps::tag::TagStep),
     Push(crate::steps::push::PushStep),
