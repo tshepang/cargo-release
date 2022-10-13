@@ -111,11 +111,13 @@ impl ReplaceStep {
                     ..Default::default()
                 };
                 let prerelease = version.is_prerelease();
+                let noisy = true;
                 do_file_replacements(
                     pkg.config.pre_release_replacements(),
                     &template,
                     cwd,
                     prerelease,
+                    noisy,
                     dry_run,
                 )?;
             }

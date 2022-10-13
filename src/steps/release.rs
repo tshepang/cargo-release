@@ -191,11 +191,13 @@ fn release_packages<'m>(
                     ..Default::default()
                 };
                 let prerelease = version.is_prerelease();
+                let noisy = false;
                 do_file_replacements(
                     pkg.config.pre_release_replacements(),
                     &template,
                     cwd,
                     prerelease,
+                    noisy,
                     dry_run,
                 )?;
             }
@@ -336,11 +338,13 @@ fn release_packages<'m>(
             };
             if !pkg.config.post_release_replacements().is_empty() {
                 // try replacing text in configured files
+                let noisy = false;
                 do_file_replacements(
                     pkg.config.post_release_replacements(),
                     &template,
                     cwd,
                     false, // post-release replacements should always be applied
+                    noisy,
                     dry_run,
                 )?;
             }

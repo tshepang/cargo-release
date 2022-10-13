@@ -68,6 +68,7 @@ pub fn do_file_replacements(
     template: &Template<'_>,
     cwd: &Path,
     prerelease: bool,
+    noisy: bool,
     dry_run: bool,
 ) -> Result<bool, FatalError> {
     // Since we don't have a convenient insert-order map, let's do sorted, rather than random.
@@ -79,7 +80,7 @@ pub fn do_file_replacements(
 
     for (path, replaces) in by_file.into_iter() {
         let file = cwd.join(&path);
-        log::debug!("Substituting values for {}", file.display());
+        log::info!("Applying replacements for {}", path.display());
         if !file.exists() {
             return Err(FatalError::FileNotFound(file));
         }
@@ -135,10 +136,16 @@ pub fn do_file_replacements(
                     "replaced",
                     0,
                 );
-                log::debug!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+                if noisy {
+                    log::info!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+                } else {
+                    log::debug!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+                }
             } else {
                 std::fs::write(&file, replaced)?;
             }
+        } else {
+            log::trace!("{} is unchanged", file.display());
         }
     }
     Ok(true)
