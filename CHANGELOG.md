@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.21.3] - 2022-10-13
+
 ### Features
 
 - Expose release steps as subcommands, useful for
@@ -456,7 +458,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.21.2...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.21.3...HEAD
+[0.21.3]: https://github.com/crate-ci/cargo-release/compare/v0.21.2...v0.21.3
 [0.21.2]: https://github.com/crate-ci/cargo-release/compare/v0.21.1...v0.21.2
 [0.21.1]: https://github.com/crate-ci/cargo-release/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/crate-ci/cargo-release/compare/v0.20.6...v0.21.0
