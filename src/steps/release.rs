@@ -1,10 +1,8 @@
-use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::path::Path;
 
 use crate::args;
 use crate::config;
-use crate::error;
 use crate::error::FatalError;
 use crate::error::ProcessError;
 use crate::ops::cargo;
@@ -48,7 +46,9 @@ pub(crate) fn release_workspace(args: &args::ReleaseOpt) -> Result<(), ProcessEr
 
         let crate_name = pkg.meta.name.as_str();
         let prev_tag_name = &pkg.prev_tag;
-        if let Some((changed, lock_changed)) = changed_since(&ws_meta, pkg, prev_tag_name) {
+        if let Some((changed, lock_changed)) =
+            crate::steps::version::changed_since(&ws_meta, pkg, prev_tag_name)
+        {
             if !changed.is_empty() {
                 log::warn!(
                     "Disabled by user, skipping {} which has files changed since {}: {:#?}",
@@ -108,27 +108,7 @@ fn release_packages<'m>(
 
     failed |= !super::verify_tags_missing(&pkgs, dry_run)?;
 
-    let mut downgrades_present = false;
-    for pkg in pkgs {
-        if let Some(version) = pkg.version.as_ref() {
-            if version.full_version < pkg.prev_version.full_version {
-                let crate_name = pkg.meta.name.as_str();
-                log::error!(
-                    "Cannot downgrade {} from {} to {}",
-                    crate_name,
-                    version.full_version,
-                    pkg.prev_version.full_version
-                );
-                downgrades_present = true;
-            }
-        }
-    }
-    if downgrades_present {
-        failed = true;
-        if !dry_run {
-            return Err(101.into());
-        }
-    }
+    failed |= !super::verify_monotonically_increasing(&pkgs, dry_run)?;
 
     let mut double_publish = false;
     for pkg in pkgs {
@@ -159,55 +139,7 @@ fn release_packages<'m>(
         }
     }
 
-    let mut changed_pkgs = HashSet::new();
-    for pkg in pkgs {
-        if let Some(version) = pkg.version.as_ref() {
-            let crate_name = pkg.meta.name.as_str();
-            let prev_tag_name = &pkg.prev_tag;
-            if let Some((changed, lock_changed)) = changed_since(ws_meta, pkg, prev_tag_name) {
-                if !changed.is_empty() {
-                    log::debug!(
-                        "Files changed in {} since {}: {:#?}",
-                        crate_name,
-                        prev_tag_name,
-                        changed
-                    );
-                    changed_pkgs.insert(&pkg.meta.id);
-                    changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
-                } else if changed_pkgs.contains(&pkg.meta.id) {
-                    log::debug!(
-                        "Dependency changed for {} since {}",
-                        crate_name,
-                        prev_tag_name,
-                    );
-                    changed_pkgs.insert(&pkg.meta.id);
-                    changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
-                } else if lock_changed {
-                    log::debug!(
-                        "Lock file changed for {} since {}, assuming its relevant",
-                        crate_name,
-                        prev_tag_name
-                    );
-                    changed_pkgs.insert(&pkg.meta.id);
-                    // Lock file changes don't invalidate dependents, which is why this check is
-                    // after the transitive check, so that can invalidate dependents
-                } else {
-                    log::warn!(
-                        "Updating {} to {} despite no changes made since tag {}",
-                        crate_name,
-                        version.full_version_string,
-                        prev_tag_name
-                    );
-                }
-            } else {
-                log::debug!(
-                    "Cannot detect changes for {} because tag {} is missing. Try setting `--prev-tag-name <TAG>`.",
-                    crate_name,
-                    prev_tag_name
-                );
-            }
-        }
-    }
+    super::warn_changed(ws_meta, pkgs)?;
 
     failed |= !super::verify_git_branch(ws_meta.workspace_root.as_std_path(), &ws_config, dry_run)?;
 
@@ -239,7 +171,7 @@ fn release_packages<'m>(
                 version.full_version_string.as_str(),
                 dry_run,
             )?;
-            update_dependent_versions(pkg, version, dry_run)?;
+            crate::steps::version::update_dependent_versions(pkg, version, dry_run)?;
             if dry_run {
                 log::debug!("Updating lock file");
             } else {
@@ -374,7 +306,7 @@ fn release_packages<'m>(
                 crate_name,
                 next_version.full_version_string
             );
-            update_dependent_versions(pkg, next_version, dry_run)?;
+            crate::steps::version::update_dependent_versions(pkg, next_version, dry_run)?;
             cargo::set_package_version(
                 &pkg.manifest_path,
                 next_version.full_version_string.as_str(),
@@ -467,135 +399,4 @@ fn release_packages<'m>(
     super::push::push(ws_config, ws_meta, pkgs, dry_run)?;
 
     super::finish(failed, dry_run)
-}
-
-fn changed_since<'m>(
-    ws_meta: &cargo_metadata::Metadata,
-    pkg: &'m PackageRelease,
-    since_ref: &str,
-) -> Option<(Vec<std::path::PathBuf>, bool)> {
-    let lock_path = ws_meta.workspace_root.join("Cargo.lock");
-    let changed_root = if pkg.bin {
-        ws_meta.workspace_root.as_std_path()
-    } else {
-        // Limit our lookup since we don't need to check for `Cargo.lock`
-        &pkg.package_root
-    };
-    let changed = git::changed_files(changed_root, since_ref).ok().flatten()?;
-    let mut changed: Vec<_> = changed
-        .into_iter()
-        .filter(|p| pkg.package_content.contains(p))
-        .collect();
-
-    let mut lock_changed = false;
-    if let Some(lock_index) =
-        changed.iter().enumerate().find_map(
-            |(idx, path)| {
-                if path == &lock_path {
-                    Some(idx)
-                } else {
-                    None
-                }
-            },
-        )
-    {
-        let _ = changed.swap_remove(lock_index);
-        if !pkg.bin {
-            let crate_name = pkg.meta.name.as_str();
-            log::trace!(
-                "Ignoring lock file change since {}; {} has no [[bin]]",
-                since_ref,
-                crate_name
-            );
-        } else if pkg.config.dev_version() {
-            log::debug!(
-                "Ignoring lock file change since {}; could be a pre-release version bump.",
-                since_ref
-            );
-        } else {
-            lock_changed = true;
-        }
-    }
-
-    Some((changed, lock_changed))
-}
-
-fn update_dependent_versions(
-    pkg: &PackageRelease,
-    version: &version::Version,
-    dry_run: bool,
-) -> Result<(), error::FatalError> {
-    let new_version_string = version.bare_version_string.as_str();
-    let mut dependents_failed = false;
-    for dep in pkg.dependents.iter() {
-        match pkg.config.dependent_version() {
-            config::DependentVersion::Ignore => (),
-            config::DependentVersion::Warn => {
-                if !dep.req.matches(&version.bare_version) {
-                    log::warn!(
-                        "{}'s dependency on {} `{}` is incompatible with {}",
-                        dep.pkg.name,
-                        pkg.meta.name,
-                        dep.req,
-                        new_version_string
-                    );
-                }
-            }
-            config::DependentVersion::Error => {
-                if !dep.req.matches(&version.bare_version) {
-                    log::warn!(
-                        "{}'s dependency on {} `{}` is incompatible with {}",
-                        dep.pkg.name,
-                        pkg.meta.name,
-                        dep.req,
-                        new_version_string
-                    );
-                    dependents_failed = true;
-                }
-            }
-            config::DependentVersion::Fix => {
-                if !dep.req.matches(&version.bare_version) {
-                    let new_req = version::set_requirement(&dep.req, &version.bare_version)?;
-                    if let Some(new_req) = new_req {
-                        log::info!(
-                            "Fixing {}'s dependency on {} to `{}` (from `{}`)",
-                            dep.pkg.name,
-                            pkg.meta.name,
-                            new_req,
-                            dep.req
-                        );
-                        cargo::set_dependency_version(
-                            dep.pkg.manifest_path.as_std_path(),
-                            &pkg.meta.name,
-                            &new_req,
-                            dry_run,
-                        )?;
-                    }
-                }
-            }
-            config::DependentVersion::Upgrade => {
-                let new_req = version::set_requirement(&dep.req, &version.bare_version)?;
-                if let Some(new_req) = new_req {
-                    log::info!(
-                        "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
-                        dep.pkg.name,
-                        pkg.meta.name,
-                        new_req,
-                        dep.req
-                    );
-                    cargo::set_dependency_version(
-                        dep.pkg.manifest_path.as_std_path(),
-                        &pkg.meta.name,
-                        &new_req,
-                        dry_run,
-                    )?;
-                }
-            }
-        }
-    }
-    if dependents_failed {
-        Err(FatalError::DependencyVersionConflict)
-    } else {
-        Ok(())
-    }
 }
