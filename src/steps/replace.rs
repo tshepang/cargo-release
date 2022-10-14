@@ -80,7 +80,7 @@ impl ReplaceStep {
         failed |= !super::verify_git_is_clean(
             ws_meta.workspace_root.as_std_path(),
             dry_run,
-            log::Level::Error,
+            log::Level::Warn,
         )?;
 
         super::warn_changed(&ws_meta, &pkgs)?;
@@ -89,7 +89,7 @@ impl ReplaceStep {
             ws_meta.workspace_root.as_std_path(),
             &ws_config,
             dry_run,
-            log::Level::Error,
+            log::Level::Warn,
         )?;
 
         failed |= !super::verify_if_behind(
