@@ -36,6 +36,8 @@ pub struct ReplaceStep {
 
 impl ReplaceStep {
     pub fn run(&self) -> Result<(), ProcessError> {
+        git::git_version()?;
+
         let ws_meta = self
             .manifest
             .metadata()
@@ -56,7 +58,7 @@ impl ReplaceStep {
                 continue;
             };
             pkg.config.release = Some(false);
-            pkg.version = None;
+            pkg.planned_version = None;
         }
 
         let pkgs = plan::plan(pkgs)?;
@@ -75,8 +77,6 @@ impl ReplaceStep {
         let mut failed = false;
 
         // STEP 0: Help the user make the right decisions.
-        git::git_version()?;
-
         failed |= !super::verify_git_is_clean(
             ws_meta.workspace_root.as_std_path(),
             dry_run,
@@ -104,12 +104,12 @@ impl ReplaceStep {
 
         // STEP 2: update current version, save and commit
         for pkg in &pkgs {
-            let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+            let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
             if !pkg.config.pre_release_replacements().is_empty() {
                 let cwd = &pkg.package_root;
                 let crate_name = pkg.meta.name.as_str();
-                let prev_version_var = pkg.prev_version.bare_version_string.as_str();
-                let prev_metadata_var = pkg.prev_version.full_version.build.as_str();
+                let prev_version_var = pkg.initial_version.bare_version_string.as_str();
+                let prev_metadata_var = pkg.initial_version.full_version.build.as_str();
                 let version_var = version.bare_version_string.as_str();
                 let metadata_var = version.full_version.build.as_str();
                 // try replacing text in configured files
@@ -120,7 +120,7 @@ impl ReplaceStep {
                     metadata: Some(metadata_var),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
-                    tag_name: pkg.tag.as_deref(),
+                    tag_name: pkg.planned_tag.as_deref(),
                     ..Default::default()
                 };
                 let prerelease = version.is_prerelease();

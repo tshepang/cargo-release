@@ -40,6 +40,8 @@ pub struct PublishStep {
 
 impl PublishStep {
     pub fn run(&self) -> Result<(), ProcessError> {
+        git::git_version()?;
+
         let ws_meta = self
             .manifest
             .metadata()
@@ -72,7 +74,7 @@ impl PublishStep {
         for pkg in pkgs.values_mut() {
             if pkg.config.registry().is_none() && pkg.config.release() {
                 let crate_name = pkg.meta.name.as_str();
-                let version = &pkg.prev_version;
+                let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
                 if crate::ops::cargo::is_published(&index, crate_name, &version.full_version_string)
                 {
                     log::warn!(
@@ -100,8 +102,6 @@ impl PublishStep {
         let mut failed = false;
 
         // STEP 0: Help the user make the right decisions.
-        git::git_version()?;
-
         failed |= !super::verify_git_is_clean(
             ws_meta.workspace_root.as_std_path(),
             dry_run,
@@ -147,21 +147,12 @@ pub fn publish(
     pkgs: &[plan::PackageRelease],
     dry_run: bool,
 ) -> Result<(), ProcessError> {
-    let index = crates_index::Index::new_cargo_default()?;
     for pkg in pkgs {
         if !pkg.config.publish() {
             continue;
         }
 
         let crate_name = pkg.meta.name.as_str();
-        if pkg.config.registry().is_none() && pkg.version.is_none() {
-            let version = &pkg.prev_version;
-            if crate::ops::cargo::is_published(&index, crate_name, &version.full_version_string) {
-                log::warn!("Skipping publish of {} {}, assuming we are recovering from a prior failed release", crate_name, version.full_version_string);
-                continue;
-            }
-        }
-
         log::info!("Publishing {}", crate_name);
 
         let verify = if !pkg.config.verify() {
@@ -197,7 +188,7 @@ pub fn publish(
             let mut index = crates_index::Index::new_cargo_default()?;
 
             let timeout = std::time::Duration::from_secs(300);
-            let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+            let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
             crate::ops::cargo::wait_for_publish(
                 &mut index,
                 crate_name,

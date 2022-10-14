@@ -43,6 +43,8 @@ pub struct PushStep {
 
 impl PushStep {
     pub fn run(&self) -> Result<(), ProcessError> {
+        git::git_version()?;
+
         let ws_meta = self
             .manifest
             .metadata()
@@ -84,8 +86,6 @@ impl PushStep {
         let mut failed = false;
 
         // STEP 0: Help the user make the right decisions.
-        git::git_version()?;
-
         failed |= !super::verify_git_is_clean(
             ws_meta.workspace_root.as_std_path(),
             dry_run,
@@ -147,12 +147,12 @@ pub fn push(
 
             if pkg.config.consolidate_pushes() {
                 shared_refs.insert(branch.as_str());
-                if let Some(tag_name) = pkg.tag.as_deref() {
+                if let Some(tag_name) = pkg.planned_tag.as_deref() {
                     shared_refs.insert(tag_name);
                 }
             } else {
                 let mut refs = vec![branch.as_str()];
-                if let Some(tag_name) = pkg.tag.as_deref() {
+                if let Some(tag_name) = pkg.planned_tag.as_deref() {
                     refs.push(tag_name)
                 }
                 log::info!("Pushing {} to {}", refs.join(", "), git_remote);
