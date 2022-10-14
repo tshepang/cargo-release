@@ -1,6 +1,41 @@
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::comparison_chain)]
+
 use clap::Parser;
 
-use crate::ops::version;
+use cargo_release::*;
+
+fn main() {
+    let res = run();
+    error::exit(res)
+}
+
+fn run() -> Result<(), error::ProcessError> {
+    let Command::Release(ref release_matches) = Command::parse();
+
+    let mut builder = get_logging(release_matches.logging.log_level());
+    builder.init();
+
+    match &release_matches.step {
+        Some(Step::Version(config)) => config.run(),
+        Some(Step::Replace(config)) => config.run(),
+        Some(Step::Publish(config)) => config.run(),
+        Some(Step::Tag(config)) => config.run(),
+        Some(Step::Push(config)) => config.run(),
+        Some(Step::Config(config)) => config.run(),
+        None => release_matches.release.run(),
+    }
+}
+
+pub fn get_logging(level: log::Level) -> env_logger::Builder {
+    let mut builder = env_logger::Builder::new();
+
+    builder.filter(None, level.to_level_filter());
+
+    builder.format_timestamp_secs().format_module_path(false);
+
+    builder
+}
 
 #[derive(Debug, Parser)]
 #[command(name = "cargo")]
@@ -32,33 +67,7 @@ Steps:
 #[command(args_conflicts_with_subcommands = true)]
 pub struct ReleaseOpt {
     #[command(flatten)]
-    pub manifest: clap_cargo::Manifest,
-
-    #[command(flatten)]
-    pub workspace: clap_cargo::Workspace,
-
-    /// Release level or version: bumping specified version field or remove prerelease extensions by default. Possible level value: major, minor, patch, release, rc, beta, alpha or any valid semver version that is greater than current version
-    #[arg(default_value_t)]
-    pub level_or_version: version::TargetVersion,
-
-    /// Semver metadata
-    #[arg(short, long)]
-    pub metadata: Option<String>,
-
-    #[command(flatten)]
-    pub config: crate::config::ConfigArgs,
-
-    /// Actually perform a release. Dry-run mode is the default
-    #[arg(short = 'x', long)]
-    pub execute: bool,
-
-    /// Skip release confirmation and version preview
-    #[arg(long)]
-    pub no_confirm: bool,
-
-    /// The name of tag for the previous release.
-    #[arg(long)]
-    pub prev_tag_name: Option<String>,
+    pub release: steps::version::VersionStep,
 
     #[command(flatten)]
     pub logging: Verbosity,
@@ -67,20 +76,14 @@ pub struct ReleaseOpt {
     pub step: Option<Step>,
 }
 
-impl ReleaseOpt {
-    pub fn dry_run(&self) -> bool {
-        !self.execute
-    }
-}
-
 #[derive(Clone, Debug, clap::Subcommand)]
 pub enum Step {
-    Version(crate::steps::version::VersionStep),
-    Replace(crate::steps::replace::ReplaceStep),
-    Publish(crate::steps::publish::PublishStep),
-    Tag(crate::steps::tag::TagStep),
-    Push(crate::steps::push::PushStep),
-    Config(crate::steps::config::ConfigStep),
+    Version(steps::version::VersionStep),
+    Replace(steps::replace::ReplaceStep),
+    Publish(steps::publish::PublishStep),
+    Tag(steps::tag::TagStep),
+    Push(steps::push::PushStep),
+    Config(steps::config::ConfigStep),
 }
 
 #[derive(clap::Args, Debug, Clone)]
