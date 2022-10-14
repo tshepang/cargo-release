@@ -157,7 +157,7 @@ fn release_packages<'m>(
     failed |= !super::verify_monotonically_increasing(pkgs, dry_run, log::Level::Error)?;
 
     let mut double_publish = false;
-    let index = crates_index::Index::new_cargo_default()?;
+    let mut index = crates_index::Index::new_cargo_default()?;
     for pkg in pkgs {
         if !pkg.config.publish() {
             continue;
@@ -343,7 +343,7 @@ fn release_packages<'m>(
     }
 
     // STEP 3: cargo publish
-    super::publish::publish(ws_meta, pkgs, dry_run)?;
+    super::publish::publish(ws_meta, pkgs, &mut index, dry_run)?;
 
     // STEP 5: Tag
     super::tag::tag(pkgs, dry_run)?;

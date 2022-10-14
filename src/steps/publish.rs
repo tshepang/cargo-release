@@ -70,7 +70,7 @@ impl PublishStep {
 
         let mut pkgs = plan::plan(pkgs)?;
 
-        let index = crates_index::Index::new_cargo_default()?;
+        let mut index = crates_index::Index::new_cargo_default()?;
         for pkg in pkgs.values_mut() {
             if pkg.config.registry().is_none() && pkg.config.release() {
                 let crate_name = pkg.meta.name.as_str();
@@ -126,7 +126,7 @@ impl PublishStep {
         super::confirm("Publish", &pkgs, self.no_confirm, dry_run)?;
 
         // STEP 3: cargo publish
-        publish(&ws_meta, &pkgs, dry_run)?;
+        publish(&ws_meta, &pkgs, &mut index, dry_run)?;
 
         super::finish(failed, dry_run)
     }
@@ -145,6 +145,7 @@ impl PublishStep {
 pub fn publish(
     ws_meta: &cargo_metadata::Metadata,
     pkgs: &[plan::PackageRelease],
+    index: &mut crates_index::Index,
     dry_run: bool,
 ) -> Result<(), ProcessError> {
     for pkg in pkgs {
@@ -185,12 +186,10 @@ pub fn publish(
         }
 
         if pkg.config.registry().is_none() {
-            let mut index = crates_index::Index::new_cargo_default()?;
-
             let timeout = std::time::Duration::from_secs(300);
             let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
             crate::ops::cargo::wait_for_publish(
-                &mut index,
+                index,
                 crate_name,
                 &version.full_version_string,
                 timeout,
