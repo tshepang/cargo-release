@@ -298,7 +298,7 @@ impl ReleaseStep {
                         "Release of {} aborted by non-zero return of prerelease hook.",
                         crate_name
                     );
-                    return Err(107.into());
+                    return Err(101.into());
                 }
             }
 
@@ -318,7 +318,7 @@ impl ReleaseStep {
                 let sign = pkg.config.sign_commit();
                 if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
                     // commit failed, abort release
-                    return Err(102.into());
+                    return Err(101.into());
                 }
             }
         }
@@ -345,7 +345,7 @@ impl ReleaseStep {
                 dry_run,
             )? {
                 // commit failed, abort release
-                return Err(102.into());
+                return Err(101.into());
             }
         }
 
@@ -419,7 +419,7 @@ impl ReleaseStep {
 
                     let commit_msg = template.render(pkg.config.post_release_commit_message());
                     if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
-                        return Err(105.into());
+                        return Err(101.into());
                     }
                 }
             }
@@ -455,7 +455,7 @@ impl ReleaseStep {
                 dry_run,
             )? {
                 // commit failed, abort release
-                return Err(102.into());
+                return Err(101.into());
             }
         }
 

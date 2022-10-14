@@ -182,7 +182,7 @@ pub fn publish(
             pkg.config.registry(),
             pkg.config.target.as_ref().map(AsRef::as_ref),
         )? {
-            return Err(103.into());
+            return Err(101.into());
         }
 
         if pkg.config.registry().is_none() {

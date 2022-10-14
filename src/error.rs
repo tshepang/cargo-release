@@ -26,7 +26,7 @@ impl ProcessError {
     pub fn message(e: impl Into<FatalError>) -> Self {
         Self {
             error: Some(e.into()),
-            code: 1,
+            code: 101,
         }
     }
 }
