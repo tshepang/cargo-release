@@ -205,6 +205,8 @@ impl ReleaseStep {
             log::Level::Warn,
         )?;
 
+        failed |= !super::verify_rate_limit(&pkgs, &index, dry_run, log::Level::Error)?;
+
         let shared_version = super::find_shared_versions(&pkgs)?;
 
         // STEP 1: Release Confirmation

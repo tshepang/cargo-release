@@ -122,6 +122,8 @@ impl PublishStep {
             log::Level::Warn,
         )?;
 
+        failed |= !super::verify_rate_limit(&pkgs, &index, dry_run, log::Level::Error)?;
+
         // STEP 1: Release Confirmation
         super::confirm("Publish", &pkgs, self.no_confirm, dry_run)?;
 
