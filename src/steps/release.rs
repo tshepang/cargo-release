@@ -60,7 +60,7 @@ impl ReleaseStep {
             if let Some(prev_tag) = self.prev_tag_name.as_ref() {
                 // Trust the user that the tag passed in is the latest tag for the workspace and that
                 // they don't care about any changes from before this tag.
-                pkg.set_prev_tag(prev_tag.to_owned());
+                pkg.set_prior_tag(prev_tag.to_owned());
             }
             pkg.bump(&self.level_or_version, self.metadata.as_deref())?;
         }
@@ -74,38 +74,38 @@ impl ReleaseStep {
                 continue;
             };
             pkg.config.release = Some(false);
-            pkg.version = None;
+            pkg.planned_version = None;
 
             let crate_name = pkg.meta.name.as_str();
-            let prev_tag_name = &pkg.prev_tag;
+            let prior_tag_name = &pkg.prior_tag;
             if let Some((changed, lock_changed)) =
-                crate::steps::version::changed_since(&ws_meta, pkg, prev_tag_name)
+                crate::steps::version::changed_since(&ws_meta, pkg, prior_tag_name)
             {
                 if !changed.is_empty() {
                     log::warn!(
                         "Disabled by user, skipping {} which has files changed since {}: {:#?}",
                         crate_name,
-                        prev_tag_name,
+                        prior_tag_name,
                         changed
                     );
                 } else if lock_changed {
                     log::warn!(
                         "Disabled by user, skipping {} despite lock file being changed since {}",
                         crate_name,
-                        prev_tag_name
+                        prior_tag_name
                     );
                 } else {
                     log::trace!(
                         "Disabled by user, skipping {} (no changes since {})",
                         crate_name,
-                        prev_tag_name
+                        prior_tag_name
                     );
                 }
             } else {
                 log::debug!(
                     "Disabled by user, skipping {} (no {} tag)",
                     crate_name,
-                    prev_tag_name
+                    prior_tag_name
                 );
             }
         }
@@ -157,9 +157,9 @@ fn release_packages<'m>(
             continue;
         }
         if pkg.config.registry().is_none() {
-            // While we'll publish when there is `pkg.version.is_none()`, we'll check that case
+            // While we'll publish when there is `pkg.planned_version.is_none()`, we'll check that case
             // during the publish
-            if let Some(version) = pkg.version.as_ref() {
+            if let Some(version) = pkg.planned_version.as_ref() {
                 let index = crates_index::Index::new_cargo_default()?;
                 let crate_name = pkg.meta.name.as_str();
                 if cargo::is_published(&index, crate_name, &version.full_version_string) {
@@ -207,9 +207,9 @@ fn release_packages<'m>(
         let cwd = &pkg.package_root;
         let crate_name = pkg.meta.name.as_str();
 
-        if let Some(version) = pkg.version.as_ref() {
-            let prev_version_var = pkg.prev_version.bare_version_string.as_str();
-            let prev_metadata_var = pkg.prev_version.full_version.build.as_str();
+        if let Some(version) = pkg.planned_version.as_ref() {
+            let prev_version_var = pkg.initial_version.bare_version_string.as_str();
+            let prev_metadata_var = pkg.initial_version.full_version.build.as_str();
             let version_var = version.bare_version_string.as_str();
             let metadata_var = version.full_version.build.as_str();
             log::info!(
@@ -238,7 +238,7 @@ fn release_packages<'m>(
                     metadata: Some(metadata_var),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
-                    tag_name: pkg.tag.as_deref(),
+                    tag_name: pkg.planned_tag.as_deref(),
                     ..Default::default()
                 };
                 let prerelease = version.is_prerelease();
@@ -262,7 +262,7 @@ fn release_packages<'m>(
                     metadata: Some(metadata_var),
                     crate_name: Some(crate_name),
                     date: Some(NOW.as_str()),
-                    tag_name: pkg.tag.as_deref(),
+                    tag_name: pkg.planned_tag.as_deref(),
                     ..Default::default()
                 };
                 let pre_rel_hook = pre_rel_hook
@@ -367,9 +367,9 @@ fn release_packages<'m>(
             if !dry_run {
                 cargo::update_lock(&pkg.manifest_path)?;
             }
-            let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-            let prev_version_var = pkg.prev_version.bare_version_string.as_str();
-            let prev_metadata_var = pkg.prev_version.full_version.build.as_str();
+            let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
+            let prev_version_var = pkg.initial_version.bare_version_string.as_str();
+            let prev_metadata_var = pkg.initial_version.full_version.build.as_str();
             let version_var = version.bare_version_string.as_str();
             let metadata_var = version.full_version.build.as_str();
             let next_version_var = next_version.bare_version_string.as_ref();
@@ -381,7 +381,7 @@ fn release_packages<'m>(
                 metadata: Some(metadata_var),
                 crate_name: Some(crate_name),
                 date: Some(NOW.as_str()),
-                tag_name: pkg.tag.as_deref(),
+                tag_name: pkg.planned_tag.as_deref(),
                 next_version: Some(next_version_var),
                 next_metadata: Some(next_metadata_var),
                 ..Default::default()

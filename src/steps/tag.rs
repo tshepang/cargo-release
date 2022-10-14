@@ -72,7 +72,7 @@ impl TagStep {
         let mut pkgs = plan::plan(pkgs)?;
 
         for pkg in pkgs.values_mut() {
-            if let Some(tag_name) = pkg.tag.as_ref() {
+            if let Some(tag_name) = pkg.planned_tag.as_ref() {
                 if crate::ops::git::tag_exists(ws_meta.workspace_root.as_std_path(), tag_name)? {
                     let crate_name = pkg.meta.name.as_str();
                     log::warn!(
@@ -80,7 +80,7 @@ impl TagStep {
                         tag_name,
                         crate_name
                     );
-                    pkg.tag = None;
+                    pkg.planned_tag = None;
                     pkg.config.tag = Some(false);
                     pkg.config.release = Some(false);
                 }
@@ -146,14 +146,14 @@ impl TagStep {
 pub fn tag(pkgs: &[plan::PackageRelease], dry_run: bool) -> Result<(), ProcessError> {
     let mut seen_tags = HashSet::new();
     for pkg in pkgs {
-        if let Some(tag_name) = pkg.tag.as_ref() {
+        if let Some(tag_name) = pkg.planned_tag.as_ref() {
             if seen_tags.insert(tag_name) {
                 let cwd = &pkg.package_root;
                 let crate_name = pkg.meta.name.as_str();
 
-                let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
-                let prev_version_var = pkg.prev_version.bare_version_string.as_str();
-                let prev_metadata_var = pkg.prev_version.full_version.build.as_str();
+                let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
+                let prev_version_var = pkg.initial_version.bare_version_string.as_str();
+                let prev_metadata_var = pkg.initial_version.full_version.build.as_str();
                 let version_var = version.bare_version_string.as_str();
                 let metadata_var = version.full_version.build.as_str();
                 let template = Template {

@@ -32,7 +32,7 @@ pub fn plan(
     for (pkg_id, pkg) in pkgs.iter() {
         if pkg.config.shared_version() {
             shared_ids.insert(pkg_id.clone());
-            let planned = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+            let planned = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
             if shared_max
                 .as_ref()
                 .map(|max| max.full_version < planned.full_version)
@@ -45,8 +45,8 @@ pub fn plan(
     if let Some(shared_max) = shared_max {
         for shared_id in shared_ids {
             let shared_pkg = &mut pkgs[&shared_id];
-            if shared_pkg.prev_version.bare_version != shared_max.bare_version {
-                shared_pkg.version = Some(shared_max.clone());
+            if shared_pkg.initial_version.bare_version != shared_max.bare_version {
+                shared_pkg.planned_version = Some(shared_max.clone());
             }
         }
     }
@@ -70,11 +70,11 @@ pub struct PackageRelease {
     pub dependents: Vec<Dependency>,
     pub features: cargo::Features,
 
-    pub prev_version: version::Version,
-    pub prev_tag: String,
+    pub initial_version: version::Version,
+    pub prior_tag: String,
 
-    pub version: Option<version::Version>,
-    pub tag: Option<String>,
+    pub planned_version: Option<version::Version>,
+    pub planned_tag: Option<String>,
     pub post_version: Option<version::Version>,
 }
 
@@ -108,14 +108,20 @@ impl PackageRelease {
             .collect();
 
         let is_root = git_root == package_root;
-        let prev_version = version::Version::from(pkg_meta.version.clone());
+        let initial_version = version::Version::from(pkg_meta.version.clone());
         let tag_name = config.tag_name();
         let tag_prefix = config.tag_prefix(is_root);
         let name = pkg_meta.name.as_str();
-        let prev_tag = render_tag(tag_name, tag_prefix, name, &prev_version, &prev_version);
+        let prior_tag = render_tag(
+            tag_name,
+            tag_prefix,
+            name,
+            &initial_version,
+            &initial_version,
+        );
 
-        let version = None;
-        let tag = None;
+        let planned_version = None;
+        let planned_tag = None;
         let post_version = None;
 
         let pkg = PackageRelease {
@@ -130,18 +136,18 @@ impl PackageRelease {
             dependents,
             features,
 
-            prev_version,
-            prev_tag,
+            initial_version,
+            prior_tag,
 
-            version,
-            tag,
+            planned_version,
+            planned_tag,
             post_version,
         };
         Ok(Some(pkg))
     }
 
-    pub fn set_prev_tag(&mut self, prev_tag: String) {
-        self.prev_tag = prev_tag;
+    pub fn set_prior_tag(&mut self, prior_tag: String) {
+        self.prior_tag = prior_tag;
     }
 
     pub fn bump(
@@ -149,7 +155,8 @@ impl PackageRelease {
         level_or_version: &version::TargetVersion,
         metadata: Option<&str>,
     ) -> Result<(), FatalError> {
-        self.version = level_or_version.bump(&self.prev_version.full_version, metadata)?;
+        self.planned_version =
+            level_or_version.bump(&self.initial_version.full_version, metadata)?;
         Ok(())
     }
 
@@ -158,7 +165,10 @@ impl PackageRelease {
             return Ok(());
         }
 
-        let base = self.version.as_ref().unwrap_or(&self.prev_version);
+        let base = self
+            .planned_version
+            .as_ref()
+            .unwrap_or(&self.initial_version);
         let tag = if self.config.tag() {
             let tag_name = self.config.tag_name();
             let tag_prefix = self.config.tag_prefix(self.is_root);
@@ -167,7 +177,7 @@ impl PackageRelease {
                 tag_name,
                 tag_prefix,
                 name,
-                &self.prev_version,
+                &self.initial_version,
                 base,
             ))
         } else {
@@ -185,7 +195,7 @@ impl PackageRelease {
             None
         };
 
-        self.tag = tag;
+        self.planned_tag = tag;
         self.post_version = post_version;
 
         Ok(())
@@ -199,13 +209,13 @@ fn render_tag(
     prev: &version::Version,
     base: &version::Version,
 ) -> String {
-    let prev_version_var = prev.bare_version_string.as_str();
-    let prev_metadata_var = prev.full_version.build.as_str();
+    let initial_version_var = prev.bare_version_string.as_str();
+    let existing_metadata_var = prev.full_version.build.as_str();
     let version_var = base.bare_version_string.as_str();
     let metadata_var = base.full_version.build.as_str();
     let mut template = Template {
-        prev_version: Some(prev_version_var),
-        prev_metadata: Some(prev_metadata_var),
+        prev_version: Some(initial_version_var),
+        prev_metadata: Some(existing_metadata_var),
         version: Some(version_var),
         metadata: Some(metadata_var),
         crate_name: Some(name),

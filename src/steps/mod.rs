@@ -38,7 +38,7 @@ pub fn verify_tags_missing(
     let mut tag_exists = false;
     let mut seen_tags = std::collections::HashSet::new();
     for pkg in pkgs {
-        if let Some(tag_name) = pkg.tag.as_ref() {
+        if let Some(tag_name) = pkg.planned_tag.as_ref() {
             if seen_tags.insert(tag_name) {
                 let cwd = &pkg.package_root;
                 if crate::ops::git::tag_exists(cwd, tag_name)? {
@@ -74,7 +74,7 @@ pub fn verify_tags_exist(
     let mut tag_missing = false;
     let mut seen_tags = std::collections::HashSet::new();
     for pkg in pkgs {
-        if let Some(tag_name) = pkg.tag.as_ref() {
+        if let Some(tag_name) = pkg.planned_tag.as_ref() {
             if seen_tags.insert(tag_name) {
                 let cwd = &pkg.package_root;
                 if !crate::ops::git::tag_exists(cwd, tag_name)? {
@@ -169,15 +169,15 @@ pub fn verify_monotonically_increasing(
 
     let mut downgrades_present = false;
     for pkg in pkgs {
-        if let Some(version) = pkg.version.as_ref() {
-            if version.full_version < pkg.prev_version.full_version {
+        if let Some(version) = pkg.planned_version.as_ref() {
+            if version.full_version < pkg.initial_version.full_version {
                 let crate_name = pkg.meta.name.as_str();
                 log::log!(
                     level,
                     "Cannot downgrade {} from {} to {}",
                     crate_name,
                     version.full_version,
-                    pkg.prev_version.full_version
+                    pkg.initial_version.full_version
                 );
                 downgrades_present = true;
             }
@@ -199,17 +199,17 @@ pub fn warn_changed(
 ) -> Result<(), crate::error::ProcessError> {
     let mut changed_pkgs = std::collections::HashSet::new();
     for pkg in pkgs {
-        if let Some(version) = pkg.version.as_ref() {
+        if let Some(version) = pkg.planned_version.as_ref() {
             let crate_name = pkg.meta.name.as_str();
-            let prev_tag_name = &pkg.prev_tag;
+            let prior_tag_name = &pkg.prior_tag;
             if let Some((changed, lock_changed)) =
-                crate::steps::version::changed_since(ws_meta, pkg, prev_tag_name)
+                crate::steps::version::changed_since(ws_meta, pkg, prior_tag_name)
             {
                 if !changed.is_empty() {
                     log::debug!(
                         "Files changed in {} since {}: {:#?}",
                         crate_name,
-                        prev_tag_name,
+                        prior_tag_name,
                         changed
                     );
                     changed_pkgs.insert(&pkg.meta.id);
@@ -218,7 +218,7 @@ pub fn warn_changed(
                     log::debug!(
                         "Dependency changed for {} since {}",
                         crate_name,
-                        prev_tag_name,
+                        prior_tag_name,
                     );
                     changed_pkgs.insert(&pkg.meta.id);
                     changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
@@ -226,7 +226,7 @@ pub fn warn_changed(
                     log::debug!(
                         "Lock file changed for {} since {}, assuming its relevant",
                         crate_name,
-                        prev_tag_name
+                        prior_tag_name
                     );
                     changed_pkgs.insert(&pkg.meta.id);
                     // Lock file changes don't invalidate dependents, which is why this check is
@@ -236,14 +236,14 @@ pub fn warn_changed(
                         "Updating {} to {} despite no changes made since tag {}",
                         crate_name,
                         version.full_version_string,
-                        prev_tag_name
+                        prior_tag_name
                     );
                 }
             } else {
                 log::debug!(
                     "Cannot detect changes for {} because tag {} is missing. Try setting `--prev-tag-name <TAG>`.",
                     crate_name,
-                    prev_tag_name
+                    prior_tag_name
                 );
             }
         }
@@ -258,8 +258,8 @@ pub fn find_shared_versions(
     let mut is_shared = true;
     let mut shared_version: Option<crate::ops::version::Version> = None;
     for pkg in pkgs {
-        if let Some(version) = pkg.version.as_ref() {
-            if pkg.config.shared_version() && pkg.version.is_some() {
+        if let Some(version) = pkg.planned_version.as_ref() {
+            if pkg.config.shared_version() && pkg.planned_version.is_some() {
                 if let Some(shared_version) = shared_version.as_ref() {
                     if shared_version.bare_version != version.bare_version {
                         is_shared = false;
@@ -294,7 +294,7 @@ pub fn confirm(
         let prompt = if pkgs.len() == 1 {
             let pkg = &pkgs[0];
             let crate_name = pkg.meta.name.as_str();
-            let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+            let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
             format!("{} {} {}?", step, crate_name, version.full_version_string)
         } else {
             use std::io::Write;
@@ -303,7 +303,7 @@ pub fn confirm(
             writeln!(&mut buffer, "{}", step).unwrap();
             for pkg in pkgs {
                 let crate_name = pkg.meta.name.as_str();
-                let version = pkg.version.as_ref().unwrap_or(&pkg.prev_version);
+                let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
                 writeln!(
                     &mut buffer,
                     "  {} {}",

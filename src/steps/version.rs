@@ -63,7 +63,7 @@ impl VersionStep {
             if let Some(prev_tag) = self.prev_tag_name.as_ref() {
                 // Trust the user that the tag passed in is the latest tag for the workspace and that
                 // they don't care about any changes from before this tag.
-                pkg.set_prev_tag(prev_tag.to_owned());
+                pkg.set_prior_tag(prev_tag.to_owned());
             }
             pkg.bump(&self.level_or_version, self.metadata.as_deref())?;
         }
@@ -77,36 +77,36 @@ impl VersionStep {
                 continue;
             };
             pkg.config.release = Some(false);
-            pkg.version = None;
+            pkg.planned_version = None;
 
             let crate_name = pkg.meta.name.as_str();
-            let prev_tag_name = &pkg.prev_tag;
-            if let Some((changed, lock_changed)) = changed_since(&ws_meta, pkg, prev_tag_name) {
+            let prior_tag_name = &pkg.prior_tag;
+            if let Some((changed, lock_changed)) = changed_since(&ws_meta, pkg, prior_tag_name) {
                 if !changed.is_empty() {
                     log::warn!(
                         "Disabled by user, skipping {} which has files changed since {}: {:#?}",
                         crate_name,
-                        prev_tag_name,
+                        prior_tag_name,
                         changed
                     );
                 } else if lock_changed {
                     log::warn!(
                         "Disabled by user, skipping {} despite lock file being changed since {}",
                         crate_name,
-                        prev_tag_name
+                        prior_tag_name
                     );
                 } else {
                     log::trace!(
                         "Disabled by user, skipping {} (no changes since {})",
                         crate_name,
-                        prev_tag_name
+                        prior_tag_name
                     );
                 }
             } else {
                 log::debug!(
                     "Disabled by user, skipping {} (no {} tag)",
                     crate_name,
-                    prev_tag_name
+                    prior_tag_name
                 );
             }
         }
@@ -156,7 +156,7 @@ impl VersionStep {
 
         // STEP 2: update current version, save and commit
         for pkg in &pkgs {
-            if let Some(version) = pkg.version.as_ref() {
+            if let Some(version) = pkg.planned_version.as_ref() {
                 let crate_name = pkg.meta.name.as_str();
                 log::info!(
                     "Update {} to version {}",
