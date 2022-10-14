@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Fail again when pre-release checks fail
+
 ## [0.21.3] - 2022-10-13
 
 ### Features
