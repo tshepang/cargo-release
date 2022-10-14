@@ -57,6 +57,7 @@ impl PublishStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
+            pkg.config.publish = Some(false);
             pkg.config.release = Some(false);
 
             let crate_name = pkg.meta.name.as_str();
@@ -67,7 +68,7 @@ impl PublishStep {
 
         let index = crates_index::Index::new_cargo_default()?;
         for pkg in pkgs.values_mut() {
-            if pkg.config.registry().is_none() {
+            if pkg.config.registry().is_none() && pkg.config.release() {
                 let crate_name = pkg.meta.name.as_str();
                 let version = &pkg.prev_version;
                 if crate::ops::cargo::is_published(&index, crate_name, &version.full_version_string)
