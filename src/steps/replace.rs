@@ -4,7 +4,7 @@ use crate::ops::git;
 use crate::ops::replace::{do_file_replacements, Template, NOW};
 use crate::steps::plan;
 
-/// Bump crate versions
+/// Perform pre-release replacements
 #[derive(Debug, Clone, clap::Args)]
 pub struct ReplaceStep {
     #[command(flatten)]
