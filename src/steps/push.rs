@@ -158,7 +158,7 @@ pub fn push(
                 log::info!("Pushing {} to {}", refs.join(", "), git_remote);
                 let cwd = &pkg.package_root;
                 if !git::push(cwd, git_remote, refs, pkg.config.push_options(), dry_run)? {
-                    return Err(106.into());
+                    return Err(101.into());
                 }
             }
         }
@@ -173,7 +173,7 @@ pub fn push(
                 ws_config.push_options(),
                 dry_run,
             )? {
-                return Err(106.into());
+                return Err(101.into());
             }
         }
     }

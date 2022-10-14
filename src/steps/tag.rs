@@ -171,7 +171,7 @@ pub fn tag(pkgs: &[plan::PackageRelease], dry_run: bool) -> Result<(), ProcessEr
                 log::debug!("Creating git tag {}", tag_name);
                 if !git::tag(cwd, tag_name, &tag_message, pkg.config.sign_tag(), dry_run)? {
                     // tag failed, abort release
-                    return Err(104.into());
+                    return Err(101.into());
                 }
             }
         }

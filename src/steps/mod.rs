@@ -283,7 +283,7 @@ pub fn find_shared_versions(
     }
     if !is_shared {
         log::error!("Crate versions deviated, aborting");
-        return Err(110.into());
+        return Err(101.into());
     }
 
     Ok(shared_version)
@@ -333,7 +333,7 @@ pub fn finish(failed: bool, dry_run: bool) -> Result<(), crate::error::ProcessEr
     if dry_run {
         if failed {
             log::error!("Dry-run failed, resolve the above errors and try again.");
-            Err(107.into())
+            Err(101.into())
         } else {
             log::warn!("Ran a `dry-run`, re-run with `--execute` if all looked good.");
             Ok(())
