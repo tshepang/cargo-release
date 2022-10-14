@@ -193,6 +193,57 @@ pub fn verify_monotonically_increasing(
     Ok(success)
 }
 
+pub fn verify_rate_limit(
+    pkgs: &[plan::PackageRelease],
+    index: &crates_index::Index,
+    dry_run: bool,
+    level: log::Level,
+) -> Result<bool, crate::error::ProcessError> {
+    let mut success = true;
+
+    // "It's not particularly secret, we just don't publish it other than in the code because
+    // it's subject to change. The responses from the rate limited requests on when to try
+    // again contain the most accurate information."
+    let mut new = 0;
+    let mut existing = 0;
+    for pkg in pkgs {
+        if pkg.config.registry().is_none() {
+            let crate_name = pkg.meta.name.as_str();
+            if index.crate_(crate_name).is_some() {
+                existing += 1;
+            } else {
+                new += 1;
+            }
+        }
+    }
+
+    if 5 < new {
+        // "The rate limit for creating new crates is 1 crate every 10 minutes, with a burst of 5 crates."
+        success = false;
+        log::log!(
+            level,
+            "Attempting to publish {} new crates which is above the crates.io rate limit",
+            new
+        );
+    }
+
+    if 30 < existing {
+        // "The rate limit for new versions of existing crates is 1 per minute, with a burst of 30 crates, so when releasing new versions of these crates, you shouldn't hit the limit."
+        success = false;
+        log::log!(
+            level,
+            "Attempting to publish {} existing crates which is above the crates.io rate limit",
+            existing
+        );
+    }
+
+    if !success && level == log::Level::Error && !dry_run {
+        return Err(101.into());
+    }
+
+    Ok(success)
+}
+
 pub fn warn_changed(
     ws_meta: &cargo_metadata::Metadata,
     pkgs: &[plan::PackageRelease],
