@@ -4,6 +4,8 @@ use crate::ops::git;
 use crate::steps::plan;
 
 /// Publish the specified packages
+///
+/// Will automatically skip published versions
 #[derive(Debug, Clone, clap::Args)]
 pub struct PublishStep {
     #[command(flatten)]

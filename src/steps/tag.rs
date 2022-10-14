@@ -8,6 +8,8 @@ use crate::ops::replace::NOW;
 use crate::steps::plan;
 
 /// Tag the released commits
+///
+/// Will automatically skip existing tags
 #[derive(Debug, Clone, clap::Args)]
 pub struct TagStep {
     #[command(flatten)]
