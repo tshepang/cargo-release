@@ -46,6 +46,7 @@ pub struct ReleaseStep {
 impl ReleaseStep {
     pub fn run(&self) -> Result<(), ProcessError> {
         git::git_version()?;
+        let mut index = crates_index::Index::new_cargo_default()?;
 
         let ws_meta = self
             .manifest
@@ -69,7 +70,7 @@ impl ReleaseStep {
         }
 
         let (_selected_pkgs, excluded_pkgs) = self.workspace.partition_packages(&ws_meta);
-        for excluded_pkg in excluded_pkgs {
+        for excluded_pkg in &excluded_pkgs {
             let pkg = if let Some(pkg) = pkgs.get_mut(&excluded_pkg.id) {
                 pkg
             } else {
@@ -118,6 +119,27 @@ impl ReleaseStep {
 
         let pkgs = plan::plan(pkgs)?;
 
+        for excluded_pkg in &excluded_pkgs {
+            let pkg = if let Some(pkg) = pkgs.get(&excluded_pkg.id) {
+                pkg
+            } else {
+                // Either not in workspace or marked as `release = false`.
+                continue;
+            };
+
+            if pkg.config.publish() && pkg.config.registry().is_none() {
+                let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
+                let crate_name = pkg.meta.name.as_str();
+                if !cargo::is_published(&index, crate_name, &version.full_version_string) {
+                    log::warn!(
+                        "Disabled by user, skipping {} v{} despite being unpublished",
+                        crate_name,
+                        version.full_version_string,
+                    );
+                }
+            }
+        }
+
         let pkgs: Vec<_> = pkgs
             .into_iter()
             .map(|(_, pkg)| pkg)
@@ -143,7 +165,6 @@ impl ReleaseStep {
         failed |= !super::verify_monotonically_increasing(&pkgs, dry_run, log::Level::Error)?;
 
         let mut double_publish = false;
-        let mut index = crates_index::Index::new_cargo_default()?;
         for pkg in &pkgs {
             if !pkg.config.publish() {
                 continue;
