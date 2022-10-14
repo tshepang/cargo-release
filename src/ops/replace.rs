@@ -136,11 +136,12 @@ pub fn do_file_replacements(
                     "replaced",
                     0,
                 );
-                if noisy {
-                    log::info!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+                let level = if noisy {
+                    log::Level::Info
                 } else {
-                    log::debug!("Change:\n{}", itertools::join(diff.into_iter(), ""));
-                }
+                    log::Level::Debug
+                };
+                log::log!(level, "Change:\n{}", itertools::join(diff.into_iter(), ""));
             } else {
                 std::fs::write(&file, replaced)?;
             }
