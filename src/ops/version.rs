@@ -77,6 +77,44 @@ impl std::str::FromStr for TargetVersion {
     }
 }
 
+impl clap::builder::ValueParserFactory for TargetVersion {
+    type Parser = TargetVersionParser;
+
+    fn value_parser() -> Self::Parser {
+        TargetVersionParser
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct TargetVersionParser;
+
+impl clap::builder::TypedValueParser for TargetVersionParser {
+    type Value = TargetVersion;
+
+    fn parse_ref(
+        &self,
+        cmd: &clap::Command,
+        arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, clap::Error> {
+        let inner_parser = TargetVersion::from_str;
+        inner_parser.parse_ref(cmd, arg, value)
+    }
+
+    fn possible_values(
+        &self,
+    ) -> Option<Box<dyn Iterator<Item = clap::builder::PossibleValue> + '_>> {
+        let inner_parser = clap::builder::EnumValueParser::<BumpLevel>::new();
+        #[allow(clippy::needless_collect)] // Erasing a lifetime
+        inner_parser.possible_values().map(|ps| {
+            let ps = ps.collect::<Vec<_>>();
+            let ps: Box<dyn Iterator<Item = clap::builder::PossibleValue> + '_> =
+                Box::new(ps.into_iter());
+            ps
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Version {
     pub full_version: semver::Version,
@@ -109,12 +147,19 @@ impl From<semver::Version> for Version {
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 #[value(rename_all = "kebab-case")]
 pub enum BumpLevel {
+    /// Increase the major version (x.0.0)
     Major,
+    /// Increase the minor version (x.y.0)
     Minor,
+    /// Increase the patch version (x.y.z)
     Patch,
+    /// Increase the rc pre-version (x.y.z-rc.M)
     Rc,
+    /// Increase the beta pre-version (x.y.z-beta.M)
     Beta,
+    /// Increase the alpha pre-version (x.y.z-alpha.M)
     Alpha,
+    /// Remove the pre-version (x.y.z)
     Release,
 }
 

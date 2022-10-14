@@ -20,7 +20,8 @@ pub struct ReleaseStep {
     #[command(flatten)]
     workspace: clap_cargo::Workspace,
 
-    /// Release level or version: bumping specified version field or remove prerelease extensions by default. Possible level value: major, minor, patch, release, rc, beta, alpha or any valid semver version that is greater than current version
+    /// Either bump by LEVEL or set the VERSION for all selected packages
+    #[arg(value_name = "LEVEL|VERSION")]
     level_or_version: Option<version::TargetVersion>,
 
     /// Semver metadata
