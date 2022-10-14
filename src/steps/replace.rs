@@ -70,7 +70,7 @@ impl ReplaceStep {
             .collect();
         if pkgs.is_empty() {
             log::info!("No packages selected.");
-            return Err(0.into());
+            return Err(2.into());
         }
 
         let dry_run = !self.execute;
