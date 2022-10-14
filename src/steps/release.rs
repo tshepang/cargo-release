@@ -130,10 +130,6 @@ impl ReleaseStep {
         }
         release_packages(self, &ws_meta, &ws_config, pkgs.as_slice())
     }
-
-    pub fn dry_run(&self) -> bool {
-        !self.execute
-    }
 }
 
 fn release_packages<'m>(
@@ -142,7 +138,7 @@ fn release_packages<'m>(
     ws_config: &config::Config,
     pkgs: &'m [PackageRelease],
 ) -> Result<(), ProcessError> {
-    let dry_run = args.dry_run();
+    let dry_run = !args.execute;
     let mut failed = false;
 
     // STEP 0: Help the user make the right decisions.
