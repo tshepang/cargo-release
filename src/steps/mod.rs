@@ -199,59 +199,58 @@ pub fn warn_changed(
 ) -> Result<(), crate::error::ProcessError> {
     let mut changed_pkgs = std::collections::HashSet::new();
     for pkg in pkgs {
-        if let Some(version) = pkg.planned_version.as_ref() {
-            let crate_name = pkg.meta.name.as_str();
-            if let Some(prior_tag_name) = &pkg.prior_tag {
-                if let Some((changed, lock_changed)) =
-                    crate::steps::version::changed_since(ws_meta, pkg, prior_tag_name)
-                {
-                    if !changed.is_empty() {
-                        log::debug!(
-                            "Files changed in {} since {}: {:#?}",
-                            crate_name,
-                            prior_tag_name,
-                            changed
-                        );
-                        changed_pkgs.insert(&pkg.meta.id);
-                        changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
-                    } else if changed_pkgs.contains(&pkg.meta.id) {
-                        log::debug!(
-                            "Dependency changed for {} since {}",
-                            crate_name,
-                            prior_tag_name,
-                        );
-                        changed_pkgs.insert(&pkg.meta.id);
-                        changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
-                    } else if lock_changed {
-                        log::debug!(
-                            "Lock file changed for {} since {}, assuming its relevant",
-                            crate_name,
-                            prior_tag_name
-                        );
-                        changed_pkgs.insert(&pkg.meta.id);
-                        // Lock file changes don't invalidate dependents, which is why this check is
-                        // after the transitive check, so that can invalidate dependents
-                    } else {
-                        log::warn!(
-                            "Updating {} to {} despite no changes made since tag {}",
-                            crate_name,
-                            version.full_version_string,
-                            prior_tag_name
-                        );
-                    }
-                } else {
+        let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
+        let crate_name = pkg.meta.name.as_str();
+        if let Some(prior_tag_name) = &pkg.prior_tag {
+            if let Some((changed, lock_changed)) =
+                crate::steps::version::changed_since(ws_meta, pkg, prior_tag_name)
+            {
+                if !changed.is_empty() {
                     log::debug!(
-                        "Cannot detect changes for {} because tag {} is missing. Try setting `--prev-tag-name <TAG>`.",
+                        "Files changed in {} since {}: {:#?}",
                         crate_name,
+                        prior_tag_name,
+                        changed
+                    );
+                    changed_pkgs.insert(&pkg.meta.id);
+                    changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
+                } else if changed_pkgs.contains(&pkg.meta.id) {
+                    log::debug!(
+                        "Dependency changed for {} since {}",
+                        crate_name,
+                        prior_tag_name,
+                    );
+                    changed_pkgs.insert(&pkg.meta.id);
+                    changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
+                } else if lock_changed {
+                    log::debug!(
+                        "Lock file changed for {} since {}, assuming its relevant",
+                        crate_name,
+                        prior_tag_name
+                    );
+                    changed_pkgs.insert(&pkg.meta.id);
+                    // Lock file changes don't invalidate dependents, which is why this check is
+                    // after the transitive check, so that can invalidate dependents
+                } else {
+                    log::warn!(
+                        "Updating {} to {} despite no changes made since tag {}",
+                        crate_name,
+                        version.full_version_string,
                         prior_tag_name
                     );
                 }
             } else {
                 log::debug!(
+                        "Cannot detect changes for {} because tag {} is missing. Try setting `--prev-tag-name <TAG>`.",
+                        crate_name,
+                        prior_tag_name
+                    );
+            }
+        } else {
+            log::debug!(
                     "Cannot detect changes for {} because no tag was found. Try setting `--prev-tag-name <TAG>`.",
                     crate_name,
                 );
-            }
         }
     }
 
