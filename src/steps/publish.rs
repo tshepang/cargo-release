@@ -147,21 +147,12 @@ pub fn publish(
     pkgs: &[plan::PackageRelease],
     dry_run: bool,
 ) -> Result<(), ProcessError> {
-    let index = crates_index::Index::new_cargo_default()?;
     for pkg in pkgs {
         if !pkg.config.publish() {
             continue;
         }
 
         let crate_name = pkg.meta.name.as_str();
-        if pkg.config.registry().is_none() && pkg.planned_version.is_none() {
-            let version = &pkg.initial_version;
-            if crate::ops::cargo::is_published(&index, crate_name, &version.full_version_string) {
-                log::warn!("Skipping publish of {} {}, assuming we are recovering from a prior failed release", crate_name, version.full_version_string);
-                continue;
-            }
-        }
-
         log::info!("Publishing {}", crate_name);
 
         let verify = if !pkg.config.verify() {

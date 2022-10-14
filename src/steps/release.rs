@@ -152,24 +152,21 @@ fn release_packages<'m>(
     failed |= !super::verify_monotonically_increasing(pkgs, dry_run, log::Level::Error)?;
 
     let mut double_publish = false;
+    let index = crates_index::Index::new_cargo_default()?;
     for pkg in pkgs {
         if !pkg.config.publish() {
             continue;
         }
         if pkg.config.registry().is_none() {
-            // While we'll publish when there is `pkg.planned_version.is_none()`, we'll check that case
-            // during the publish
-            if let Some(version) = pkg.planned_version.as_ref() {
-                let index = crates_index::Index::new_cargo_default()?;
-                let crate_name = pkg.meta.name.as_str();
-                if cargo::is_published(&index, crate_name, &version.full_version_string) {
-                    log::error!(
-                        "{} {} is already published",
-                        crate_name,
-                        version.full_version_string
-                    );
-                    double_publish = true;
-                }
+            let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
+            let crate_name = pkg.meta.name.as_str();
+            if cargo::is_published(&index, crate_name, &version.full_version_string) {
+                log::error!(
+                    "{} {} is already published",
+                    crate_name,
+                    version.full_version_string
+                );
+                double_publish = true;
             }
         }
     }
