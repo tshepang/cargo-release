@@ -9,6 +9,8 @@ use crate::ops::cargo;
 #[serde(deny_unknown_fields, default)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
+    #[serde(skip)]
+    pub is_workspace: bool,
     pub allow_branch: Option<Vec<String>>,
     pub sign_commit: Option<bool>,
     pub sign_tag: Option<bool>,
@@ -47,6 +49,7 @@ impl Config {
     pub fn from_defaults() -> Self {
         let empty = Config::new();
         Config {
+            is_workspace: true,
             allow_branch: Some(
                 empty
                     .allow_branch()
@@ -234,11 +237,11 @@ impl Config {
     }
 
     pub fn consolidate_commits(&self) -> bool {
-        self.consolidate_commits.unwrap_or(true)
+        self.consolidate_commits.unwrap_or(self.is_workspace)
     }
 
     pub fn consolidate_pushes(&self) -> bool {
-        self.consolidate_pushes.unwrap_or(true)
+        self.consolidate_pushes.unwrap_or(self.is_workspace)
     }
 
     pub fn pre_release_commit_message(&self) -> &str {
@@ -420,7 +423,10 @@ pub fn load_workspace_config(
     args: &ConfigArgs,
     ws_meta: &cargo_metadata::Metadata,
 ) -> Result<Config, FatalError> {
-    let mut release_config = Config::default();
+    let mut release_config = Config {
+        is_workspace: 1 < ws_meta.workspace_members.len(),
+        ..Default::default()
+    };
 
     if !args.isolated {
         let cfg = resolve_workspace_config(ws_meta.workspace_root.as_std_path())?;
@@ -444,7 +450,10 @@ pub fn load_package_config(
 ) -> Result<Config, FatalError> {
     let manifest_path = pkg.manifest_path.as_std_path();
 
-    let mut release_config = Config::default();
+    let mut release_config = Config {
+        is_workspace: 1 < ws_meta.workspace_members.len(),
+        ..Default::default()
+    };
 
     if !args.isolated {
         let cfg = resolve_config(ws_meta.workspace_root.as_std_path(), manifest_path)?;
