@@ -43,7 +43,7 @@ pub fn verify_tags_missing(
         }
     }
     if tag_exists {
-        success = true;
+        success = false;
         if !dry_run {
             return Err(101.into());
         }
@@ -73,7 +73,7 @@ pub fn verify_tags_exist(
         }
     }
     if tag_missing {
-        success = true;
+        success = false;
         if !dry_run {
             return Err(101.into());
         }
@@ -105,7 +105,7 @@ pub fn verify_git_branch(
             ws_config.allow_branch().join(", ")
         );
         log::trace!("Due to {:?}", good_branch_match);
-        success = true;
+        success = false;
         if !dry_run {
             return Err(101.into());
         }
