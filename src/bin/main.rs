@@ -67,7 +67,7 @@ Steps:
 #[command(args_conflicts_with_subcommands = true)]
 pub struct ReleaseOpt {
     #[command(flatten)]
-    pub release: steps::version::VersionStep,
+    pub release: steps::release::ReleaseStep,
 
     #[command(flatten)]
     pub logging: Verbosity,
