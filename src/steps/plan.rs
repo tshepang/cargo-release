@@ -169,9 +169,26 @@ impl PackageRelease {
             return Ok(());
         }
 
-        if self.planned_version.is_some() {
+        if self.planned_version.is_some()
+            && crate::ops::git::tag_exists(&self.package_root, &self.initial_tag)?
+        {
             self.prior_tag
                 .get_or_insert_with(|| self.initial_tag.clone());
+        }
+        if self.prior_tag.is_none() {
+            let tag_name = self.config.tag_name();
+            let tag_prefix = self.config.tag_prefix(self.is_root);
+            let name = self.meta.name.as_str();
+            let tag_glob = render_tag_glob(tag_name, tag_prefix, name);
+            match globset::Glob::new(&tag_glob) {
+                Ok(tag_glob) => {
+                    let tag_glob = tag_glob.compile_matcher();
+                    self.prior_tag = crate::ops::git::find_last_tag(&self.package_root, &tag_glob);
+                }
+                Err(err) => {
+                    log::debug!("Failed to find tag with glob `{}`: {}", tag_glob, err);
+                }
+            }
         }
 
         let base = self
@@ -222,6 +239,25 @@ fn render_tag(
     let existing_metadata_var = prev.full_version.build.as_str();
     let version_var = base.bare_version_string.as_str();
     let metadata_var = base.full_version.build.as_str();
+    let mut template = Template {
+        prev_version: Some(initial_version_var),
+        prev_metadata: Some(existing_metadata_var),
+        version: Some(version_var),
+        metadata: Some(metadata_var),
+        crate_name: Some(name),
+        ..Default::default()
+    };
+
+    let tag_prefix = template.render(tag_prefix);
+    template.prefix = Some(&tag_prefix);
+    template.render(tag_name)
+}
+
+fn render_tag_glob(tag_name: &str, tag_prefix: &str, name: &str) -> String {
+    let initial_version_var = "*";
+    let existing_metadata_var = "*";
+    let version_var = "*";
+    let metadata_var = "*";
     let mut template = Template {
         prev_version: Some(initial_version_var),
         prev_metadata: Some(existing_metadata_var),

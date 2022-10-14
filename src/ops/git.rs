@@ -145,6 +145,37 @@ pub fn tag_exists(dir: &Path, name: &str) -> Result<bool, FatalError> {
     Ok(!names.is_empty())
 }
 
+pub fn find_last_tag(dir: &Path, glob: &globset::GlobMatcher) -> Option<String> {
+    let repo = git2::Repository::discover(dir).ok()?;
+    let mut tags: std::collections::HashMap<git2::Oid, String> = Default::default();
+    repo.tag_foreach(|id, name| {
+        let name = String::from_utf8_lossy(name);
+        let name = name.strip_prefix("refs/tags/").unwrap_or(&name);
+        if glob.is_match(&name) {
+            let name = name.to_owned();
+            let tag = repo.find_tag(id);
+            let target = tag.and_then(|t| t.target());
+            let commit = target.and_then(|t| t.peel_to_commit());
+            if let Ok(commit) = commit {
+                tags.insert(commit.id(), name);
+            }
+        }
+        true
+    })
+    .ok()?;
+
+    let mut revwalk = repo.revwalk().ok()?;
+    revwalk.simplify_first_parent().ok()?;
+    // If just walking first parents, shouldn't really need to sort
+    revwalk.set_sorting(git2::Sort::NONE).ok()?;
+    revwalk.push_head().ok()?;
+    let name = revwalk.into_iter().find_map(|id| {
+        let id = id.ok()?;
+        tags.remove(&id)
+    })?;
+    Some(name)
+}
+
 pub fn push<'s>(
     dir: &Path,
     remote: &str,

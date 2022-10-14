@@ -107,6 +107,7 @@ dependencies = [
  "dirs-next",
  "env_logger",
  "git2",
+ "globset",
  "ignore",
  "indexmap",
  "itertools",
