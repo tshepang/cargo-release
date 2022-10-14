@@ -44,6 +44,8 @@ pub struct TagStep {
 
 impl TagStep {
     pub fn run(&self) -> Result<(), ProcessError> {
+        git::git_version()?;
+
         let ws_meta = self
             .manifest
             .metadata()
@@ -101,8 +103,6 @@ impl TagStep {
         let mut failed = false;
 
         // STEP 0: Help the user make the right decisions.
-        git::git_version()?;
-
         failed |= !super::verify_git_is_clean(
             ws_meta.workspace_root.as_std_path(),
             dry_run,
