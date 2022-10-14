@@ -33,8 +33,8 @@ pub struct VersionStep {
     #[arg(long)]
     no_confirm: bool,
 
-    /// Release level or version: bumping specified version field or remove prerelease extensions by default. Possible level value: major, minor, patch, release, rc, beta, alpha or any valid semver version that is greater than current version
-    #[arg(default_value_t, help_heading = "Version")]
+    /// Either bump by LEVEL or set the VERSION for all selected packages
+    #[arg(value_name = "LEVEL|VERSION", help_heading = "Version")]
     level_or_version: crate::ops::version::TargetVersion,
 
     /// Semver metadata
