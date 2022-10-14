@@ -71,7 +71,8 @@ pub struct PackageRelease {
     pub features: cargo::Features,
 
     pub initial_version: version::Version,
-    pub prior_tag: String,
+    pub initial_tag: String,
+    pub prior_tag: Option<String>,
 
     pub planned_version: Option<version::Version>,
     pub planned_tag: Option<String>,
@@ -112,13 +113,15 @@ impl PackageRelease {
         let tag_name = config.tag_name();
         let tag_prefix = config.tag_prefix(is_root);
         let name = pkg_meta.name.as_str();
-        let prior_tag = render_tag(
+        let initial_tag = render_tag(
             tag_name,
             tag_prefix,
             name,
             &initial_version,
             &initial_version,
         );
+
+        let prior_tag = None;
 
         let planned_version = None;
         let planned_tag = None;
@@ -137,6 +140,7 @@ impl PackageRelease {
             features,
 
             initial_version,
+            initial_tag,
             prior_tag,
 
             planned_version,
@@ -147,7 +151,7 @@ impl PackageRelease {
     }
 
     pub fn set_prior_tag(&mut self, prior_tag: String) {
-        self.prior_tag = prior_tag;
+        self.prior_tag = Some(prior_tag);
     }
 
     pub fn bump(
@@ -163,6 +167,11 @@ impl PackageRelease {
     pub fn plan(&mut self) -> Result<(), FatalError> {
         if !self.config.release() {
             return Ok(());
+        }
+
+        if self.planned_version.is_some() {
+            self.prior_tag
+                .get_or_insert_with(|| self.initial_tag.clone());
         }
 
         let base = self

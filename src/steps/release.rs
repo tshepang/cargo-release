@@ -77,36 +77,39 @@ impl ReleaseStep {
             pkg.planned_version = None;
 
             let crate_name = pkg.meta.name.as_str();
-            let prior_tag_name = &pkg.prior_tag;
-            if let Some((changed, lock_changed)) =
-                crate::steps::version::changed_since(&ws_meta, pkg, prior_tag_name)
-            {
-                if !changed.is_empty() {
-                    log::warn!(
-                        "Disabled by user, skipping {} which has files changed since {}: {:#?}",
-                        crate_name,
-                        prior_tag_name,
-                        changed
-                    );
-                } else if lock_changed {
-                    log::warn!(
+            if let Some(prior_tag_name) = &pkg.prior_tag {
+                if let Some((changed, lock_changed)) =
+                    crate::steps::version::changed_since(&ws_meta, pkg, prior_tag_name)
+                {
+                    if !changed.is_empty() {
+                        log::warn!(
+                            "Disabled by user, skipping {} which has files changed since {}: {:#?}",
+                            crate_name,
+                            prior_tag_name,
+                            changed
+                        );
+                    } else if lock_changed {
+                        log::warn!(
                         "Disabled by user, skipping {} despite lock file being changed since {}",
                         crate_name,
                         prior_tag_name
                     );
+                    } else {
+                        log::trace!(
+                            "Disabled by user, skipping {} (no changes since {})",
+                            crate_name,
+                            prior_tag_name
+                        );
+                    }
                 } else {
-                    log::trace!(
-                        "Disabled by user, skipping {} (no changes since {})",
+                    log::debug!(
+                        "Disabled by user, skipping {} (no {} tag)",
                         crate_name,
                         prior_tag_name
                     );
                 }
             } else {
-                log::debug!(
-                    "Disabled by user, skipping {} (no {} tag)",
-                    crate_name,
-                    prior_tag_name
-                );
+                log::debug!("Disabled by user, skipping {} (no tag found)", crate_name,);
             }
         }
 
