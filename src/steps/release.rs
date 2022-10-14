@@ -21,11 +21,10 @@ pub struct ReleaseStep {
     workspace: clap_cargo::Workspace,
 
     /// Release level or version: bumping specified version field or remove prerelease extensions by default. Possible level value: major, minor, patch, release, rc, beta, alpha or any valid semver version that is greater than current version
-    #[arg(default_value_t)]
-    level_or_version: version::TargetVersion,
+    level_or_version: Option<version::TargetVersion>,
 
     /// Semver metadata
-    #[arg(short, long)]
+    #[arg(short, long, requires = "level_or_version")]
     metadata: Option<String>,
 
     #[command(flatten)]
@@ -64,7 +63,9 @@ impl ReleaseStep {
                 // they don't care about any changes from before this tag.
                 pkg.set_prior_tag(prev_tag.to_owned());
             }
-            pkg.bump(&self.level_or_version, self.metadata.as_deref())?;
+            if let Some(level_or_version) = &self.level_or_version {
+                pkg.bump(level_or_version, self.metadata.as_deref())?;
+            }
         }
 
         let (_selected_pkgs, excluded_pkgs) = self.workspace.partition_packages(&ws_meta);
