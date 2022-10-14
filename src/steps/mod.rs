@@ -10,13 +10,19 @@ pub mod version;
 pub fn verify_git_is_clean(
     path: &std::path::Path,
     dry_run: bool,
+    level: log::Level,
 ) -> Result<bool, crate::error::ProcessError> {
     let mut success = true;
     if crate::ops::git::is_dirty(path)? {
-        log::error!("Uncommitted changes detected, please commit before release.");
-        success = false;
-        if !dry_run {
-            return Err(101.into());
+        log::log!(
+            level,
+            "Uncommitted changes detected, please commit before release."
+        );
+        if level == log::Level::Error {
+            success = false;
+            if !dry_run {
+                return Err(101.into());
+            }
         }
     }
     Ok(success)
@@ -25,6 +31,7 @@ pub fn verify_git_is_clean(
 pub fn verify_tags_missing(
     pkgs: &[plan::PackageRelease],
     dry_run: bool,
+    level: log::Level,
 ) -> Result<bool, crate::error::ProcessError> {
     let mut success = true;
 
@@ -36,13 +43,18 @@ pub fn verify_tags_missing(
                 let cwd = &pkg.package_root;
                 if crate::ops::git::tag_exists(cwd, tag_name)? {
                     let crate_name = pkg.meta.name.as_str();
-                    log::error!("Tag `{}` already exists (for `{}`)", tag_name, crate_name);
+                    log::log!(
+                        level,
+                        "Tag `{}` already exists (for `{}`)",
+                        tag_name,
+                        crate_name
+                    );
                     tag_exists = true;
                 }
             }
         }
     }
-    if tag_exists {
+    if tag_exists && level == log::Level::Error {
         success = false;
         if !dry_run {
             return Err(101.into());
@@ -55,6 +67,7 @@ pub fn verify_tags_missing(
 pub fn verify_tags_exist(
     pkgs: &[plan::PackageRelease],
     dry_run: bool,
+    level: log::Level,
 ) -> Result<bool, crate::error::ProcessError> {
     let mut success = true;
 
@@ -66,13 +79,18 @@ pub fn verify_tags_exist(
                 let cwd = &pkg.package_root;
                 if !crate::ops::git::tag_exists(cwd, tag_name)? {
                     let crate_name = pkg.meta.name.as_str();
-                    log::error!("Tag `{}` doesn't exist (for `{}`)", tag_name, crate_name);
+                    log::log!(
+                        level,
+                        "Tag `{}` doesn't exist (for `{}`)",
+                        tag_name,
+                        crate_name
+                    );
                     tag_missing = true;
                 }
             }
         }
     }
-    if tag_missing {
+    if tag_missing && level == log::Level::Error {
         success = false;
         if !dry_run {
             return Err(101.into());
@@ -86,6 +104,7 @@ pub fn verify_git_branch(
     path: &std::path::Path,
     ws_config: &crate::config::Config,
     dry_run: bool,
+    level: log::Level,
 ) -> Result<bool, crate::error::ProcessError> {
     use itertools::Itertools;
 
@@ -99,38 +118,52 @@ pub fn verify_git_branch(
     let good_branches = good_branches.build()?;
     let good_branch_match = good_branches.matched_path_or_any_parents(&branch, false);
     if !good_branch_match.is_ignore() {
-        log::error!(
+        log::log!(
+            level,
             "Cannot release from branch {:?}, instead switch to {:?}",
             branch,
             ws_config.allow_branch().join(", ")
         );
         log::trace!("Due to {:?}", good_branch_match);
-        success = false;
-        if !dry_run {
-            return Err(101.into());
+        if level == log::Level::Error {
+            success = false;
+            if !dry_run {
+                return Err(101.into());
+            }
         }
     }
 
     Ok(success)
 }
 
-pub fn warn_if_behind(
+pub fn verify_if_behind(
     path: &std::path::Path,
     ws_config: &crate::config::Config,
-) -> Result<(), crate::error::ProcessError> {
+    dry_run: bool,
+    level: log::Level,
+) -> Result<bool, crate::error::ProcessError> {
+    let mut success = true;
+
     let git_remote = ws_config.push_remote();
     let branch = crate::ops::git::current_branch(path)?;
     crate::ops::git::fetch(path, git_remote, &branch)?;
     if crate::ops::git::is_behind_remote(path, git_remote, &branch)? {
-        log::warn!("{} is behind {}/{}", branch, git_remote, branch);
+        log::log!(level, "{} is behind {}/{}", branch, git_remote, branch);
+        if level == log::Level::Error {
+            success = false;
+            if !dry_run {
+                return Err(101.into());
+            }
+        }
     }
 
-    Ok(())
+    Ok(success)
 }
 
 pub fn verify_monotonically_increasing(
     pkgs: &[plan::PackageRelease],
     dry_run: bool,
+    level: log::Level,
 ) -> Result<bool, crate::error::ProcessError> {
     let mut success = true;
 
@@ -139,7 +172,8 @@ pub fn verify_monotonically_increasing(
         if let Some(version) = pkg.version.as_ref() {
             if version.full_version < pkg.prev_version.full_version {
                 let crate_name = pkg.meta.name.as_str();
-                log::error!(
+                log::log!(
+                    level,
                     "Cannot downgrade {} from {} to {}",
                     crate_name,
                     version.full_version,
@@ -149,7 +183,7 @@ pub fn verify_monotonically_increasing(
             }
         }
     }
-    if downgrades_present {
+    if downgrades_present && level == log::Level::Error {
         success = false;
         if !dry_run {
             return Err(101.into());

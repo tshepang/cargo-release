@@ -141,11 +141,15 @@ fn release_packages<'m>(
     // STEP 0: Help the user make the right decisions.
     git::git_version()?;
 
-    failed |= !super::verify_git_is_clean(ws_meta.workspace_root.as_std_path(), dry_run)?;
+    failed |= !super::verify_git_is_clean(
+        ws_meta.workspace_root.as_std_path(),
+        dry_run,
+        log::Level::Error,
+    )?;
 
-    failed |= !super::verify_tags_missing(pkgs, dry_run)?;
+    failed |= !super::verify_tags_missing(pkgs, dry_run, log::Level::Error)?;
 
-    failed |= !super::verify_monotonically_increasing(pkgs, dry_run)?;
+    failed |= !super::verify_monotonically_increasing(pkgs, dry_run, log::Level::Error)?;
 
     let mut double_publish = false;
     for pkg in pkgs {
@@ -178,9 +182,19 @@ fn release_packages<'m>(
 
     super::warn_changed(ws_meta, pkgs)?;
 
-    failed |= !super::verify_git_branch(ws_meta.workspace_root.as_std_path(), ws_config, dry_run)?;
+    failed |= !super::verify_git_branch(
+        ws_meta.workspace_root.as_std_path(),
+        ws_config,
+        dry_run,
+        log::Level::Error,
+    )?;
 
-    super::warn_if_behind(ws_meta.workspace_root.as_std_path(), ws_config)?;
+    failed |= !super::verify_if_behind(
+        ws_meta.workspace_root.as_std_path(),
+        ws_config,
+        dry_run,
+        log::Level::Warn,
+    )?;
 
     let shared_version = super::find_shared_versions(pkgs)?;
 

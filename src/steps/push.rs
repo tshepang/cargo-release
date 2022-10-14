@@ -86,14 +86,27 @@ impl PushStep {
         // STEP 0: Help the user make the right decisions.
         git::git_version()?;
 
-        failed |= !super::verify_git_is_clean(ws_meta.workspace_root.as_std_path(), dry_run)?;
+        failed |= !super::verify_git_is_clean(
+            ws_meta.workspace_root.as_std_path(),
+            dry_run,
+            log::Level::Error,
+        )?;
 
-        failed |= !super::verify_tags_exist(&pkgs, dry_run)?;
+        failed |= !super::verify_tags_exist(&pkgs, dry_run, log::Level::Error)?;
 
-        failed |=
-            !super::verify_git_branch(ws_meta.workspace_root.as_std_path(), &ws_config, dry_run)?;
+        failed |= !super::verify_git_branch(
+            ws_meta.workspace_root.as_std_path(),
+            &ws_config,
+            dry_run,
+            log::Level::Error,
+        )?;
 
-        super::warn_if_behind(ws_meta.workspace_root.as_std_path(), &ws_config)?;
+        failed |= !super::verify_if_behind(
+            ws_meta.workspace_root.as_std_path(),
+            &ws_config,
+            dry_run,
+            log::Level::Warn,
+        )?;
 
         // STEP 1: Release Confirmation
         super::confirm("Push", &pkgs, self.no_confirm, dry_run)?;
