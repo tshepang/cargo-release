@@ -468,6 +468,7 @@ pub fn load_package_config(
         .and_then(|f| f.as_bool())
         .unwrap_or(true)
     {
+        release_config.release = Some(false);
         release_config.publish = Some(false);
     }
 
