@@ -82,7 +82,7 @@ Workspace configuration is read from the following (in precedence order)
 | `enable-features` | `--features` | list of names               | `[]`                       | Provide a set of feature flags that should be passed to `cargo publish` (requires rust 1.33+) |
 | `enable-all-features` | `--all-features` | bool                | `false`                    | Signal to `cargo publish`, that all features should be used (requires rust 1.33+) |
 | `target`       | \-              | string                      | \-           | Target triple to use for the verification build |
-| `dependent-version` | \-         | `upgrade`, `fix`, `error`, `warn`, `ignore` | `fix`      | Policy for upgrading path dependency versions within the workspace |
+| `dependent-version` | \-         | `upgrade`, `fix`, `error`, `warn`, `ignore` | `upgrade`      | Policy for upgrading path dependency versions within the workspace |
 
 Note: fields are from the package-configuration unless otherwise specified.
 
