@@ -378,7 +378,8 @@ pub enum DependentVersion {
 
 impl Default for DependentVersion {
     fn default() -> Self {
-        DependentVersion::Fix
+        // This is the safest option as its hard to test `Fix`
+        DependentVersion::Upgrade
     }
 }
 
