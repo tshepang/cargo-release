@@ -369,10 +369,15 @@ impl Command {
 #[serde(rename_all = "kebab-case")]
 #[value(rename_all = "kebab-case")]
 pub enum DependentVersion {
+    /// Always upgrade dependents
     Upgrade,
+    /// Upgrade when the old version requirement no longer applies
     Fix,
+    /// Error when the old version requirement no longer applies
     Error,
+    /// Warn when the old version requirement no longer applies
     Warn,
+    /// Do nothing
     Ignore,
 }
 
