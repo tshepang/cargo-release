@@ -420,15 +420,16 @@ impl TargetVersion {
         current: &semver::Version,
         metadata: Option<&str>,
     ) -> Result<Option<plan::Version>, FatalError> {
-        let bumped = match self {
+        match self {
             TargetVersion::Relative(bump_level) => {
                 let mut potential_version = current.to_owned();
-                if bump_level.bump_version(&mut potential_version, metadata)? {
+                bump_level.bump_version(&mut potential_version, metadata)?;
+                if potential_version != *current {
                     let full_version = potential_version;
                     let version = plan::Version::from(full_version);
-                    Some(version)
+                    Ok(Some(version))
                 } else {
-                    None
+                    Ok(None)
                 }
             }
             TargetVersion::Absolute(version) => {
@@ -442,13 +443,12 @@ impl TargetVersion {
                 }
                 let version = plan::Version::from(full_version);
                 if version.bare_version != plan::Version::from(current.clone()).bare_version {
-                    Some(version)
+                    Ok(Some(version))
                 } else {
-                    None
+                    Ok(None)
                 }
             }
-        };
-        Ok(bumped)
+        }
     }
 }
 
@@ -530,14 +530,14 @@ pub enum BumpLevel {
     Minor,
     /// Increase the patch version (x.y.z)
     Patch,
+    /// Remove the pre-version (x.y.z)
+    Release,
     /// Increase the rc pre-version (x.y.z-rc.M)
     Rc,
     /// Increase the beta pre-version (x.y.z-beta.M)
     Beta,
     /// Increase the alpha pre-version (x.y.z-alpha.M)
     Alpha,
-    /// Remove the pre-version (x.y.z)
-    Release,
 }
 
 impl std::fmt::Display for BumpLevel {
@@ -571,16 +571,13 @@ impl BumpLevel {
         self,
         version: &mut semver::Version,
         metadata: Option<&str>,
-    ) -> Result<bool, FatalError> {
-        let mut need_commit = false;
+    ) -> Result<(), FatalError> {
         match self {
             BumpLevel::Major => {
                 version.increment_major();
-                need_commit = true;
             }
             BumpLevel::Minor => {
                 version.increment_minor();
-                need_commit = true;
             }
             BumpLevel::Patch => {
                 if !version.is_prerelease() {
@@ -588,25 +585,20 @@ impl BumpLevel {
                 } else {
                     version.pre = semver::Prerelease::EMPTY;
                 }
-                need_commit = true;
-            }
-            BumpLevel::Rc => {
-                version.increment_rc()?;
-                need_commit = true;
-            }
-            BumpLevel::Beta => {
-                version.increment_beta()?;
-                need_commit = true;
-            }
-            BumpLevel::Alpha => {
-                version.increment_alpha()?;
-                need_commit = true;
             }
             BumpLevel::Release => {
                 if version.is_prerelease() {
                     version.pre = semver::Prerelease::EMPTY;
-                    need_commit = true;
                 }
+            }
+            BumpLevel::Rc => {
+                version.increment_rc()?;
+            }
+            BumpLevel::Beta => {
+                version.increment_beta()?;
+            }
+            BumpLevel::Alpha => {
+                version.increment_alpha()?;
             }
         };
 
@@ -614,6 +606,6 @@ impl BumpLevel {
             version.metadata(metadata)?;
         }
 
-        Ok(need_commit)
+        Ok(())
     }
 }
