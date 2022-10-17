@@ -158,6 +158,7 @@ impl VersionStep {
         super::confirm("Bump", &selected_pkgs, self.no_confirm, dry_run)?;
 
         // STEP 2: update current version, save and commit
+        let mut update_lock = false;
         for pkg in &selected_pkgs {
             if let Some(version) = pkg.planned_version.as_ref() {
                 let crate_name = pkg.meta.name.as_str();
@@ -172,11 +173,14 @@ impl VersionStep {
                     dry_run,
                 )?;
                 update_dependent_versions(pkg, version, dry_run)?;
-                if dry_run {
-                    log::debug!("Updating lock file");
-                } else {
-                    crate::ops::cargo::update_lock(&pkg.manifest_path)?;
-                }
+                update_lock = true;
+            }
+        }
+        if update_lock {
+            log::debug!("Updating lock file");
+            if !dry_run {
+                let workspace_path = ws_meta.workspace_root.as_std_path().join("Cargo.toml");
+                crate::ops::cargo::update_lock(&workspace_path)?;
             }
         }
 
