@@ -145,21 +145,9 @@ pub fn push(
                 continue;
             }
 
-            if pkg.config.consolidate_pushes() {
-                shared_refs.insert(branch.as_str());
-                if let Some(tag_name) = pkg.planned_tag.as_deref() {
-                    shared_refs.insert(tag_name);
-                }
-            } else {
-                let mut refs = vec![branch.as_str()];
-                if let Some(tag_name) = pkg.planned_tag.as_deref() {
-                    refs.push(tag_name)
-                }
-                log::info!("Pushing {} to {}", refs.join(", "), git_remote);
-                let cwd = &pkg.package_root;
-                if !git::push(cwd, git_remote, refs, pkg.config.push_options(), dry_run)? {
-                    return Err(101.into());
-                }
+            shared_refs.insert(branch.as_str());
+            if let Some(tag_name) = pkg.planned_tag.as_deref() {
+                shared_refs.insert(tag_name);
             }
         }
         if !shared_refs.is_empty() {

@@ -25,7 +25,6 @@ pub struct Config {
     pub dev_version: Option<bool>,
     pub shared_version: Option<bool>,
     pub consolidate_commits: Option<bool>,
-    pub consolidate_pushes: Option<bool>,
     pub pre_release_commit_message: Option<String>,
     pub post_release_commit_message: Option<String>,
     pub pre_release_replacements: Option<Vec<Replace>>,
@@ -74,7 +73,6 @@ impl Config {
             dev_version: Some(empty.dev_version()),
             shared_version: Some(empty.shared_version()),
             consolidate_commits: Some(empty.consolidate_commits()),
-            consolidate_pushes: Some(empty.consolidate_pushes()),
             pre_release_commit_message: Some(empty.pre_release_commit_message().to_owned()),
             post_release_commit_message: Some(empty.post_release_commit_message().to_owned()),
             pre_release_replacements: Some(empty.pre_release_replacements().to_vec()),
@@ -133,9 +131,6 @@ impl Config {
         }
         if let Some(consolidate_commits) = source.consolidate_commits {
             self.consolidate_commits = Some(consolidate_commits);
-        }
-        if let Some(consolidate_pushes) = source.consolidate_pushes {
-            self.consolidate_pushes = Some(consolidate_pushes);
         }
         if let Some(pre_release_commit_message) = source.pre_release_commit_message.as_deref() {
             self.pre_release_commit_message = Some(pre_release_commit_message.to_owned());
@@ -238,10 +233,6 @@ impl Config {
 
     pub fn consolidate_commits(&self) -> bool {
         self.consolidate_commits.unwrap_or(self.is_workspace)
-    }
-
-    pub fn consolidate_pushes(&self) -> bool {
-        self.consolidate_pushes.unwrap_or(self.is_workspace)
     }
 
     pub fn pre_release_commit_message(&self) -> &str {
