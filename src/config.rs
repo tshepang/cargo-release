@@ -481,30 +481,8 @@ pub fn load_package_config(
 
     release_config.update(&args.to_config());
 
-    // the publish flag in cargo file
-    let manifest = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
-    let manifest: CargoManifest = toml_edit::easy::from_str(&manifest).map_err(FatalError::from)?;
-    if !manifest
-        .package
-        .as_ref()
-        .and_then(|p| p.publish)
-        .unwrap_or(true)
-    {
-        release_config.release = Some(false);
-        release_config.publish = Some(false);
-    }
-    if manifest
-        .package
-        .as_ref()
-        .and_then(|p| p.version.as_ref())
-        .and_then(|v| match v {
-            MaybeWorkspace::Defined(_) => None,
-            MaybeWorkspace::Workspace(workspace) => Some(workspace.workspace),
-        })
-        .unwrap_or(false)
-    {
-        release_config.shared_version = Some(SharedVersion::Name("workspace".to_owned()));
-    }
+    let overrides = resolve_overrides(ws_meta.workspace_root.as_std_path(), manifest_path)?;
+    release_config.update(&overrides);
 
     Ok(release_config)
 }
@@ -817,6 +795,40 @@ pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Con
     };
 
     Ok(config)
+}
+
+pub fn resolve_overrides(
+    _workspace_root: &Path,
+    manifest_path: &Path,
+) -> Result<Config, FatalError> {
+    let mut release_config = Config::default();
+
+    // the publish flag in cargo file
+    let manifest = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
+    let manifest: CargoManifest = toml_edit::easy::from_str(&manifest).map_err(FatalError::from)?;
+    if !manifest
+        .package
+        .as_ref()
+        .and_then(|p| p.publish)
+        .unwrap_or(true)
+    {
+        release_config.release = Some(false);
+        release_config.publish = Some(false);
+    }
+    if manifest
+        .package
+        .as_ref()
+        .and_then(|p| p.version.as_ref())
+        .and_then(|v| match v {
+            MaybeWorkspace::Defined(_) => None,
+            MaybeWorkspace::Workspace(workspace) => Some(workspace.workspace),
+        })
+        .unwrap_or(false)
+    {
+        release_config.shared_version = Some(SharedVersion::Name("workspace".to_owned()));
+    }
+
+    Ok(release_config)
 }
 
 fn resolve_bool_arg(yes: bool, no: bool) -> Option<bool> {
