@@ -404,6 +404,7 @@ impl CargoWorkspace {
 #[serde(default)]
 struct CargoPackage {
     publish: Option<bool>,
+    version: Option<MaybeWorkspace<String>>,
     metadata: Option<CargoMetadata>,
 }
 
@@ -411,6 +412,18 @@ impl CargoPackage {
     fn into_config(self) -> Option<Config> {
         self.metadata?.release
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum MaybeWorkspace<T> {
+    Workspace(TomlWorkspaceField),
+    Defined(T),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TomlWorkspaceField {
+    workspace: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -479,6 +492,18 @@ pub fn load_package_config(
     {
         release_config.release = Some(false);
         release_config.publish = Some(false);
+    }
+    if manifest
+        .package
+        .as_ref()
+        .and_then(|p| p.version.as_ref())
+        .and_then(|v| match v {
+            MaybeWorkspace::Defined(_) => None,
+            MaybeWorkspace::Workspace(workspace) => Some(workspace.workspace),
+        })
+        .unwrap_or(false)
+    {
+        release_config.shared_version = Some(SharedVersion::Name("workspace".to_owned()));
     }
 
     Ok(release_config)
