@@ -831,6 +831,8 @@ pub fn resolve_overrides(
             .unwrap_or(false)
         {
             release_config.shared_version = Some(SharedVersion::Name("workspace".to_owned()));
+            // We can't isolate commits because by changing the version in one crate, we change it in all
+            release_config.consolidate_commits = Some(true);
         }
     }
 
