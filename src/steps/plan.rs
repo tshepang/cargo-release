@@ -18,7 +18,7 @@ pub fn load(
     let member_ids = cargo::sort_workspace(ws_meta);
     member_ids
         .iter()
-        .filter_map(|p| PackageRelease::load(args, &root, ws_meta, &ws_meta[p]).transpose())
+        .map(|p| PackageRelease::load(args, &root, ws_meta, &ws_meta[p]))
         .map(|p| p.map(|p| (p.meta.id.clone(), p)))
         .collect()
 }
@@ -95,13 +95,12 @@ impl PackageRelease {
         git_root: &Path,
         ws_meta: &cargo_metadata::Metadata,
         pkg_meta: &cargo_metadata::Package,
-    ) -> Result<Option<Self>, error::FatalError> {
+    ) -> Result<Self, error::FatalError> {
         let manifest_path = pkg_meta.manifest_path.as_std_path();
         let package_root = manifest_path.parent().unwrap_or_else(|| Path::new("."));
         let config = config::load_package_config(args, ws_meta, pkg_meta)?;
         if !config.release() {
             log::trace!("Disabled in config, skipping {}", manifest_path.display());
-            return Ok(None);
         }
 
         let package_content = cargo::package_content(manifest_path)?;
@@ -155,7 +154,7 @@ impl PackageRelease {
             planned_version,
             planned_tag,
         };
-        Ok(Some(pkg))
+        Ok(pkg)
     }
 
     pub fn set_prior_tag(&mut self, prior_tag: String) {
