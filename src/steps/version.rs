@@ -78,8 +78,8 @@ impl VersionStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
-            pkg.config.release = Some(false);
             pkg.planned_version = None;
+            pkg.config.release = Some(false);
 
             let crate_name = pkg.meta.name.as_str();
             if let Some(prior_tag_name) = &pkg.prior_tag {

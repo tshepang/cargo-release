@@ -65,6 +65,8 @@ impl TagStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
+            pkg.planned_tag = None;
+            pkg.config.tag = Some(false);
             pkg.config.release = Some(false);
 
             let crate_name = pkg.meta.name.as_str();

@@ -64,6 +64,7 @@ impl PushStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
+            pkg.config.push = Some(false);
             pkg.config.release = Some(false);
 
             let crate_name = pkg.meta.name.as_str();

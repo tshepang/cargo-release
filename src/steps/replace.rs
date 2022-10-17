@@ -57,8 +57,8 @@ impl ReplaceStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
+            pkg.config.pre_release_replacements = Some(vec![]);
             pkg.config.release = Some(false);
-            pkg.planned_version = None;
         }
 
         let pkgs = plan::plan(pkgs)?;
