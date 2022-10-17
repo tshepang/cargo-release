@@ -226,18 +226,14 @@ impl ReleaseStep {
 
         failed |= !super::verify_rate_limit(&selected_pkgs, &index, dry_run, log::Level::Error)?;
 
-        let shared_version = super::find_shared_versions(&selected_pkgs)?;
-
         // STEP 1: Release Confirmation
         super::confirm("Release", &selected_pkgs, self.no_confirm, dry_run)?;
 
         // STEP 2: update current version, save and commit
         let mut shared_commit = false;
         for pkg in &selected_pkgs {
-            let cwd = &pkg.package_root;
-            let crate_name = pkg.meta.name.as_str();
-
             if let Some(version) = pkg.planned_version.as_ref() {
+                let crate_name = pkg.meta.name.as_str();
                 log::info!(
                     "Update {} to version {}",
                     crate_name,
@@ -259,93 +255,16 @@ impl ReleaseStep {
             super::replace::replace(pkg, dry_run)?;
 
             // pre-release hook
-            let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
-            let prev_version_var = pkg.initial_version.bare_version_string.as_str();
-            let prev_metadata_var = pkg.initial_version.full_version.build.as_str();
-            let version_var = version.bare_version_string.as_str();
-            let metadata_var = version.full_version.build.as_str();
-            if let Some(pre_rel_hook) = pkg.config.pre_release_hook() {
-                let template = Template {
-                    prev_version: Some(prev_version_var),
-                    prev_metadata: Some(prev_metadata_var),
-                    version: Some(version_var),
-                    metadata: Some(metadata_var),
-                    crate_name: Some(crate_name),
-                    date: Some(NOW.as_str()),
-                    tag_name: pkg.planned_tag.as_deref(),
-                    ..Default::default()
-                };
-                let pre_rel_hook = pre_rel_hook
-                    .args()
-                    .into_iter()
-                    .map(|arg| template.render(arg));
-                log::debug!("Calling pre-release hook: {:?}", pre_rel_hook);
-                let envs = maplit::btreemap! {
-                    OsStr::new("PREV_VERSION") => prev_version_var.as_ref(),
-                    OsStr::new("PREV_METADATA") => prev_metadata_var.as_ref(),
-                    OsStr::new("NEW_VERSION") => version_var.as_ref(),
-                    OsStr::new("NEW_METADATA") => metadata_var.as_ref(),
-                    OsStr::new("DRY_RUN") => OsStr::new(if dry_run { "true" } else { "false" }),
-                    OsStr::new("CRATE_NAME") => OsStr::new(crate_name),
-                    OsStr::new("WORKSPACE_ROOT") => ws_meta.workspace_root.as_os_str(),
-                    OsStr::new("CRATE_ROOT") => pkg.manifest_path.parent().unwrap_or_else(|| Path::new(".")).as_os_str(),
-                };
-                // we use dry_run environmental variable to run the script
-                // so here we set dry_run=false and always execute the command.
-                if !cmd::call_with_env(pre_rel_hook, envs, cwd, false)? {
-                    log::error!(
-                        "Release of {} aborted by non-zero return of prerelease hook.",
-                        crate_name
-                    );
-                    return Err(101.into());
-                }
-            }
+            hook(&ws_meta, pkg, dry_run)?;
 
             if pkg.config.consolidate_commits() {
                 shared_commit = true;
             } else {
-                let template = Template {
-                    prev_version: Some(prev_version_var),
-                    prev_metadata: Some(prev_metadata_var),
-                    version: Some(version_var),
-                    metadata: Some(metadata_var),
-                    crate_name: Some(crate_name),
-                    date: Some(NOW.as_str()),
-                    ..Default::default()
-                };
-                let commit_msg = template.render(pkg.config.pre_release_commit_message());
-                let sign = pkg.config.sign_commit();
-                if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
-                    // commit failed, abort release
-                    return Err(101.into());
-                }
+                pkg_commit(pkg, dry_run)?;
             }
         }
         if shared_commit {
-            let shared_commit_msg = {
-                let version_var = shared_version
-                    .as_ref()
-                    .map(|v| v.bare_version_string.as_str());
-                let metadata_var = shared_version
-                    .as_ref()
-                    .map(|v| v.full_version.build.as_str());
-                let template = Template {
-                    version: version_var,
-                    metadata: metadata_var,
-                    date: Some(NOW.as_str()),
-                    ..Default::default()
-                };
-                template.render(ws_config.pre_release_commit_message())
-            };
-            if !git::commit_all(
-                ws_meta.workspace_root.as_std_path(),
-                &shared_commit_msg,
-                ws_config.sign_commit(),
-                dry_run,
-            )? {
-                // commit failed, abort release
-                return Err(101.into());
-            }
+            workspace_commit(&ws_meta, &ws_config, &selected_pkgs, dry_run)?;
         }
 
         // STEP 3: cargo publish
@@ -359,4 +278,119 @@ impl ReleaseStep {
 
         super::finish(failed, dry_run)
     }
+}
+
+pub fn hook(
+    ws_meta: &cargo_metadata::Metadata,
+    pkg: &plan::PackageRelease,
+    dry_run: bool,
+) -> Result<(), ProcessError> {
+    if let Some(pre_rel_hook) = pkg.config.pre_release_hook() {
+        let cwd = &pkg.package_root;
+        let crate_name = pkg.meta.name.as_str();
+        let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
+        let prev_version_var = pkg.initial_version.bare_version_string.as_str();
+        let prev_metadata_var = pkg.initial_version.full_version.build.as_str();
+        let version_var = version.bare_version_string.as_str();
+        let metadata_var = version.full_version.build.as_str();
+        let template = Template {
+            prev_version: Some(prev_version_var),
+            prev_metadata: Some(prev_metadata_var),
+            version: Some(version_var),
+            metadata: Some(metadata_var),
+            crate_name: Some(crate_name),
+            date: Some(NOW.as_str()),
+            tag_name: pkg.planned_tag.as_deref(),
+            ..Default::default()
+        };
+        let pre_rel_hook = pre_rel_hook
+            .args()
+            .into_iter()
+            .map(|arg| template.render(arg));
+        log::debug!("Calling pre-release hook: {:?}", pre_rel_hook);
+        let envs = maplit::btreemap! {
+            OsStr::new("PREV_VERSION") => prev_version_var.as_ref(),
+            OsStr::new("PREV_METADATA") => prev_metadata_var.as_ref(),
+            OsStr::new("NEW_VERSION") => version_var.as_ref(),
+            OsStr::new("NEW_METADATA") => metadata_var.as_ref(),
+            OsStr::new("DRY_RUN") => OsStr::new(if dry_run { "true" } else { "false" }),
+            OsStr::new("CRATE_NAME") => OsStr::new(crate_name),
+            OsStr::new("WORKSPACE_ROOT") => ws_meta.workspace_root.as_os_str(),
+            OsStr::new("CRATE_ROOT") => pkg.manifest_path.parent().unwrap_or_else(|| Path::new(".")).as_os_str(),
+        };
+        // we use dry_run environmental variable to run the script
+        // so here we set dry_run=false and always execute the command.
+        if !cmd::call_with_env(pre_rel_hook, envs, cwd, false)? {
+            log::error!(
+                "Release of {} aborted by non-zero return of prerelease hook.",
+                crate_name
+            );
+            return Err(101.into());
+        }
+    }
+
+    Ok(())
+}
+
+pub fn pkg_commit(pkg: &plan::PackageRelease, dry_run: bool) -> Result<(), ProcessError> {
+    let cwd = &pkg.package_root;
+    let crate_name = pkg.meta.name.as_str();
+    let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
+    let prev_version_var = pkg.initial_version.bare_version_string.as_str();
+    let prev_metadata_var = pkg.initial_version.full_version.build.as_str();
+    let version_var = version.bare_version_string.as_str();
+    let metadata_var = version.full_version.build.as_str();
+    let template = Template {
+        prev_version: Some(prev_version_var),
+        prev_metadata: Some(prev_metadata_var),
+        version: Some(version_var),
+        metadata: Some(metadata_var),
+        crate_name: Some(crate_name),
+        date: Some(NOW.as_str()),
+        ..Default::default()
+    };
+    let commit_msg = template.render(pkg.config.pre_release_commit_message());
+    let sign = pkg.config.sign_commit();
+    if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
+        // commit failed, abort release
+        return Err(101.into());
+    }
+
+    Ok(())
+}
+
+pub fn workspace_commit(
+    ws_meta: &cargo_metadata::Metadata,
+    ws_config: &config::Config,
+    pkgs: &[plan::PackageRelease],
+    dry_run: bool,
+) -> Result<(), ProcessError> {
+    let shared_version = super::find_shared_versions(pkgs)?;
+
+    let shared_commit_msg = {
+        let version_var = shared_version
+            .as_ref()
+            .map(|v| v.bare_version_string.as_str());
+        let metadata_var = shared_version
+            .as_ref()
+            .map(|v| v.full_version.build.as_str());
+        let template = Template {
+            version: version_var,
+            metadata: metadata_var,
+            date: Some(NOW.as_str()),
+            ..Default::default()
+        };
+        template.render(ws_config.pre_release_commit_message())
+    };
+    if !git::commit_all(
+        ws_meta.workspace_root.as_std_path(),
+        &shared_commit_msg,
+        ws_config.sign_commit(),
+        dry_run,
+    )? {
+        // commit failed, abort release
+        return Err(101.into());
+    }
+
+    Ok(())
 }
