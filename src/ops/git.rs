@@ -45,6 +45,33 @@ pub fn is_behind_remote(dir: &Path, remote: &str, branch: &str) -> Result<bool, 
     Ok(behind)
 }
 
+pub fn is_local_unchanged(dir: &Path, remote: &str, branch: &str) -> Result<bool, FatalError> {
+    let repo = git2::Repository::discover(dir)?;
+
+    let branch_id = repo.revparse_single(branch)?.id();
+
+    let remote_branch = format!("{}/{}", remote, branch);
+    let unchanged = match repo.revparse_single(&remote_branch) {
+        Ok(o) => {
+            let remote_branch_id = o.id();
+
+            let base_id = repo.merge_base(remote_branch_id, branch_id)?;
+
+            log::trace!("{}: {}", remote_branch, remote_branch_id);
+            log::trace!("merge base: {}", base_id);
+
+            base_id != branch_id
+        }
+        Err(err) => {
+            log::warn!("Push target `{}` doesn't exist", remote_branch);
+            log::trace!("Error {}", err);
+            false
+        }
+    };
+
+    Ok(unchanged)
+}
+
 pub fn current_branch(dir: &Path) -> Result<String, FatalError> {
     let repo = git2::Repository::discover(dir)?;
 

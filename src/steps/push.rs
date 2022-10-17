@@ -145,7 +145,13 @@ pub fn push(
                 continue;
             }
 
-            shared_refs.insert(branch.as_str());
+            if !git::is_local_unchanged(
+                ws_meta.workspace_root.as_std_path(),
+                git_remote,
+                branch.as_str(),
+            )? {
+                shared_refs.insert(branch.as_str());
+            }
             if let Some(tag_name) = pkg.planned_tag.as_deref() {
                 shared_refs.insert(tag_name);
             }
