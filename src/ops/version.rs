@@ -267,7 +267,6 @@ pub trait VersionExt {
     ///
     /// Errors if this would decrement the pre-release phase.
     fn increment_rc(&mut self) -> Result<(), FatalError>;
-    fn prerelease_id_version(&self) -> Result<Option<(String, Option<u64>)>, FatalError>;
     /// Append informational-only metadata.
     fn metadata(&mut self, metadata: &str) -> Result<(), FatalError>;
     /// Checks to see if the current Version is in pre-release status
@@ -296,23 +295,8 @@ impl VersionExt for semver::Version {
         self.build = semver::BuildMetadata::EMPTY;
     }
 
-    fn prerelease_id_version(&self) -> Result<Option<(String, Option<u64>)>, FatalError> {
-        if !self.pre.is_empty() {
-            if let Some((alpha, numeric)) = self.pre.as_str().split_once('.') {
-                let alpha = alpha.to_owned();
-                let numeric = u64::from_str(numeric)
-                    .map_err(|_| FatalError::UnsupportedPrereleaseVersionScheme)?;
-                Ok(Some((alpha, Some(numeric))))
-            } else {
-                Ok(Some((self.pre.as_str().to_owned(), None)))
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
     fn increment_alpha(&mut self) -> Result<(), FatalError> {
-        if let Some((pre_ext, pre_ext_ver)) = self.prerelease_id_version()? {
+        if let Some((pre_ext, pre_ext_ver)) = prerelease_id_version(self)? {
             if pre_ext == VERSION_BETA || pre_ext == VERSION_RC {
                 Err(FatalError::InvalidReleaseLevel(VERSION_ALPHA.to_owned()))
             } else {
@@ -332,7 +316,7 @@ impl VersionExt for semver::Version {
     }
 
     fn increment_beta(&mut self) -> Result<(), FatalError> {
-        if let Some((pre_ext, pre_ext_ver)) = self.prerelease_id_version()? {
+        if let Some((pre_ext, pre_ext_ver)) = prerelease_id_version(self)? {
             if pre_ext == VERSION_RC {
                 Err(FatalError::InvalidReleaseLevel(VERSION_BETA.to_owned()))
             } else {
@@ -352,7 +336,7 @@ impl VersionExt for semver::Version {
     }
 
     fn increment_rc(&mut self) -> Result<(), FatalError> {
-        if let Some((pre_ext, pre_ext_ver)) = self.prerelease_id_version()? {
+        if let Some((pre_ext, pre_ext_ver)) = prerelease_id_version(self)? {
             let new_ext_ver = if pre_ext == VERSION_RC {
                 pre_ext_ver.unwrap_or(0) + 1
             } else {
@@ -380,6 +364,23 @@ impl VersionExt for semver::Version {
 static VERSION_ALPHA: &str = "alpha";
 static VERSION_BETA: &str = "beta";
 static VERSION_RC: &str = "rc";
+
+fn prerelease_id_version(
+    version: &semver::Version,
+) -> Result<Option<(String, Option<u64>)>, FatalError> {
+    if !version.pre.is_empty() {
+        if let Some((alpha, numeric)) = version.pre.as_str().split_once('.') {
+            let alpha = alpha.to_owned();
+            let numeric = u64::from_str(numeric)
+                .map_err(|_| FatalError::UnsupportedPrereleaseVersionScheme)?;
+            Ok(Some((alpha, Some(numeric))))
+        } else {
+            Ok(Some((version.pre.as_str().to_owned(), None)))
+        }
+    } else {
+        Ok(None)
+    }
+}
 
 pub fn set_requirement(
     req: &semver::VersionReq,
