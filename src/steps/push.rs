@@ -111,7 +111,7 @@ impl PushStep {
         // STEP 1: Release Confirmation
         super::confirm("Push", &pkgs, self.no_confirm, dry_run)?;
 
-        // STEP 7: git push
+        // STEP 6: git push
         push(&ws_config, &ws_meta, &pkgs, dry_run)?;
 
         super::finish(failed, dry_run)
