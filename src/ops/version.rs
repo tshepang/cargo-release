@@ -241,15 +241,36 @@ impl BumpLevel {
     }
 }
 
+/// Additional version functionality
 pub trait VersionExt {
+    /// Increments the major version number for this Version.
     fn increment_major(&mut self);
+    /// Increments the minor version number for this Version.
     fn increment_minor(&mut self);
+    /// Increments the patch version number for this Version.
     fn increment_patch(&mut self);
+    /// Increment the alpha pre-release number for this Version.
+    ///
+    /// If this isn't alpha, switch to it.
+    ///
+    /// Errors if this would decrement the pre-release phase.
     fn increment_alpha(&mut self) -> Result<(), FatalError>;
+    /// Increment the beta pre-release number for this Version.
+    ///
+    /// If this isn't beta, switch to it.
+    ///
+    /// Errors if this would decrement the pre-release phase.
     fn increment_beta(&mut self) -> Result<(), FatalError>;
+    /// Increment the rc pre-release number for this Version.
+    ///
+    /// If this isn't rc, switch to it.
+    ///
+    /// Errors if this would decrement the pre-release phase.
     fn increment_rc(&mut self) -> Result<(), FatalError>;
     fn prerelease_id_version(&self) -> Result<Option<(String, Option<u64>)>, FatalError>;
+    /// Append informational-only metadata.
     fn metadata(&mut self, metadata: &str) -> Result<(), FatalError>;
+    /// Checks to see if the current Version is in pre-release status
     fn is_prerelease(&self) -> bool;
 }
 
@@ -411,13 +432,13 @@ fn set_comparator(
             }
             Ok(pred)
         }
-        semver::Op::Exact => assign_partial_req(version, pred),
+        semver::Op::Exact => Ok(assign_partial_req(version, pred)),
         semver::Op::Greater | semver::Op::GreaterEq | semver::Op::Less | semver::Op::LessEq => {
             let user_pred = pred.to_string();
             Err(FatalError::UnsupportedVersionReq(user_pred))
         }
-        semver::Op::Tilde => assign_partial_req(version, pred),
-        semver::Op::Caret => assign_partial_req(version, pred),
+        semver::Op::Tilde => Ok(assign_partial_req(version, pred)),
+        semver::Op::Caret => Ok(assign_partial_req(version, pred)),
         _ => {
             log::debug!("New predicate added");
             let user_pred = pred.to_string();
@@ -429,7 +450,7 @@ fn set_comparator(
 fn assign_partial_req(
     version: &semver::Version,
     mut pred: semver::Comparator,
-) -> Result<semver::Comparator, FatalError> {
+) -> semver::Comparator {
     pred.major = version.major;
     if pred.minor.is_some() {
         pred.minor = Some(version.minor);
@@ -438,7 +459,7 @@ fn assign_partial_req(
         pred.patch = Some(version.patch);
     }
     pred.pre = version.pre.clone();
-    Ok(pred)
+    pred
 }
 
 #[cfg(test)]
@@ -451,15 +472,15 @@ mod test {
         #[test]
         fn alpha() {
             let mut v = semver::Version::parse("1.0.0").unwrap();
-            let _ = v.increment_alpha();
+            v.increment_alpha().unwrap();
             assert_eq!(v, semver::Version::parse("1.0.1-alpha.1").unwrap());
 
             let mut v2 = semver::Version::parse("1.0.1-dev").unwrap();
-            let _ = v2.increment_alpha();
+            v2.increment_alpha().unwrap();
             assert_eq!(v2, semver::Version::parse("1.0.1-alpha.1").unwrap());
 
             let mut v3 = semver::Version::parse("1.0.1-alpha.1").unwrap();
-            let _ = v3.increment_alpha();
+            v3.increment_alpha().unwrap();
             assert_eq!(v3, semver::Version::parse("1.0.1-alpha.2").unwrap());
 
             let mut v4 = semver::Version::parse("1.0.1-beta.1").unwrap();
@@ -469,19 +490,19 @@ mod test {
         #[test]
         fn beta() {
             let mut v = semver::Version::parse("1.0.0").unwrap();
-            let _ = v.increment_beta();
+            v.increment_beta().unwrap();
             assert_eq!(v, semver::Version::parse("1.0.1-beta.1").unwrap());
 
             let mut v2 = semver::Version::parse("1.0.1-dev").unwrap();
-            let _ = v2.increment_beta();
+            v2.increment_beta().unwrap();
             assert_eq!(v2, semver::Version::parse("1.0.1-beta.1").unwrap());
 
             let mut v2 = semver::Version::parse("1.0.1-alpha.1").unwrap();
-            let _ = v2.increment_beta();
+            v2.increment_beta().unwrap();
             assert_eq!(v2, semver::Version::parse("1.0.1-beta.1").unwrap());
 
             let mut v3 = semver::Version::parse("1.0.1-beta.1").unwrap();
-            let _ = v3.increment_beta();
+            v3.increment_beta().unwrap();
             assert_eq!(v3, semver::Version::parse("1.0.1-beta.2").unwrap());
 
             let mut v4 = semver::Version::parse("1.0.1-rc.1").unwrap();
@@ -491,22 +512,22 @@ mod test {
         #[test]
         fn rc() {
             let mut v = semver::Version::parse("1.0.0").unwrap();
-            let _ = v.increment_rc();
+            v.increment_rc().unwrap();
             assert_eq!(v, semver::Version::parse("1.0.1-rc.1").unwrap());
 
             let mut v2 = semver::Version::parse("1.0.1-dev").unwrap();
-            let _ = v2.increment_rc();
+            v2.increment_rc().unwrap();
             assert_eq!(v2, semver::Version::parse("1.0.1-rc.1").unwrap());
 
             let mut v3 = semver::Version::parse("1.0.1-rc.1").unwrap();
-            let _ = v3.increment_rc();
+            v3.increment_rc().unwrap();
             assert_eq!(v3, semver::Version::parse("1.0.1-rc.2").unwrap());
         }
 
         #[test]
         fn metadata() {
             let mut v = semver::Version::parse("1.0.0").unwrap();
-            let _ = v.metadata("git.123456");
+            v.metadata("git.123456").unwrap();
             assert_eq!(v, semver::Version::parse("1.0.0+git.123456").unwrap());
         }
     }
@@ -514,6 +535,7 @@ mod test {
     mod set_requirement {
         use super::*;
 
+        #[track_caller]
         fn assert_req_bump<'a, O: Into<Option<&'a str>>>(version: &str, req: &str, expected: O) {
             let version = semver::Version::parse(version).unwrap();
             let req = semver::VersionReq::parse(req).unwrap();
