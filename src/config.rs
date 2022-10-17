@@ -449,7 +449,22 @@ pub fn load_workspace_config(
     };
 
     if !args.isolated {
-        let cfg = resolve_workspace_config(ws_meta.workspace_root.as_std_path())?;
+        let is_workspace = 1 < ws_meta.workspace_members.len();
+        let cfg = if is_workspace {
+            resolve_workspace_config(ws_meta.workspace_root.as_std_path())?
+        } else {
+            // Outside of workspaces, go ahead and treat package config as workspace config so
+            // users don't have to specially configure workspace-specific fields
+            let pkg = ws_meta
+                .packages
+                .iter()
+                .find(|p| ws_meta.workspace_members.iter().any(|m| *m == p.id))
+                .unwrap();
+            resolve_config(
+                ws_meta.workspace_root.as_std_path(),
+                pkg.manifest_path.as_std_path(),
+            )?
+        };
         release_config.update(&cfg);
     }
 
@@ -470,8 +485,9 @@ pub fn load_package_config(
 ) -> Result<Config, FatalError> {
     let manifest_path = pkg.manifest_path.as_std_path();
 
+    let is_workspace = 1 < ws_meta.workspace_members.len();
     let mut release_config = Config {
-        is_workspace: 1 < ws_meta.workspace_members.len(),
+        is_workspace,
         ..Default::default()
     };
 
