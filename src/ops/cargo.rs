@@ -293,11 +293,6 @@ pub fn update_lock(manifest_path: &Path) -> Result<(), FatalError> {
     Ok(())
 }
 
-pub fn parse_cargo_manifest(manifest_path: &Path) -> Result<toml_edit::easy::Value, FatalError> {
-    let cargo_file_content = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
-    cargo_file_content.parse().map_err(FatalError::from)
-}
-
 pub fn sort_workspace(ws_meta: &cargo_metadata::Metadata) -> Vec<&cargo_metadata::PackageId> {
     let members: std::collections::HashSet<_> = ws_meta.workspace_members.iter().collect();
     let dep_tree: std::collections::HashMap<_, _> = ws_meta
@@ -386,15 +381,6 @@ mod test {
     #[allow(unused_imports)] // Not being detected
     use assert_fs::prelude::*;
     use predicates::prelude::*;
-
-    mod parse_cargo_manifest {
-        use super::*;
-
-        #[test]
-        fn doesnt_panic() {
-            parse_cargo_manifest(Path::new("Cargo.toml")).unwrap();
-        }
-    }
 
     mod set_package_version {
         use super::*;
