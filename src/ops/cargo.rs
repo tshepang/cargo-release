@@ -293,7 +293,7 @@ pub fn update_lock(manifest_path: &Path) -> Result<(), FatalError> {
     Ok(())
 }
 
-pub fn parse_cargo_config(manifest_path: &Path) -> Result<toml_edit::easy::Value, FatalError> {
+pub fn parse_cargo_manifest(manifest_path: &Path) -> Result<toml_edit::easy::Value, FatalError> {
     let cargo_file_content = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
     cargo_file_content.parse().map_err(FatalError::from)
 }
@@ -387,12 +387,12 @@ mod test {
     use assert_fs::prelude::*;
     use predicates::prelude::*;
 
-    mod parse_cargo_config {
+    mod parse_cargo_manifest {
         use super::*;
 
         #[test]
         fn doesnt_panic() {
-            parse_cargo_config(Path::new("Cargo.toml")).unwrap();
+            parse_cargo_manifest(Path::new("Cargo.toml")).unwrap();
         }
     }
 

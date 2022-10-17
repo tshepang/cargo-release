@@ -468,7 +468,7 @@ pub fn load_package_config(
     release_config.update(&args.to_config());
 
     // the publish flag in cargo file
-    let cargo_file = cargo::parse_cargo_config(manifest_path)?;
+    let cargo_file = cargo::parse_cargo_manifest(manifest_path)?;
     if !cargo_file
         .get("package")
         .and_then(|f| f.as_table())
