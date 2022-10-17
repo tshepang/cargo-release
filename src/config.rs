@@ -403,6 +403,8 @@ impl CargoWorkspace {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 struct CargoPackage {
+    publish: Option<bool>,
+    version: Option<MaybeWorkspace<String>>,
     metadata: Option<CargoMetadata>,
 }
 
@@ -410,6 +412,18 @@ impl CargoPackage {
     fn into_config(self) -> Option<Config> {
         self.metadata?.release
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum MaybeWorkspace<T> {
+    Workspace(TomlWorkspaceField),
+    Defined(T),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TomlWorkspaceField {
+    workspace: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -468,16 +482,28 @@ pub fn load_package_config(
     release_config.update(&args.to_config());
 
     // the publish flag in cargo file
-    let cargo_file = cargo::parse_cargo_config(manifest_path)?;
-    if !cargo_file
-        .get("package")
-        .and_then(|f| f.as_table())
-        .and_then(|f| f.get("publish"))
-        .and_then(|f| f.as_bool())
+    let manifest = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
+    let manifest: CargoManifest = toml_edit::easy::from_str(&manifest).map_err(FatalError::from)?;
+    if !manifest
+        .package
+        .as_ref()
+        .and_then(|p| p.publish)
         .unwrap_or(true)
     {
         release_config.release = Some(false);
         release_config.publish = Some(false);
+    }
+    if manifest
+        .package
+        .as_ref()
+        .and_then(|p| p.version.as_ref())
+        .and_then(|v| match v {
+            MaybeWorkspace::Defined(_) => None,
+            MaybeWorkspace::Workspace(workspace) => Some(workspace.workspace),
+        })
+        .unwrap_or(false)
+    {
+        release_config.shared_version = Some(SharedVersion::Name("workspace".to_owned()));
     }
 
     Ok(release_config)
