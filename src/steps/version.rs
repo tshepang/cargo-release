@@ -35,7 +35,7 @@ pub struct VersionStep {
 
     /// Either bump by LEVEL or set the VERSION for all selected packages
     #[arg(value_name = "LEVEL|VERSION", help_heading = "Version")]
-    level_or_version: crate::ops::version::TargetVersion,
+    level_or_version: super::TargetVersion,
 
     /// Semver metadata
     #[arg(short, long, help_heading = "Version")]
@@ -241,7 +241,7 @@ pub fn changed_since<'m>(
 
 pub fn update_dependent_versions(
     pkg: &plan::PackageRelease,
-    version: &crate::ops::version::Version,
+    version: &plan::Version,
     dry_run: bool,
 ) -> Result<(), FatalError> {
     let new_version_string = version.bare_version_string.as_str();

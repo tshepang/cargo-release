@@ -7,7 +7,7 @@ use crate::error::FatalError;
 use crate::ops::cargo;
 use crate::ops::git;
 use crate::ops::replace::Template;
-use crate::ops::version;
+use crate::ops::version::VersionExt as _;
 
 pub fn load(
     args: &config::ConfigArgs,
@@ -26,8 +26,7 @@ pub fn load(
 pub fn plan(
     mut pkgs: indexmap::IndexMap<cargo_metadata::PackageId, PackageRelease>,
 ) -> Result<indexmap::IndexMap<cargo_metadata::PackageId, PackageRelease>, error::FatalError> {
-    let mut shared_versions: std::collections::HashMap<String, version::Version> =
-        Default::default();
+    let mut shared_versions: std::collections::HashMap<String, Version> = Default::default();
     for pkg in pkgs.values() {
         let group_name = if let Some(group_name) = pkg.config.shared_version() {
             group_name.to_owned()
@@ -81,11 +80,11 @@ pub struct PackageRelease {
     pub dependents: Vec<Dependency>,
     pub features: cargo::Features,
 
-    pub initial_version: version::Version,
+    pub initial_version: Version,
     pub initial_tag: String,
     pub prior_tag: Option<String>,
 
-    pub planned_version: Option<version::Version>,
+    pub planned_version: Option<Version>,
     pub planned_tag: Option<String>,
 }
 
@@ -118,7 +117,7 @@ impl PackageRelease {
             .collect();
 
         let is_root = git_root == package_root;
-        let initial_version = version::Version::from(pkg_meta.version.clone());
+        let initial_version = Version::from(pkg_meta.version.clone());
         let tag_name = config.tag_name();
         let tag_prefix = config.tag_prefix(is_root);
         let name = pkg_meta.name.as_str();
@@ -163,7 +162,7 @@ impl PackageRelease {
 
     pub fn bump(
         &mut self,
-        level_or_version: &version::TargetVersion,
+        level_or_version: &super::TargetVersion,
         metadata: Option<&str>,
     ) -> Result<(), FatalError> {
         self.planned_version =
@@ -227,8 +226,8 @@ fn render_tag(
     tag_name: &str,
     tag_prefix: &str,
     name: &str,
-    prev: &version::Version,
-    base: &version::Version,
+    prev: &Version,
+    base: &Version,
 ) -> String {
     let initial_version_var = prev.bare_version_string.as_str();
     let existing_metadata_var = prev.full_version.build.as_str();
@@ -286,4 +285,33 @@ fn find_dependents<'w>(
 pub struct Dependency {
     pub pkg: cargo_metadata::Package,
     pub req: semver::VersionReq,
+}
+
+#[derive(Debug, Clone)]
+pub struct Version {
+    pub full_version: semver::Version,
+    pub full_version_string: String,
+    pub bare_version: semver::Version,
+    pub bare_version_string: String,
+}
+
+impl Version {
+    pub fn is_prerelease(&self) -> bool {
+        self.full_version.is_prerelease()
+    }
+}
+
+impl From<semver::Version> for Version {
+    fn from(full_version: semver::Version) -> Self {
+        let full_version_string = full_version.to_string();
+        let mut bare_version = full_version.clone();
+        bare_version.build = semver::BuildMetadata::EMPTY;
+        let bare_version_string = bare_version.to_string();
+        Self {
+            full_version,
+            full_version_string,
+            bare_version,
+            bare_version_string,
+        }
+    }
 }

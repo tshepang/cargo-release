@@ -8,7 +8,6 @@ use crate::ops::cargo;
 use crate::ops::cmd;
 use crate::ops::git;
 use crate::ops::replace::{do_file_replacements, Template, NOW};
-use crate::ops::version;
 use crate::steps::plan;
 
 #[derive(Debug, Clone, clap::Args)]
@@ -25,7 +24,7 @@ pub struct ReleaseStep {
 
     /// Either bump by LEVEL or set the VERSION for all selected packages
     #[arg(value_name = "LEVEL|VERSION")]
-    level_or_version: Option<version::TargetVersion>,
+    level_or_version: Option<super::TargetVersion>,
 
     /// Semver metadata
     #[arg(short, long, requires = "level_or_version")]
