@@ -391,6 +391,7 @@ struct CargoManifest {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 struct CargoWorkspace {
+    package: Option<CargoWorkspacePackage>,
     metadata: Option<CargoMetadata>,
 }
 
@@ -402,8 +403,14 @@ impl CargoWorkspace {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
-struct CargoPackage {
+struct CargoWorkspacePackage {
     publish: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+struct CargoPackage {
+    publish: Option<MaybeWorkspace<bool>>,
     version: Option<MaybeWorkspace<String>>,
     metadata: Option<CargoMetadata>,
 }
@@ -798,7 +805,7 @@ pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Con
 }
 
 pub fn resolve_overrides(
-    _workspace_root: &Path,
+    workspace_root: &Path,
     manifest_path: &Path,
 ) -> Result<Config, FatalError> {
     let mut release_config = Config::default();
@@ -807,7 +814,27 @@ pub fn resolve_overrides(
     let manifest = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
     let manifest: CargoManifest = toml_edit::easy::from_str(&manifest).map_err(FatalError::from)?;
     if let Some(package) = manifest.package.as_ref() {
-        if !package.publish.unwrap_or(true) {
+        let publish = match package.publish.as_ref() {
+            Some(MaybeWorkspace::Defined(publish)) => *publish,
+            Some(MaybeWorkspace::Workspace(workspace)) => {
+                if workspace.workspace {
+                    let workspace = workspace_root.join("Cargo.toml");
+                    let workspace = std::fs::read_to_string(workspace).map_err(FatalError::from)?;
+                    let workspace: CargoManifest =
+                        toml_edit::easy::from_str(&workspace).map_err(FatalError::from)?;
+                    workspace
+                        .workspace
+                        .as_ref()
+                        .and_then(|w| w.package.as_ref())
+                        .and_then(|p| p.publish)
+                        .unwrap_or(true)
+                } else {
+                    true
+                }
+            }
+            None => true,
+        };
+        if !publish {
             release_config.release = Some(false);
             release_config.publish = Some(false);
         }
