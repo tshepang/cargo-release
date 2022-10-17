@@ -26,26 +26,38 @@ pub fn load(
 pub fn plan(
     mut pkgs: indexmap::IndexMap<cargo_metadata::PackageId, PackageRelease>,
 ) -> Result<indexmap::IndexMap<cargo_metadata::PackageId, PackageRelease>, error::FatalError> {
-    let mut shared_max: Option<version::Version> = None;
-    let mut shared_ids = indexmap::IndexSet::new();
-    for (pkg_id, pkg) in pkgs.iter() {
-        if pkg.config.shared_version() {
-            shared_ids.insert(pkg_id.clone());
-            let planned = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
-            if shared_max
-                .as_ref()
-                .map(|max| max.full_version < planned.full_version)
-                .unwrap_or(true)
-            {
-                shared_max = Some(planned.clone());
+    let mut shared_versions: std::collections::HashMap<String, version::Version> =
+        Default::default();
+    for pkg in pkgs.values() {
+        let group_name = if let Some(group_name) = pkg.config.shared_version() {
+            group_name.to_owned()
+        } else {
+            continue;
+        };
+        let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
+        match shared_versions.entry(group_name) {
+            std::collections::hash_map::Entry::Occupied(mut existing) => {
+                if existing.get().full_version < version.full_version {
+                    existing.insert(version.clone());
+                }
+            }
+            std::collections::hash_map::Entry::Vacant(vacant) => {
+                vacant.insert(version.clone());
             }
         }
     }
-    if let Some(shared_max) = shared_max {
-        for shared_id in shared_ids {
-            let shared_pkg = &mut pkgs[&shared_id];
-            if shared_pkg.initial_version.bare_version != shared_max.bare_version {
-                shared_pkg.planned_version = Some(shared_max.clone());
+    if !shared_versions.is_empty() {
+        for pkg in pkgs.values_mut() {
+            let group_name = if let Some(group_name) = pkg.config.shared_version() {
+                group_name
+            } else {
+                continue;
+            };
+            let shared_max = shared_versions.get(group_name).unwrap();
+            if pkg.initial_version.bare_version != shared_max.bare_version {
+                pkg.planned_version = Some(shared_max.clone());
+            } else {
+                pkg.planned_version = None;
             }
         }
     }

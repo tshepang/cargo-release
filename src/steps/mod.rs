@@ -312,23 +312,29 @@ pub fn find_shared_versions(
     pkgs: &[plan::PackageRelease],
 ) -> Result<Option<crate::ops::version::Version>, crate::error::ProcessError> {
     let mut is_shared = true;
-    let mut shared_version: Option<crate::ops::version::Version> = None;
+    let mut shared_versions: std::collections::HashMap<&str, &crate::ops::version::Version> =
+        Default::default();
     for pkg in pkgs {
-        if let Some(version) = pkg.planned_version.as_ref() {
-            if pkg.config.shared_version() && pkg.planned_version.is_some() {
-                if let Some(shared_version) = shared_version.as_ref() {
-                    if shared_version.bare_version != version.bare_version {
-                        is_shared = false;
-                        log::error!(
-                            "{} has version {}, should be {}",
-                            pkg.meta.name,
-                            version.bare_version,
-                            shared_version.bare_version_string
-                        );
-                    }
-                } else {
-                    shared_version = Some(version.clone());
+        let group_name = if let Some(group_name) = pkg.config.shared_version() {
+            group_name
+        } else {
+            continue;
+        };
+        let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
+        match shared_versions.entry(group_name) {
+            std::collections::hash_map::Entry::Occupied(existing) => {
+                if version.bare_version != existing.get().bare_version {
+                    is_shared = false;
+                    log::error!(
+                        "{} has version {}, should be {}",
+                        pkg.meta.name,
+                        version.bare_version_string,
+                        existing.get().bare_version_string
+                    );
                 }
+            }
+            std::collections::hash_map::Entry::Vacant(vacant) => {
+                vacant.insert(version);
             }
         }
     }
@@ -337,7 +343,11 @@ pub fn find_shared_versions(
         return Err(101.into());
     }
 
-    Ok(shared_version)
+    if shared_versions.len() == 1 {
+        Ok(shared_versions.values().next().map(|s| (*s).clone()))
+    } else {
+        Ok(None)
+    }
 }
 
 pub fn confirm(
