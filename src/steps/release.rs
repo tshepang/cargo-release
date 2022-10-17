@@ -7,7 +7,7 @@ use crate::error::ProcessError;
 use crate::ops::cargo;
 use crate::ops::cmd;
 use crate::ops::git;
-use crate::ops::replace::{do_file_replacements, Template, NOW};
+use crate::ops::replace::{Template, NOW};
 use crate::steps::plan;
 
 #[derive(Debug, Clone, clap::Args)]
@@ -256,36 +256,14 @@ impl ReleaseStep {
                 }
             }
 
+            super::replace::replace(pkg, dry_run)?;
+
+            // pre-release hook
             let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
             let prev_version_var = pkg.initial_version.bare_version_string.as_str();
             let prev_metadata_var = pkg.initial_version.full_version.build.as_str();
             let version_var = version.bare_version_string.as_str();
             let metadata_var = version.full_version.build.as_str();
-            if !pkg.config.pre_release_replacements().is_empty() {
-                // try replacing text in configured files
-                let template = Template {
-                    prev_version: Some(prev_version_var),
-                    prev_metadata: Some(prev_metadata_var),
-                    version: Some(version_var),
-                    metadata: Some(metadata_var),
-                    crate_name: Some(crate_name),
-                    date: Some(NOW.as_str()),
-                    tag_name: pkg.planned_tag.as_deref(),
-                    ..Default::default()
-                };
-                let prerelease = version.is_prerelease();
-                let noisy = false;
-                do_file_replacements(
-                    pkg.config.pre_release_replacements(),
-                    &template,
-                    cwd,
-                    prerelease,
-                    noisy,
-                    dry_run,
-                )?;
-            }
-
-            // pre-release hook
             if let Some(pre_rel_hook) = pkg.config.pre_release_hook() {
                 let template = Template {
                     prev_version: Some(prev_version_var),
