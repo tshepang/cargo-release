@@ -372,6 +372,8 @@ pub enum SharedVersion {
 }
 
 impl SharedVersion {
+    pub const WORKSPACE: &str = "workspace";
+
     pub fn as_name(&self) -> Option<&str> {
         match self {
             SharedVersion::Enabled(true) => Some("default"),
@@ -830,7 +832,8 @@ pub fn resolve_overrides(
             })
             .unwrap_or(false)
         {
-            release_config.shared_version = Some(SharedVersion::Name("workspace".to_owned()));
+            release_config.shared_version =
+                Some(SharedVersion::Name(SharedVersion::WORKSPACE.to_owned()));
             // We can't isolate commits because by changing the version in one crate, we change it in all
             release_config.consolidate_commits = Some(true);
         }
