@@ -806,26 +806,22 @@ pub fn resolve_overrides(
     // the publish flag in cargo file
     let manifest = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
     let manifest: CargoManifest = toml_edit::easy::from_str(&manifest).map_err(FatalError::from)?;
-    if !manifest
-        .package
-        .as_ref()
-        .and_then(|p| p.publish)
-        .unwrap_or(true)
-    {
-        release_config.release = Some(false);
-        release_config.publish = Some(false);
-    }
-    if manifest
-        .package
-        .as_ref()
-        .and_then(|p| p.version.as_ref())
-        .and_then(|v| match v {
-            MaybeWorkspace::Defined(_) => None,
-            MaybeWorkspace::Workspace(workspace) => Some(workspace.workspace),
-        })
-        .unwrap_or(false)
-    {
-        release_config.shared_version = Some(SharedVersion::Name("workspace".to_owned()));
+    if let Some(package) = manifest.package.as_ref() {
+        if !package.publish.unwrap_or(true) {
+            release_config.release = Some(false);
+            release_config.publish = Some(false);
+        }
+        if package
+            .version
+            .as_ref()
+            .and_then(|v| match v {
+                MaybeWorkspace::Defined(_) => None,
+                MaybeWorkspace::Workspace(workspace) => Some(workspace.workspace),
+            })
+            .unwrap_or(false)
+        {
+            release_config.shared_version = Some(SharedVersion::Name("workspace".to_owned()));
+        }
     }
 
     Ok(release_config)
