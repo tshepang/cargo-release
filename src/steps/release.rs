@@ -19,6 +19,10 @@ pub struct ReleaseStep {
     #[command(flatten)]
     workspace: clap_cargo::Workspace,
 
+    /// Process all packages whose current version is unpublished
+    #[arg(long, conflicts_with = "level_or_version")]
+    unpublished: bool,
+
     /// Either bump by LEVEL or set the VERSION for all selected packages
     #[arg(value_name = "LEVEL|VERSION")]
     level_or_version: Option<version::TargetVersion>,
@@ -77,10 +81,23 @@ impl ReleaseStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
+
+            let crate_name = pkg.meta.name.as_str();
+            // Still respect `--exclude`
+            if !self.workspace.exclude.contains(&excluded_pkg.name) {
+                let version = &pkg.initial_version;
+                if !cargo::is_published(&index, crate_name, &version.full_version_string) {
+                    log::debug!(
+                        "Enabled {}, v{} is unpublished",
+                        crate_name,
+                        version.full_version_string
+                    );
+                }
+            }
+
             pkg.config.release = Some(false);
             pkg.planned_version = None;
 
-            let crate_name = pkg.meta.name.as_str();
             if let Some(prior_tag_name) = &pkg.prior_tag {
                 if let Some((changed, lock_changed)) =
                     crate::steps::version::changed_since(&ws_meta, pkg, prior_tag_name)
