@@ -21,8 +21,6 @@ pub struct Config {
     pub verify: Option<bool>,
     pub push: Option<bool>,
     pub push_options: Option<Vec<String>>,
-    pub dev_version_ext: Option<String>,
-    pub dev_version: Option<bool>,
     pub shared_version: Option<bool>,
     pub consolidate_commits: Option<bool>,
     pub pre_release_commit_message: Option<String>,
@@ -69,8 +67,6 @@ impl Config {
                     .map(|s| s.to_owned())
                     .collect::<Vec<String>>(),
             ),
-            dev_version_ext: Some(empty.dev_version_ext().to_owned()),
-            dev_version: Some(empty.dev_version()),
             shared_version: Some(empty.shared_version()),
             consolidate_commits: Some(empty.consolidate_commits()),
             pre_release_commit_message: Some(empty.pre_release_commit_message().to_owned()),
@@ -119,12 +115,6 @@ impl Config {
         }
         if let Some(push_options) = source.push_options.as_deref() {
             self.push_options = Some(push_options.to_owned());
-        }
-        if let Some(dev_version_ext) = source.dev_version_ext.as_deref() {
-            self.dev_version_ext = Some(dev_version_ext.to_owned());
-        }
-        if let Some(dev_version) = source.dev_version {
-            self.dev_version = Some(dev_version);
         }
         if let Some(shared_version) = source.shared_version {
             self.shared_version = Some(shared_version);
@@ -217,14 +207,6 @@ impl Config {
             .as_ref()
             .into_iter()
             .flat_map(|v| v.iter().map(|s| s.as_str()))
-    }
-
-    pub fn dev_version_ext(&self) -> &str {
-        self.dev_version_ext.as_deref().unwrap_or("alpha.0")
-    }
-
-    pub fn dev_version(&self) -> bool {
-        self.dev_version.unwrap_or(false)
     }
 
     pub fn shared_version(&self) -> bool {
@@ -507,16 +489,6 @@ pub struct ConfigArgs {
     #[arg(long, value_enum)]
     pub dependent_version: Option<crate::config::DependentVersion>,
 
-    /// Pre-release identifier(s) to append to the next development version after release
-    #[arg(long)]
-    pub dev_version_ext: Option<String>,
-
-    /// Create dev version after release
-    #[arg(long, overrides_with("no_dev_version"))]
-    pub dev_version: bool,
-    #[arg(long, overrides_with("dev_version"), hide(true))]
-    pub no_dev_version: bool,
-
     /// Comma-separated globs of branch names a release can happen from
     #[arg(long, value_delimiter = ',')]
     pub allow_branch: Option<Vec<String>>,
@@ -538,8 +510,6 @@ impl ConfigArgs {
             sign_commit: resolve_bool_arg(self.sign_commit, self.no_sign_commit)
                 .or_else(|| self.sign()),
             sign_tag: self.sign(),
-            dev_version_ext: self.dev_version_ext.clone(),
-            dev_version: resolve_bool_arg(self.dev_version, self.no_dev_version),
             dependent_version: self.dependent_version,
             ..Default::default()
         };

@@ -232,11 +232,6 @@ pub fn changed_since<'m>(
                 since_ref,
                 crate_name
             );
-        } else if pkg.config.dev_version() {
-            log::debug!(
-                "Ignoring lock file change since {}; could be a pre-release version bump.",
-                since_ref
-            );
         } else {
             lock_changed = true;
         }

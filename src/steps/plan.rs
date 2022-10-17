@@ -8,7 +8,6 @@ use crate::ops::cargo;
 use crate::ops::git;
 use crate::ops::replace::Template;
 use crate::ops::version;
-use crate::ops::version::VersionExt as _;
 
 pub fn load(
     args: &config::ConfigArgs,
@@ -76,7 +75,6 @@ pub struct PackageRelease {
 
     pub planned_version: Option<version::Version>,
     pub planned_tag: Option<String>,
-    pub post_version: Option<version::Version>,
 }
 
 impl PackageRelease {
@@ -125,7 +123,6 @@ impl PackageRelease {
 
         let planned_version = None;
         let planned_tag = None;
-        let post_version = None;
 
         let pkg = PackageRelease {
             meta: pkg_meta.clone(),
@@ -145,7 +142,6 @@ impl PackageRelease {
 
             planned_version,
             planned_tag,
-            post_version,
         };
         Ok(Some(pkg))
     }
@@ -210,19 +206,7 @@ impl PackageRelease {
             None
         };
 
-        let is_pre_release = base.is_prerelease();
-        let post_version = if !is_pre_release && self.config.dev_version() {
-            let mut post = base.full_version.clone();
-            post.increment_patch();
-            post.pre = semver::Prerelease::new(self.config.dev_version_ext())?;
-
-            Some(version::Version::from(post))
-        } else {
-            None
-        };
-
         self.planned_tag = tag;
-        self.post_version = post_version;
 
         Ok(())
     }
