@@ -382,8 +382,9 @@ fn prerelease_id_version(
     }
 }
 
-pub fn set_requirement(
-    req: &semver::VersionReq,
+/// Upgrade an existing requirement to a new version
+pub fn upgrade_requirement(
+    req: &str,
     version: &semver::Version,
 ) -> Result<Option<String>, FatalError> {
     let req_text = req.to_string();
@@ -400,7 +401,10 @@ pub fn set_requirement(
             .collect();
         let comparators = comparators?;
         let new_req = semver::VersionReq { comparators };
-        let new_req_text = new_req.to_string();
+        let mut new_req_text = new_req.to_string();
+        if new_req_text.starts_with('^') && !req.starts_with('^') {
+            new_req_text.remove(0);
+        }
         // Validate contract
         #[cfg(debug_assert)]
         {
@@ -533,14 +537,13 @@ mod test {
         }
     }
 
-    mod set_requirement {
+    mod upgrade_requirement {
         use super::*;
 
         #[track_caller]
         fn assert_req_bump<'a, O: Into<Option<&'a str>>>(version: &str, req: &str, expected: O) {
             let version = semver::Version::parse(version).unwrap();
-            let req = semver::VersionReq::parse(req).unwrap();
-            let actual = set_requirement(&req, &version).unwrap();
+            let actual = upgrade_requirement(req, &version).unwrap();
             let expected = expected.into();
             assert_eq!(actual.as_deref(), expected);
         }
@@ -573,7 +576,7 @@ mod test {
             assert_req_bump("1.1.0", "1", None);
             assert_req_bump("1.1.0", "^1", None);
 
-            assert_req_bump("2.0.0", "1", "^2");
+            assert_req_bump("2.0.0", "1", "2");
             assert_req_bump("2.0.0", "^1", "^2");
         }
 
@@ -582,13 +585,13 @@ mod test {
             assert_req_bump("1.0.0", "1.0", None);
             assert_req_bump("1.0.0", "^1.0", None);
 
-            assert_req_bump("1.1.0", "1.0", "^1.1");
+            assert_req_bump("1.1.0", "1.0", "1.1");
             assert_req_bump("1.1.0", "^1.0", "^1.1");
 
-            assert_req_bump("1.1.1", "1.0", "^1.1");
+            assert_req_bump("1.1.1", "1.0", "1.1");
             assert_req_bump("1.1.1", "^1.0", "^1.1");
 
-            assert_req_bump("2.0.0", "1.0", "^2.0");
+            assert_req_bump("2.0.0", "1.0", "2.0");
             assert_req_bump("2.0.0", "^1.0", "^2.0");
         }
 
@@ -597,13 +600,13 @@ mod test {
             assert_req_bump("1.0.0", "1.0.0", None);
             assert_req_bump("1.0.0", "^1.0.0", None);
 
-            assert_req_bump("1.1.0", "1.0.0", "^1.1.0");
+            assert_req_bump("1.1.0", "1.0.0", "1.1.0");
             assert_req_bump("1.1.0", "^1.0.0", "^1.1.0");
 
-            assert_req_bump("1.1.1", "1.0.0", "^1.1.1");
+            assert_req_bump("1.1.1", "1.0.0", "1.1.1");
             assert_req_bump("1.1.1", "^1.0.0", "^1.1.1");
 
-            assert_req_bump("2.0.0", "1.0.0", "^2.0.0");
+            assert_req_bump("2.0.0", "1.0.0", "2.0.0");
             assert_req_bump("2.0.0", "^1.0.0", "^2.0.0");
         }
 

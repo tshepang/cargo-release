@@ -274,8 +274,10 @@ pub fn update_dependent_versions(
             }
             config::DependentVersion::Fix => {
                 if !dep.req.matches(&version.bare_version) {
-                    let new_req =
-                        crate::ops::version::set_requirement(&dep.req, &version.bare_version)?;
+                    let new_req = crate::ops::version::upgrade_requirement(
+                        &dep.req.to_string(),
+                        &version.bare_version,
+                    )?;
                     if let Some(new_req) = new_req {
                         log::info!(
                             "Fixing {}'s dependency on {} to `{}` (from `{}`)",
@@ -294,8 +296,10 @@ pub fn update_dependent_versions(
                 }
             }
             config::DependentVersion::Upgrade => {
-                let new_req =
-                    crate::ops::version::set_requirement(&dep.req, &version.bare_version)?;
+                let new_req = crate::ops::version::upgrade_requirement(
+                    &dep.req.to_string(),
+                    &version.bare_version,
+                )?;
                 if let Some(new_req) = new_req {
                     log::info!(
                         "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
