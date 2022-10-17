@@ -21,7 +21,7 @@ pub struct Config {
     pub verify: Option<bool>,
     pub push: Option<bool>,
     pub push_options: Option<Vec<String>>,
-    pub shared_version: Option<bool>,
+    pub shared_version: Option<SharedVersion>,
     pub consolidate_commits: Option<bool>,
     pub pre_release_commit_message: Option<String>,
     pub post_release_commit_message: Option<String>,
@@ -67,7 +67,9 @@ impl Config {
                     .map(|s| s.to_owned())
                     .collect::<Vec<String>>(),
             ),
-            shared_version: Some(empty.shared_version()),
+            shared_version: empty
+                .shared_version()
+                .map(|s| SharedVersion::Name(s.to_owned())),
             consolidate_commits: Some(empty.consolidate_commits()),
             pre_release_commit_message: Some(empty.pre_release_commit_message().to_owned()),
             post_release_commit_message: Some(empty.post_release_commit_message().to_owned()),
@@ -116,7 +118,7 @@ impl Config {
         if let Some(push_options) = source.push_options.as_deref() {
             self.push_options = Some(push_options.to_owned());
         }
-        if let Some(shared_version) = source.shared_version {
+        if let Some(shared_version) = source.shared_version.clone() {
             self.shared_version = Some(shared_version);
         }
         if let Some(consolidate_commits) = source.consolidate_commits {
@@ -209,8 +211,8 @@ impl Config {
             .flat_map(|v| v.iter().map(|s| s.as_str()))
     }
 
-    pub fn shared_version(&self) -> bool {
-        self.shared_version.unwrap_or(false)
+    pub fn shared_version(&self) -> Option<&str> {
+        self.shared_version.as_ref().and_then(|s| s.as_name())
     }
 
     pub fn consolidate_commits(&self) -> bool {
@@ -358,6 +360,24 @@ impl Default for DependentVersion {
     fn default() -> Self {
         // This is the safest option as its hard to test `Fix`
         DependentVersion::Upgrade
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+#[serde(rename_all = "kebab-case")]
+pub enum SharedVersion {
+    Enabled(bool),
+    Name(String),
+}
+
+impl SharedVersion {
+    pub fn as_name(&self) -> Option<&str> {
+        match self {
+            SharedVersion::Enabled(true) => Some("default"),
+            SharedVersion::Enabled(false) => None,
+            SharedVersion::Name(name) => Some(name.as_str()),
+        }
     }
 }
 
