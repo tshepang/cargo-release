@@ -63,12 +63,11 @@ impl ReplaceStep {
 
         let pkgs = plan::plan(pkgs)?;
 
-        let pkgs: Vec<_> = pkgs
+        let (selected_pkgs, _excluded_pkgs): (Vec<_>, Vec<_>) = pkgs
             .into_iter()
             .map(|(_, pkg)| pkg)
-            .filter(|p| p.config.release())
-            .collect();
-        if pkgs.is_empty() {
+            .partition(|p| p.config.release());
+        if selected_pkgs.is_empty() {
             log::info!("No packages selected.");
             return Err(2.into());
         }
@@ -83,7 +82,7 @@ impl ReplaceStep {
             log::Level::Warn,
         )?;
 
-        super::warn_changed(&ws_meta, &pkgs)?;
+        super::warn_changed(&ws_meta, &selected_pkgs)?;
 
         failed |= !super::verify_git_branch(
             ws_meta.workspace_root.as_std_path(),
@@ -100,10 +99,10 @@ impl ReplaceStep {
         )?;
 
         // STEP 1: Release Confirmation
-        super::confirm("Bump", &pkgs, self.no_confirm, dry_run)?;
+        super::confirm("Bump", &selected_pkgs, self.no_confirm, dry_run)?;
 
         // STEP 2: update current version, save and commit
-        for pkg in &pkgs {
+        for pkg in &selected_pkgs {
             let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
             if !pkg.config.pre_release_replacements().is_empty() {
                 let cwd = &pkg.package_root;

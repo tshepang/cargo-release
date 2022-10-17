@@ -160,12 +160,11 @@ impl ReleaseStep {
             }
         }
 
-        let pkgs: Vec<_> = pkgs
+        let (selected_pkgs, _excluded_pkgs): (Vec<_>, Vec<_>) = pkgs
             .into_iter()
             .map(|(_, pkg)| pkg)
-            .filter(|p| p.config.release())
-            .collect();
-        if pkgs.is_empty() {
+            .partition(|p| p.config.release());
+        if selected_pkgs.is_empty() {
             log::info!("No packages selected.");
             return Err(2.into());
         }
@@ -180,12 +179,13 @@ impl ReleaseStep {
             log::Level::Error,
         )?;
 
-        failed |= !super::verify_tags_missing(&pkgs, dry_run, log::Level::Error)?;
+        failed |= !super::verify_tags_missing(&selected_pkgs, dry_run, log::Level::Error)?;
 
-        failed |= !super::verify_monotonically_increasing(&pkgs, dry_run, log::Level::Error)?;
+        failed |=
+            !super::verify_monotonically_increasing(&selected_pkgs, dry_run, log::Level::Error)?;
 
         let mut double_publish = false;
-        for pkg in &pkgs {
+        for pkg in &selected_pkgs {
             if !pkg.config.publish() {
                 continue;
             }
@@ -209,7 +209,7 @@ impl ReleaseStep {
             }
         }
 
-        super::warn_changed(&ws_meta, &pkgs)?;
+        super::warn_changed(&ws_meta, &selected_pkgs)?;
 
         failed |= !super::verify_git_branch(
             ws_meta.workspace_root.as_std_path(),
@@ -225,16 +225,16 @@ impl ReleaseStep {
             log::Level::Warn,
         )?;
 
-        failed |= !super::verify_rate_limit(&pkgs, &index, dry_run, log::Level::Error)?;
+        failed |= !super::verify_rate_limit(&selected_pkgs, &index, dry_run, log::Level::Error)?;
 
-        let shared_version = super::find_shared_versions(&pkgs)?;
+        let shared_version = super::find_shared_versions(&selected_pkgs)?;
 
         // STEP 1: Release Confirmation
-        super::confirm("Release", &pkgs, self.no_confirm, dry_run)?;
+        super::confirm("Release", &selected_pkgs, self.no_confirm, dry_run)?;
 
         // STEP 2: update current version, save and commit
         let mut shared_commit = false;
-        for pkg in &pkgs {
+        for pkg in &selected_pkgs {
             let cwd = &pkg.package_root;
             let crate_name = pkg.meta.name.as_str();
 
@@ -372,13 +372,13 @@ impl ReleaseStep {
         }
 
         // STEP 3: cargo publish
-        super::publish::publish(&ws_meta, &pkgs, &mut index, dry_run)?;
+        super::publish::publish(&ws_meta, &selected_pkgs, &mut index, dry_run)?;
 
         // STEP 5: Tag
-        super::tag::tag(&pkgs, dry_run)?;
+        super::tag::tag(&selected_pkgs, dry_run)?;
 
         // STEP 6: git push
-        super::push::push(&ws_config, &ws_meta, &pkgs, dry_run)?;
+        super::push::push(&ws_config, &ws_meta, &selected_pkgs, dry_run)?;
 
         super::finish(failed, dry_run)
     }

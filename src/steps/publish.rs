@@ -88,12 +88,11 @@ impl PublishStep {
             }
         }
 
-        let pkgs: Vec<_> = pkgs
+        let (selected_pkgs, _excluded_pkgs): (Vec<_>, Vec<_>) = pkgs
             .into_iter()
             .map(|(_, pkg)| pkg)
-            .filter(|p| p.config.release())
-            .collect();
-        if pkgs.is_empty() {
+            .partition(|p| p.config.release());
+        if selected_pkgs.is_empty() {
             log::info!("No packages selected.");
             return Err(2.into());
         }
@@ -122,13 +121,13 @@ impl PublishStep {
             log::Level::Warn,
         )?;
 
-        failed |= !super::verify_rate_limit(&pkgs, &index, dry_run, log::Level::Error)?;
+        failed |= !super::verify_rate_limit(&selected_pkgs, &index, dry_run, log::Level::Error)?;
 
         // STEP 1: Release Confirmation
-        super::confirm("Publish", &pkgs, self.no_confirm, dry_run)?;
+        super::confirm("Publish", &selected_pkgs, self.no_confirm, dry_run)?;
 
         // STEP 3: cargo publish
-        publish(&ws_meta, &pkgs, &mut index, dry_run)?;
+        publish(&ws_meta, &selected_pkgs, &mut index, dry_run)?;
 
         super::finish(failed, dry_run)
     }
