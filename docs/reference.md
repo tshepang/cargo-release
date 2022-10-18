@@ -2,16 +2,95 @@
 
 ## CLI Arguments
 
-| Argument        | Format | Description |
-|-----------------|--------|-------------|
-| `--execute`     | bool   | Actually perform the release |
-| `--no-confirm`  | bool   | Release the crate without the user verifying what will happen. |
-| `--isolated`    | bool   | Do not search for config files |
-| `--config`      | string | Load a config file from disk |
-| `<LEVEL>`       | string | Bump specified version field. |
-| `--metadata`    | string | Populate the metadata field in the version. |
-| `--token`       | string | Token to use when running `cargo publish` |
-| `--verbose`     | bool   | Show more detailed context, useful for debugging |
+```console
+$ cargo-release release -h
+Cargo subcommand for you to smooth your release process.
+
+Usage: cargo release [OPTIONS] [LEVEL|VERSION]
+       cargo release <STEP>
+
+Arguments:
+  [LEVEL|VERSION]  Either bump by LEVEL or set the VERSION for all selected packages [possible
+                   values: major, minor, patch, release, rc, beta, alpha]
+
+Options:
+      --manifest-path <PATH>
+          Path to Cargo.toml
+  -p, --package <SPEC>
+          Package to process (see `cargo help pkgid`)
+      --workspace
+          Process all packages in the workspace
+      --exclude <SPEC>
+          Exclude packages from being processed
+      --unpublished
+          Process all packages whose current version is unpublished
+  -m, --metadata <METADATA>
+          Semver metadata
+  -c, --config <CUSTOM_CONFIG>
+          Custom config file
+      --isolated
+          Ignore implicit configuration files
+      --sign
+          Sign both git commit and tag
+      --sign-commit
+          Sign git commit
+      --dependent-version <DEPENDENT_VERSION>
+          Specify how workspace dependencies on this crate should be handed [possible values:
+          upgrade, fix]
+      --allow-branch <ALLOW_BRANCH>
+          Comma-separated globs of branch names a release can happen from
+      --no-publish
+          Do not run cargo publish on release
+      --registry <REGISTRY>
+          Cargo registry to upload to
+      --no-verify
+          Don't verify the contents by building them
+      --features <FEATURES>
+          Provide a set of features that need to be enabled
+      --all-features
+          Enable all features via `all-features`. Overrides `features`
+      --target <TARGET>
+          Build for the target triple
+      --no-tag
+          Do not create git tag
+      --sign-tag
+          Sign git tag
+      --tag-prefix <TAG_PREFIX>
+          Prefix of git tag, note that this will override default prefix based on sub-directory
+      --tag-name <TAG_NAME>
+          The name of the git tag
+      --no-push
+          Do not run git push in the last step
+      --push-remote <PUSH_REMOTE>
+          Git remote to push
+  -x, --execute
+          Actually perform a release. Dry-run mode is the default
+      --no-confirm
+          Skip release confirmation and version preview
+      --prev-tag-name <PREV_TAG_NAME>
+          The name of tag for the previous release
+  -q, --quiet...
+          Pass many times for less log output
+  -v, --verbose...
+          Pass many times for more log output
+  -h, --help
+          Print help information (use `--help` for more detail)
+  -V, --version
+          Print version information
+
+Steps:
+  version  Bump crate versions
+  replace  Perform pre-release replacements
+  hook     Run pre-release hooks
+  publish  Publish the specified packages
+  tag      Tag the released commits
+  push     Push tags/commits to remote
+  config   Dump workspace configuration
+  help     Print this message or the help of the given subcommand(s)
+
+(release steps broken out for custom behavior and/or recovering from failures)
+
+```
 
 ### Bump level
 
