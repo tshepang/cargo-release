@@ -199,9 +199,8 @@ pub fn set_dependency_version(
     }
 
     let manifest = manifest.to_string();
-
-    if dry_run {
-        if manifest != original_manifest {
+    if manifest != original_manifest {
+        if dry_run {
             let display_path = manifest_path.display().to_string();
             let old_lines: Vec<_> = original_manifest
                 .lines()
@@ -218,9 +217,9 @@ pub fn set_dependency_version(
                 0,
             );
             log::debug!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+        } else {
+            atomic_write(manifest_path, &manifest)?;
         }
-    } else {
-        atomic_write(manifest_path, &manifest)?;
     }
 
     Ok(())
