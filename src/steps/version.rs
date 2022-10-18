@@ -290,7 +290,7 @@ pub fn update_versions(
                     dry_run,
                 )?;
             }
-            update_dependent_versions(&ws_meta, pkg, version, dry_run)?;
+            update_dependent_versions(ws_meta, pkg, version, dry_run)?;
             changed = true;
         }
     }
