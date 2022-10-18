@@ -1,0 +1,3 @@
+[WARN ] Push target `origin/master` doesn't exist
+[INFO ] Upgrading cargo-list-test-fixture-dependency from 0.4.3 to 0.4.5
+[INFO ] Updating cargo-list-test-fixture's dependency from 0.4.3 to 0.4.5
