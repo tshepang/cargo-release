@@ -250,18 +250,20 @@ impl ReleaseStep {
                         &ws_meta, pkg, version, dry_run,
                     )?;
                 }
+            }
+            log::debug!("Updating lock file");
+            if !dry_run {
+                let workspace_path = ws_meta.workspace_root.as_std_path().join("Cargo.toml");
+                crate::ops::cargo::update_lock(&workspace_path)?;
+            }
 
+            for pkg in &selected_pkgs {
                 super::replace::replace(pkg, dry_run)?;
 
                 // pre-release hook
                 hook(&ws_meta, pkg, dry_run)?;
             }
 
-            log::debug!("Updating lock file");
-            if !dry_run {
-                let workspace_path = ws_meta.workspace_root.as_std_path().join("Cargo.toml");
-                crate::ops::cargo::update_lock(&workspace_path)?;
-            }
             workspace_commit(&ws_meta, &ws_config, &selected_pkgs, dry_run)?;
         } else {
             for pkg in &selected_pkgs {
