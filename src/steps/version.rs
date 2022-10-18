@@ -248,34 +248,8 @@ pub fn update_dependent_versions(
     version: &plan::Version,
     dry_run: bool,
 ) -> Result<(), FatalError> {
-    let new_version_string = version.bare_version_string.as_str();
-    let mut dependents_failed = false;
     for dep in pkg.dependents.iter() {
         match pkg.config.dependent_version() {
-            config::DependentVersion::Ignore => (),
-            config::DependentVersion::Warn => {
-                if !dep.req.matches(&version.bare_version) {
-                    log::warn!(
-                        "{}'s dependency on {} `{}` is incompatible with {}",
-                        dep.pkg.name,
-                        pkg.meta.name,
-                        dep.req,
-                        new_version_string
-                    );
-                }
-            }
-            config::DependentVersion::Error => {
-                if !dep.req.matches(&version.bare_version) {
-                    log::warn!(
-                        "{}'s dependency on {} `{}` is incompatible with {}",
-                        dep.pkg.name,
-                        pkg.meta.name,
-                        dep.req,
-                        new_version_string
-                    );
-                    dependents_failed = true;
-                }
-            }
             config::DependentVersion::Fix => {
                 if !dep.req.matches(&version.bare_version) {
                     let new_req = crate::ops::version::upgrade_requirement(
@@ -322,9 +296,6 @@ pub fn update_dependent_versions(
             }
         }
     }
-    if dependents_failed {
-        Err(FatalError::DependencyVersionConflict)
-    } else {
-        Ok(())
-    }
+
+    Ok(())
 }

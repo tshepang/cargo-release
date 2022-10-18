@@ -348,12 +348,6 @@ pub enum DependentVersion {
     Upgrade,
     /// Upgrade when the old version requirement no longer applies
     Fix,
-    /// Error when the old version requirement no longer applies
-    Error,
-    /// Warn when the old version requirement no longer applies
-    Warn,
-    /// Do nothing
-    Ignore,
 }
 
 impl Default for DependentVersion {
