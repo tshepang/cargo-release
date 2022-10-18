@@ -192,10 +192,16 @@ pub fn set_dependency_version(
     let original_manifest = std::fs::read_to_string(manifest_path)?;
     let mut manifest: toml_edit::Document = original_manifest.parse().map_err(FatalError::from)?;
 
-    for deps_table in find_dependency_tables(manifest.as_table_mut()) {
-        if let Some(dep_item) = deps_table.get_mut(name) {
-            set_version(dep_item, name, version);
-        }
+    for dep_item in find_dependency_tables(manifest.as_table_mut()).flat_map(|t| {
+        t.iter_mut().filter_map(|(n, d)| {
+            if n == name {
+                d.as_table_like_mut()
+            } else {
+                None
+            }
+        })
+    }) {
+        set_version(dep_item, name, version);
     }
 
     let manifest = manifest.to_string();
@@ -255,22 +261,17 @@ fn find_dependency_tables(
     })
 }
 
-fn set_version(dep_item: &mut toml_edit::Item, name: &str, mut version: &str) -> bool {
-    if let Some(table_like) = dep_item.as_table_like_mut() {
-        if let Some(version_value) = table_like.get_mut("version") {
-            // Preserve the presence or lack of an explicit caret.
-            if version.starts_with('^') && !version_item_uses_caret(version_value) {
-                version = &version[1..];
-            }
-
-            *version_value = toml_edit::value(version);
-            true
-        } else {
-            log::debug!("Not updating path-only dependency on {}", name);
-            false
+fn set_version(dep_item: &mut dyn toml_edit::TableLike, name: &str, mut version: &str) -> bool {
+    if let Some(version_value) = dep_item.get_mut("version") {
+        // Preserve the presence or lack of an explicit caret.
+        if version.starts_with('^') && !version_item_uses_caret(version_value) {
+            version = &version[1..];
         }
+
+        *version_value = toml_edit::value(version);
+        true
     } else {
-        log::debug!("Not updating version-only dependency on {}", name);
+        log::debug!("Not updating path-only dependency on {}", name);
         false
     }
 }
