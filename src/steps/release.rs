@@ -233,7 +233,8 @@ impl ReleaseStep {
 
         // STEP 2: update current version, save and commit
         if consolidate_commits {
-            let update_lock = super::version::update_versions(&ws_meta, &selected_pkgs, dry_run)?;
+            let update_lock =
+                super::version::update_versions(&ws_meta, &selected_pkgs, &excluded_pkgs, dry_run)?;
             if update_lock {
                 log::debug!("Updating lock file");
                 if !dry_run {

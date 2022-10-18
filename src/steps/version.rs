@@ -118,7 +118,7 @@ impl VersionStep {
 
         let pkgs = plan::plan(pkgs)?;
 
-        let (selected_pkgs, _excluded_pkgs): (Vec<_>, Vec<_>) = pkgs
+        let (selected_pkgs, excluded_pkgs): (Vec<_>, Vec<_>) = pkgs
             .into_iter()
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
@@ -157,7 +157,7 @@ impl VersionStep {
         super::confirm("Bump", &selected_pkgs, self.no_confirm, dry_run)?;
 
         // STEP 2: update current version, save and commit
-        let update_lock = update_versions(&ws_meta, &selected_pkgs, dry_run)?;
+        let update_lock = update_versions(&ws_meta, &selected_pkgs, &excluded_pkgs, dry_run)?;
         if update_lock {
             log::debug!("Updating lock file");
             if !dry_run {
@@ -228,22 +228,68 @@ pub fn changed_since<'m>(
 pub fn update_versions(
     ws_meta: &cargo_metadata::Metadata,
     selected_pkgs: &[plan::PackageRelease],
+    excluded_pkgs: &[plan::PackageRelease],
     dry_run: bool,
 ) -> Result<bool, FatalError> {
     let mut changed = false;
-    for pkg in selected_pkgs {
-        if let Some(version) = pkg.planned_version.as_ref() {
-            let crate_name = pkg.meta.name.as_str();
-            log::info!(
-                "Update {} to version {}",
-                crate_name,
-                version.full_version_string
-            );
-            crate::ops::cargo::set_package_version(
-                &pkg.manifest_path,
-                version.full_version_string.as_str(),
-                dry_run,
-            )?;
+
+    let workspace_version = selected_pkgs
+        .iter()
+        .filter(|p| p.config.shared_version() == Some(crate::config::SharedVersion::WORKSPACE))
+        .find_map(|p| p.planned_version.clone());
+
+    if let Some(workspace_version) = &workspace_version {
+        log::info!(
+            "Update workspace to version {}",
+            workspace_version.full_version_string
+        );
+        let workspace_path = ws_meta.workspace_root.as_std_path().join("Cargo.toml");
+        crate::ops::cargo::set_workspace_version(
+            &workspace_path,
+            workspace_version.full_version_string.as_str(),
+            dry_run,
+        )?;
+        // Deferring `update_dependent_versions` to the per-package logic
+        changed = true;
+    }
+
+    for (selected, pkg) in selected_pkgs
+        .iter()
+        .map(|s| (true, s))
+        .chain(excluded_pkgs.iter().map(|s| (false, s)))
+    {
+        let is_inherited =
+            pkg.config.shared_version() == Some(crate::config::SharedVersion::WORKSPACE);
+        let planned_version = if is_inherited {
+            workspace_version.as_ref()
+        } else if let Some(version) = pkg.planned_version.as_ref() {
+            assert!(selected);
+            Some(version)
+        } else {
+            None
+        };
+
+        if let Some(version) = planned_version {
+            if is_inherited {
+                let crate_name = pkg.meta.name.as_str();
+                log::info!(
+                    "Update {} to version {} (inherited from workspace)",
+                    crate_name,
+                    version.full_version_string
+                );
+            } else {
+                let crate_name = pkg.meta.name.as_str();
+                log::info!(
+                    "Update {} to version {}",
+                    crate_name,
+                    version.full_version_string
+                );
+                crate::ops::cargo::set_package_version(
+                    &pkg.manifest_path,
+                    version.full_version_string.as_str(),
+                    dry_run,
+                )?;
+            }
             update_dependent_versions(&ws_meta, pkg, version, dry_run)?;
             changed = true;
         }

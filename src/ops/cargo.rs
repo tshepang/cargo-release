@@ -148,6 +148,42 @@ pub fn is_published(index: &crates_index::Index, name: &str, version: &str) -> b
         .any(|v| v.version() == version)
 }
 
+pub fn set_workspace_version(
+    manifest_path: &Path,
+    version: &str,
+    dry_run: bool,
+) -> Result<(), FatalError> {
+    let original_manifest = std::fs::read_to_string(manifest_path)?;
+    let mut manifest: toml_edit::Document = original_manifest.parse().map_err(FatalError::from)?;
+    manifest["workspace"]["package"]["version"] = toml_edit::value(version);
+    let manifest = manifest.to_string();
+
+    if dry_run {
+        if manifest != original_manifest {
+            let display_path = manifest_path.display().to_string();
+            let old_lines: Vec<_> = original_manifest
+                .lines()
+                .map(|s| format!("{}\n", s))
+                .collect();
+            let new_lines: Vec<_> = manifest.lines().map(|s| format!("{}\n", s)).collect();
+            let diff = difflib::unified_diff(
+                &old_lines,
+                &new_lines,
+                display_path.as_str(),
+                display_path.as_str(),
+                "original",
+                "updated",
+                0,
+            );
+            log::debug!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+        }
+    } else {
+        atomic_write(manifest_path, &manifest)?;
+    }
+
+    Ok(())
+}
+
 pub fn set_package_version(
     manifest_path: &Path,
     version: &str,
