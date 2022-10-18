@@ -32,8 +32,14 @@ pub fn get_logging(level: log::Level) -> env_logger::Builder {
     let mut builder = env_logger::Builder::new();
 
     builder.filter(None, level.to_level_filter());
+    builder.format_module_path(false);
 
-    builder.format_timestamp_secs().format_module_path(false);
+    if level == log::LevelFilter::Trace || level == log::LevelFilter::Debug {
+        builder.format_timestamp_secs();
+    } else {
+        builder.format_target(false);
+        builder.format_timestamp(None);
+    }
 
     builder
 }
