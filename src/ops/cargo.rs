@@ -379,11 +379,10 @@ fn upgrade_req(
     };
 
     log::info!(
-        "Updating {}'s dependency on {} to `{}` (from `{}`)",
+        "Updating {}'s dependency from {} to {}",
         manifest_name,
-        name,
+        existing_req_str,
         new_req,
-        existing_req_str
     );
     *version_value = toml_edit::value(new_req);
     true
