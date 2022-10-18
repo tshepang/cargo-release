@@ -248,6 +248,26 @@ pub fn update_dependent_versions(
     version: &plan::Version,
     dry_run: bool,
 ) -> Result<(), FatalError> {
+    // This is redundant with iterating over `workspace_members`
+    // - As `find_dependency_tables` returns workspace dependencies
+    // - If there is a root package
+    //
+    // But split this out for
+    // - Virtual manifests
+    // - Nicer message to the user
+    {
+        let workspace_path = ws_meta.workspace_root.as_std_path().join("Cargo.toml");
+        crate::ops::cargo::upgrade_dependency_req(
+            "workspace",
+            &workspace_path,
+            &pkg.package_root,
+            &pkg.meta.name,
+            &version.full_version,
+            pkg.config.dependent_version(),
+            dry_run,
+        )?;
+    }
+
     for dep in find_ws_members(ws_meta) {
         crate::ops::cargo::upgrade_dependency_req(
             &dep.name,

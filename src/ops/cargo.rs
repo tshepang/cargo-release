@@ -241,6 +241,18 @@ fn find_dependency_tables(
     root.iter_mut().flat_map(|(k, v)| {
         if DEP_TABLES.contains(&k.get()) {
             v.as_table_like_mut().into_iter().collect::<Vec<_>>()
+        } else if k == "workspace" {
+            v.as_table_like_mut()
+                .unwrap()
+                .iter_mut()
+                .filter_map(|(k, v)| {
+                    if k.get() == "dependencies" {
+                        v.as_table_like_mut()
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
         } else if k == "target" {
             v.as_table_like_mut()
                 .unwrap()
