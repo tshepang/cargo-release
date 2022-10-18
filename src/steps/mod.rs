@@ -354,6 +354,23 @@ pub fn find_shared_versions(
     }
 }
 
+pub fn consolidate_commits(
+    selected_pkgs: &[plan::PackageRelease],
+    excluded_pkgs: &[plan::PackageRelease],
+) -> Result<bool, crate::error::ProcessError> {
+    let mut consolidate_commits = None;
+    for pkg in selected_pkgs.iter().chain(excluded_pkgs.iter()) {
+        let current = Some(pkg.config.consolidate_commits());
+        if consolidate_commits.is_none() {
+            consolidate_commits = current;
+        } else if consolidate_commits != current {
+            log::error!("Inconsistent `consolidate-commits` setting");
+            return Err(101.into());
+        }
+    }
+    Ok(consolidate_commits.expect("at least one package"))
+}
+
 pub fn confirm(
     step: &str,
     pkgs: &[plan::PackageRelease],
