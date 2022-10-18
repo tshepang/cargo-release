@@ -20,11 +20,15 @@ Features
 
 Current release: 0.21.4
 
-`cargo install cargo-release`
+```console,ignore
+$ cargo install cargo-release
+```
 
 ## Usage
 
-`cargo release [level]`
+```console,ignore
+$ cargo release [level]
+```
 
 * See the [reference](docs/reference.md) for more on `level`, other CLI
   arguments, and configuration file format.
