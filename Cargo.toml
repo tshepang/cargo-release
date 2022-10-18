@@ -53,6 +53,7 @@ clap-cargo = { version = "0.10.0", features = ["cargo_metadata"] }
 log = "0.4"
 env_logger = "0.9"
 globset = { version = "0.4.9", default-features = false }
+dunce = "1.0.3"
 
 [dev-dependencies]
 assert_fs = "1.0"

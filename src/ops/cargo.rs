@@ -185,25 +185,25 @@ pub fn set_package_version(
 }
 
 pub fn upgrade_dependency_req(
+    manifest_name: &str,
     manifest_path: &Path,
+    root: &Path,
     name: &str,
     version: &semver::Version,
     upgrade: config::DependentVersion,
     dry_run: bool,
 ) -> Result<(), FatalError> {
+    let manifest_root = manifest_path
+        .parent()
+        .expect("always at least a parent dir");
     let original_manifest = std::fs::read_to_string(manifest_path)?;
     let mut manifest: toml_edit::Document = original_manifest.parse().map_err(FatalError::from)?;
 
-    for dep_item in find_dependency_tables(manifest.as_table_mut()).flat_map(|t| {
-        t.iter_mut().filter_map(|(n, d)| {
-            if n == name {
-                d.as_table_like_mut()
-            } else {
-                None
-            }
-        })
-    }) {
-        upgrade_req(dep_item, name, version, upgrade);
+    for dep_item in find_dependency_tables(manifest.as_table_mut())
+        .flat_map(|t| t.iter_mut().filter_map(|(_, d)| d.as_table_like_mut()))
+        .filter(|d| is_relevant(*d, manifest_root, root))
+    {
+        upgrade_req(manifest_name, dep_item, name, version, upgrade);
     }
 
     let manifest = manifest.to_string();
@@ -263,7 +263,22 @@ fn find_dependency_tables(
     })
 }
 
+fn is_relevant(d: &dyn toml_edit::TableLike, dep_crate_root: &Path, crate_root: &Path) -> bool {
+    if !d.contains_key("version") {
+        return false;
+    }
+    match d
+        .get("path")
+        .and_then(|i| i.as_str())
+        .and_then(|relpath| dunce::canonicalize(dep_crate_root.join(relpath)).ok())
+    {
+        Some(dep_path) => dep_path == crate_root,
+        None => false,
+    }
+}
+
 fn upgrade_req(
+    manifest_name: &str,
     dep_item: &mut dyn toml_edit::TableLike,
     name: &str,
     version: &semver::Version,
@@ -316,7 +331,8 @@ fn upgrade_req(
     };
 
     log::info!(
-        "Updating dependency {} to `{}` (from `{}`)",
+        "Updating {}'s dependency on {} to `{}` (from `{}`)",
+        manifest_name,
         name,
         new_req,
         existing_req_str
@@ -445,560 +461,6 @@ mod test {
                 .exec()
                 .unwrap();
             assert_eq!(meta.packages[0].version.to_string(), "2.0.0");
-
-            temp.close().unwrap();
-        }
-    }
-
-    mod upgrade_dependency_req {
-        use super::*;
-
-        #[test]
-        fn preserve_table_order() {
-            let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
-            let manifest_path = temp.child("Cargo.toml");
-            manifest_path
-                .write_str(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [dependencies]
-    foo = { version = "1.0", path = "../" }
-
-    [package.metadata.release]
-    "#,
-                )
-                .unwrap();
-
-            let new_version = semver::Version::parse("2.0.0").unwrap();
-            upgrade_dependency_req(
-                manifest_path.path(),
-                "foo",
-                &new_version,
-                config::DependentVersion::Upgrade,
-                false,
-            )
-            .unwrap();
-
-            manifest_path.assert(
-                predicate::str::diff(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [dependencies]
-    foo = { version = "2.0", path = "../" }
-
-    [package.metadata.release]
-    "#,
-                )
-                .from_utf8()
-                .from_file_path(),
-            );
-
-            temp.close().unwrap();
-        }
-
-        #[test]
-        fn dependencies() {
-            let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
-            let manifest_path = temp.child("Cargo.toml");
-            manifest_path
-                .write_str(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [build-dependencies]
-
-    [dependencies]
-    foo = { version = "1.0", path = "../" }
-    "#,
-                )
-                .unwrap();
-
-            let new_version = semver::Version::parse("2.0.0").unwrap();
-            upgrade_dependency_req(
-                manifest_path.path(),
-                "foo",
-                &new_version,
-                config::DependentVersion::Upgrade,
-                false,
-            )
-            .unwrap();
-
-            manifest_path.assert(
-                predicate::str::diff(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [build-dependencies]
-
-    [dependencies]
-    foo = { version = "2.0", path = "../" }
-    "#,
-                )
-                .from_utf8()
-                .from_file_path(),
-            );
-
-            temp.close().unwrap();
-        }
-
-        #[test]
-        fn dev_dependencies() {
-            let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
-            let manifest_path = temp.child("Cargo.toml");
-            manifest_path
-                .write_str(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [dependencies]
-
-    [dev-dependencies]
-    foo = { version = "1.0", path = "../" }
-    "#,
-                )
-                .unwrap();
-
-            let new_version = semver::Version::parse("2.0.0").unwrap();
-            upgrade_dependency_req(
-                manifest_path.path(),
-                "foo",
-                &new_version,
-                config::DependentVersion::Upgrade,
-                false,
-            )
-            .unwrap();
-
-            manifest_path.assert(
-                predicate::str::diff(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [dependencies]
-
-    [dev-dependencies]
-    foo = { version = "2.0", path = "../" }
-    "#,
-                )
-                .from_utf8()
-                .from_file_path(),
-            );
-
-            temp.close().unwrap();
-        }
-
-        #[test]
-        fn build_dependencies() {
-            let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
-            let manifest_path = temp.child("Cargo.toml");
-            manifest_path
-                .write_str(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [dev-dependencies]
-
-    [build-dependencies]
-    foo = { version = "1.0", path = "../" }
-    "#,
-                )
-                .unwrap();
-
-            let new_version = semver::Version::parse("2.0.0").unwrap();
-            upgrade_dependency_req(
-                manifest_path.path(),
-                "foo",
-                &new_version,
-                config::DependentVersion::Upgrade,
-                false,
-            )
-            .unwrap();
-
-            manifest_path.assert(
-                predicate::str::diff(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [dev-dependencies]
-
-    [build-dependencies]
-    foo = { version = "2.0", path = "../" }
-    "#,
-                )
-                .from_utf8()
-                .from_file_path(),
-            );
-
-            temp.close().unwrap();
-        }
-
-        #[test]
-        fn all_dependencies() {
-            let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
-            let manifest_path = temp.child("Cargo.toml");
-            manifest_path
-                .write_str(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [dependencies]
-    foo = { version = "1.0", path = "../" }
-
-    [build-dependencies]
-    foo = { version = "1.0", path = "../" }
-
-    [dev-dependencies]
-    foo = { version = "1.0", path = "../" }
-    "#,
-                )
-                .unwrap();
-
-            let new_version = semver::Version::parse("2.0.0").unwrap();
-            upgrade_dependency_req(
-                manifest_path.path(),
-                "foo",
-                &new_version,
-                config::DependentVersion::Upgrade,
-                false,
-            )
-            .unwrap();
-
-            manifest_path.assert(
-                predicate::str::diff(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [dependencies]
-    foo = { version = "2.0", path = "../" }
-
-    [build-dependencies]
-    foo = { version = "2.0", path = "../" }
-
-    [dev-dependencies]
-    foo = { version = "2.0", path = "../" }
-    "#,
-                )
-                .from_utf8()
-                .from_file_path(),
-            );
-
-            temp.close().unwrap();
-        }
-
-        #[test]
-        fn no_path() {
-            let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
-            let manifest_path = temp.child("Cargo.toml");
-            manifest_path
-                .write_str(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [build-dependencies]
-
-    [dependencies]
-    foo = "1.0"
-    "#,
-                )
-                .unwrap();
-
-            let new_version = semver::Version::parse("2.0.0").unwrap();
-            upgrade_dependency_req(
-                manifest_path.path(),
-                "foo",
-                &new_version,
-                config::DependentVersion::Upgrade,
-                false,
-            )
-            .unwrap();
-
-            manifest_path.assert(
-                predicate::str::diff(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [build-dependencies]
-
-    [dependencies]
-    foo = "1.0"
-    "#,
-                )
-                .from_utf8()
-                .from_file_path(),
-            );
-
-            temp.close().unwrap();
-        }
-
-        #[test]
-        fn no_version() {
-            let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
-            let manifest_path = temp.child("Cargo.toml");
-            manifest_path
-                .write_str(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [dependencies]
-    foo = { path = "../" }
-    "#,
-                )
-                .unwrap();
-
-            let new_version = semver::Version::parse("2.0.0").unwrap();
-            upgrade_dependency_req(
-                manifest_path.path(),
-                "foo",
-                &new_version,
-                config::DependentVersion::Upgrade,
-                false,
-            )
-            .unwrap();
-
-            manifest_path.assert(
-                predicate::str::diff(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [dependencies]
-    foo = { path = "../" }
-    "#,
-                )
-                .from_utf8()
-                .from_file_path(),
-            );
-
-            temp.close().unwrap();
-        }
-
-        #[test]
-        fn out_of_line_table() {
-            let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
-            let manifest_path = temp.child("Cargo.toml");
-            manifest_path
-                .write_str(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [build-dependencies]
-
-    [dependencies.foo]
-    version = "1.0"
-    path = "../"
-    "#,
-                )
-                .unwrap();
-
-            let new_version = semver::Version::parse("2.0.0").unwrap();
-            upgrade_dependency_req(
-                manifest_path.path(),
-                "foo",
-                &new_version,
-                config::DependentVersion::Upgrade,
-                false,
-            )
-            .unwrap();
-
-            manifest_path.assert(
-                predicate::str::diff(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [build-dependencies]
-
-    [dependencies.foo]
-    version = "2.0"
-    path = "../"
-    "#,
-                )
-                .from_utf8()
-                .from_file_path(),
-            );
-
-            temp.close().unwrap();
-        }
-
-        /// Updating a dependent version that uses an explicit caret
-        /// should retain an explicit caret.
-        #[test]
-        fn preserve_caret() {
-            let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
-            let manifest_path = temp.child("Cargo.toml");
-            manifest_path
-                .write_str(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [build-dependencies]
-
-    [dependencies]
-    foo = { version = "^1.0", path = "../" }
-    "#,
-                )
-                .unwrap();
-
-            let new_version = semver::Version::parse("1.0.5").unwrap();
-            upgrade_dependency_req(
-                manifest_path.path(),
-                "foo",
-                &new_version,
-                config::DependentVersion::Upgrade,
-                false,
-            )
-            .unwrap();
-
-            manifest_path.assert(
-                predicate::str::diff(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [build-dependencies]
-
-    [dependencies]
-    foo = { version = "^1.0", path = "../" }
-    "#,
-                )
-                .from_utf8()
-                .from_file_path(),
-            );
-
-            temp.close().unwrap();
-        }
-
-        /// Updating a dependent version that does not use an explicit
-        /// caret should elide the caret from the updated version too.
-        #[test]
-        fn elide_caret() {
-            let temp = assert_fs::TempDir::new().unwrap();
-            temp.copy_from("tests/fixtures/simple", &["**"]).unwrap();
-            let manifest_path = temp.child("Cargo.toml");
-            manifest_path
-                .write_str(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [build-dependencies]
-
-    [dependencies]
-    foo = { version = "1.0", path = "../" }
-    "#,
-                )
-                .unwrap();
-
-            let new_version = semver::Version::parse("1.0.0").unwrap();
-            upgrade_dependency_req(
-                manifest_path.path(),
-                "foo",
-                &new_version,
-                config::DependentVersion::Upgrade,
-                false,
-            )
-            .unwrap();
-
-            manifest_path.assert(
-                predicate::str::diff(
-                    r#"
-    [package]
-    name = "t"
-    version = "0.1.0"
-    authors = []
-    edition = "2018"
-
-    [build-dependencies]
-
-    [dependencies]
-    foo = { version = "1.0", path = "../" }
-    "#,
-                )
-                .from_utf8()
-                .from_file_path(),
-            );
 
             temp.close().unwrap();
         }

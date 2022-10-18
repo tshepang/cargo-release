@@ -250,7 +250,9 @@ pub fn update_dependent_versions(
 ) -> Result<(), FatalError> {
     for dep in find_ws_members(ws_meta) {
         crate::ops::cargo::upgrade_dependency_req(
+            &dep.name,
             dep.manifest_path.as_std_path(),
+            &pkg.package_root,
             &pkg.meta.name,
             &version.full_version,
             pkg.config.dependent_version(),
