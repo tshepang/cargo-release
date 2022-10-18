@@ -64,6 +64,7 @@ impl PushStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
+            pkg.config.push = Some(false);
             pkg.config.release = Some(false);
 
             let crate_name = pkg.meta.name.as_str();
@@ -72,12 +73,11 @@ impl PushStep {
 
         let pkgs = plan::plan(pkgs)?;
 
-        let pkgs: Vec<_> = pkgs
+        let (selected_pkgs, _excluded_pkgs): (Vec<_>, Vec<_>) = pkgs
             .into_iter()
             .map(|(_, pkg)| pkg)
-            .filter(|p| p.config.release())
-            .collect();
-        if pkgs.is_empty() {
+            .partition(|p| p.config.release());
+        if selected_pkgs.is_empty() {
             log::info!("No packages selected.");
             return Err(2.into());
         }
@@ -92,7 +92,7 @@ impl PushStep {
             log::Level::Error,
         )?;
 
-        failed |= !super::verify_tags_exist(&pkgs, dry_run, log::Level::Error)?;
+        failed |= !super::verify_tags_exist(&selected_pkgs, dry_run, log::Level::Error)?;
 
         failed |= !super::verify_git_branch(
             ws_meta.workspace_root.as_std_path(),
@@ -109,10 +109,10 @@ impl PushStep {
         )?;
 
         // STEP 1: Release Confirmation
-        super::confirm("Push", &pkgs, self.no_confirm, dry_run)?;
+        super::confirm("Push", &selected_pkgs, self.no_confirm, dry_run)?;
 
         // STEP 6: git push
-        push(&ws_config, &ws_meta, &pkgs, dry_run)?;
+        push(&ws_config, &ws_meta, &selected_pkgs, dry_run)?;
 
         super::finish(failed, dry_run)
     }

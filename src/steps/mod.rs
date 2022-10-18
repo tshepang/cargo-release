@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 pub mod config;
 pub mod plan;
 pub mod publish;
@@ -6,6 +8,9 @@ pub mod release;
 pub mod replace;
 pub mod tag;
 pub mod version;
+
+use crate::error::FatalError;
+use crate::ops::version::VersionExt as _;
 
 pub fn verify_git_is_clean(
     path: &std::path::Path,
@@ -310,10 +315,9 @@ pub fn warn_changed(
 
 pub fn find_shared_versions(
     pkgs: &[plan::PackageRelease],
-) -> Result<Option<crate::ops::version::Version>, crate::error::ProcessError> {
+) -> Result<Option<plan::Version>, crate::error::ProcessError> {
     let mut is_shared = true;
-    let mut shared_versions: std::collections::HashMap<&str, &crate::ops::version::Version> =
-        Default::default();
+    let mut shared_versions: std::collections::HashMap<&str, &plan::Version> = Default::default();
     for pkg in pkgs {
         let group_name = if let Some(group_name) = pkg.config.shared_version() {
             group_name
@@ -348,6 +352,23 @@ pub fn find_shared_versions(
     } else {
         Ok(None)
     }
+}
+
+pub fn consolidate_commits(
+    selected_pkgs: &[plan::PackageRelease],
+    excluded_pkgs: &[plan::PackageRelease],
+) -> Result<bool, crate::error::ProcessError> {
+    let mut consolidate_commits = None;
+    for pkg in selected_pkgs.iter().chain(excluded_pkgs.iter()) {
+        let current = Some(pkg.config.consolidate_commits());
+        if consolidate_commits.is_none() {
+            consolidate_commits = current;
+        } else if consolidate_commits != current {
+            log::error!("Inconsistent `consolidate-commits` setting");
+            return Err(101.into());
+        }
+    }
+    Ok(consolidate_commits.expect("at least one package"))
 }
 
 pub fn confirm(
@@ -400,6 +421,208 @@ pub fn finish(failed: bool, dry_run: bool) -> Result<(), crate::error::ProcessEr
             Ok(())
         }
     } else {
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum TargetVersion {
+    Relative(BumpLevel),
+    Absolute(semver::Version),
+}
+
+impl TargetVersion {
+    pub fn bump(
+        &self,
+        current: &semver::Version,
+        metadata: Option<&str>,
+    ) -> Result<Option<plan::Version>, FatalError> {
+        match self {
+            TargetVersion::Relative(bump_level) => {
+                let mut potential_version = current.to_owned();
+                bump_level.bump_version(&mut potential_version, metadata)?;
+                if potential_version != *current {
+                    let full_version = potential_version;
+                    let version = plan::Version::from(full_version);
+                    Ok(Some(version))
+                } else {
+                    Ok(None)
+                }
+            }
+            TargetVersion::Absolute(version) => {
+                let mut full_version = version.to_owned();
+                if full_version.build.is_empty() {
+                    if let Some(metadata) = metadata {
+                        full_version.build = semver::BuildMetadata::new(metadata)?;
+                    } else {
+                        full_version.build = current.build.clone();
+                    }
+                }
+                let version = plan::Version::from(full_version);
+                if version.bare_version != plan::Version::from(current.clone()).bare_version {
+                    Ok(Some(version))
+                } else {
+                    Ok(None)
+                }
+            }
+        }
+    }
+}
+
+impl Default for TargetVersion {
+    fn default() -> Self {
+        TargetVersion::Relative(BumpLevel::Release)
+    }
+}
+
+impl std::fmt::Display for TargetVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            TargetVersion::Relative(bump_level) => {
+                write!(f, "{}", bump_level)
+            }
+            TargetVersion::Absolute(version) => {
+                write!(f, "{}", version)
+            }
+        }
+    }
+}
+
+impl std::str::FromStr for TargetVersion {
+    type Err = FatalError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(bump_level) = BumpLevel::from_str(s) {
+            Ok(TargetVersion::Relative(bump_level))
+        } else {
+            Ok(TargetVersion::Absolute(semver::Version::parse(s)?))
+        }
+    }
+}
+
+impl clap::builder::ValueParserFactory for TargetVersion {
+    type Parser = TargetVersionParser;
+
+    fn value_parser() -> Self::Parser {
+        TargetVersionParser
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct TargetVersionParser;
+
+impl clap::builder::TypedValueParser for TargetVersionParser {
+    type Value = TargetVersion;
+
+    fn parse_ref(
+        &self,
+        cmd: &clap::Command,
+        arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, clap::Error> {
+        let inner_parser = TargetVersion::from_str;
+        inner_parser.parse_ref(cmd, arg, value)
+    }
+
+    fn possible_values(
+        &self,
+    ) -> Option<Box<dyn Iterator<Item = clap::builder::PossibleValue> + '_>> {
+        let inner_parser = clap::builder::EnumValueParser::<BumpLevel>::new();
+        #[allow(clippy::needless_collect)] // Erasing a lifetime
+        inner_parser.possible_values().map(|ps| {
+            let ps = ps.collect::<Vec<_>>();
+            let ps: Box<dyn Iterator<Item = clap::builder::PossibleValue> + '_> =
+                Box::new(ps.into_iter());
+            ps
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+#[value(rename_all = "kebab-case")]
+pub enum BumpLevel {
+    /// Increase the major version (x.0.0)
+    Major,
+    /// Increase the minor version (x.y.0)
+    Minor,
+    /// Increase the patch version (x.y.z)
+    Patch,
+    /// Remove the pre-version (x.y.z)
+    Release,
+    /// Increase the rc pre-version (x.y.z-rc.M)
+    Rc,
+    /// Increase the beta pre-version (x.y.z-beta.M)
+    Beta,
+    /// Increase the alpha pre-version (x.y.z-alpha.M)
+    Alpha,
+}
+
+impl std::fmt::Display for BumpLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use clap::ValueEnum;
+
+        self.to_possible_value()
+            .expect("no values are skipped")
+            .get_name()
+            .fmt(f)
+    }
+}
+
+impl std::str::FromStr for BumpLevel {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use clap::ValueEnum;
+
+        for variant in Self::value_variants() {
+            if variant.to_possible_value().unwrap().matches(s, false) {
+                return Ok(*variant);
+            }
+        }
+        Err(format!("Invalid variant: {}", s))
+    }
+}
+
+impl BumpLevel {
+    pub fn bump_version(
+        self,
+        version: &mut semver::Version,
+        metadata: Option<&str>,
+    ) -> Result<(), FatalError> {
+        match self {
+            BumpLevel::Major => {
+                version.increment_major();
+            }
+            BumpLevel::Minor => {
+                version.increment_minor();
+            }
+            BumpLevel::Patch => {
+                if !version.is_prerelease() {
+                    version.increment_patch();
+                } else {
+                    version.pre = semver::Prerelease::EMPTY;
+                }
+            }
+            BumpLevel::Release => {
+                if version.is_prerelease() {
+                    version.pre = semver::Prerelease::EMPTY;
+                }
+            }
+            BumpLevel::Rc => {
+                version.increment_rc()?;
+            }
+            BumpLevel::Beta => {
+                version.increment_beta()?;
+            }
+            BumpLevel::Alpha => {
+                version.increment_alpha()?;
+            }
+        };
+
+        if let Some(metadata) = metadata {
+            version.metadata(metadata)?;
+        }
+
         Ok(())
     }
 }

@@ -1,4 +1,3 @@
-use crate::config;
 use crate::error::FatalError;
 use crate::error::ProcessError;
 use crate::ops::git;
@@ -35,7 +34,7 @@ pub struct VersionStep {
 
     /// Either bump by LEVEL or set the VERSION for all selected packages
     #[arg(value_name = "LEVEL|VERSION", help_heading = "Version")]
-    level_or_version: crate::ops::version::TargetVersion,
+    level_or_version: super::TargetVersion,
 
     /// Semver metadata
     #[arg(short, long, help_heading = "Version")]
@@ -78,8 +77,8 @@ impl VersionStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
-            pkg.config.release = Some(false);
             pkg.planned_version = None;
+            pkg.config.release = Some(false);
 
             let crate_name = pkg.meta.name.as_str();
             if let Some(prior_tag_name) = &pkg.prior_tag {
@@ -119,12 +118,11 @@ impl VersionStep {
 
         let pkgs = plan::plan(pkgs)?;
 
-        let pkgs: Vec<_> = pkgs
+        let (selected_pkgs, excluded_pkgs): (Vec<_>, Vec<_>) = pkgs
             .into_iter()
             .map(|(_, pkg)| pkg)
-            .filter(|p| p.config.release())
-            .collect();
-        if pkgs.is_empty() {
+            .partition(|p| p.config.release());
+        if selected_pkgs.is_empty() {
             log::info!("No packages selected.");
             return Err(2.into());
         }
@@ -139,7 +137,7 @@ impl VersionStep {
             log::Level::Warn,
         )?;
 
-        super::warn_changed(&ws_meta, &pkgs)?;
+        super::warn_changed(&ws_meta, &selected_pkgs)?;
 
         failed |= !super::verify_git_branch(
             ws_meta.workspace_root.as_std_path(),
@@ -156,28 +154,15 @@ impl VersionStep {
         )?;
 
         // STEP 1: Release Confirmation
-        super::confirm("Bump", &pkgs, self.no_confirm, dry_run)?;
+        super::confirm("Bump", &selected_pkgs, self.no_confirm, dry_run)?;
 
         // STEP 2: update current version, save and commit
-        for pkg in &pkgs {
-            if let Some(version) = pkg.planned_version.as_ref() {
-                let crate_name = pkg.meta.name.as_str();
-                log::info!(
-                    "Update {} to version {}",
-                    crate_name,
-                    version.full_version_string
-                );
-                crate::ops::cargo::set_package_version(
-                    &pkg.manifest_path,
-                    version.full_version_string.as_str(),
-                    dry_run,
-                )?;
-                update_dependent_versions(pkg, version, dry_run)?;
-                if dry_run {
-                    log::debug!("Updating lock file");
-                } else {
-                    crate::ops::cargo::update_lock(&pkg.manifest_path)?;
-                }
+        let update_lock = update_versions(&ws_meta, &selected_pkgs, &excluded_pkgs, dry_run)?;
+        if update_lock {
+            log::debug!("Updating lock file");
+            if !dry_run {
+                let workspace_path = ws_meta.workspace_root.as_std_path().join("Cargo.toml");
+                crate::ops::cargo::update_lock(&workspace_path)?;
             }
         }
 
@@ -240,84 +225,127 @@ pub fn changed_since<'m>(
     Some((changed, lock_changed))
 }
 
-pub fn update_dependent_versions(
-    pkg: &plan::PackageRelease,
-    version: &crate::ops::version::Version,
+pub fn update_versions(
+    ws_meta: &cargo_metadata::Metadata,
+    selected_pkgs: &[plan::PackageRelease],
+    excluded_pkgs: &[plan::PackageRelease],
     dry_run: bool,
-) -> Result<(), FatalError> {
-    let new_version_string = version.bare_version_string.as_str();
-    let mut dependents_failed = false;
-    for dep in pkg.dependents.iter() {
-        match pkg.config.dependent_version() {
-            config::DependentVersion::Ignore => (),
-            config::DependentVersion::Warn => {
-                if !dep.req.matches(&version.bare_version) {
-                    log::warn!(
-                        "{}'s dependency on {} `{}` is incompatible with {}",
-                        dep.pkg.name,
-                        pkg.meta.name,
-                        dep.req,
-                        new_version_string
-                    );
-                }
+) -> Result<bool, FatalError> {
+    let mut changed = false;
+
+    let workspace_version = selected_pkgs
+        .iter()
+        .filter(|p| p.config.shared_version() == Some(crate::config::SharedVersion::WORKSPACE))
+        .find_map(|p| p.planned_version.clone());
+
+    if let Some(workspace_version) = &workspace_version {
+        log::info!(
+            "Update workspace to version {}",
+            workspace_version.full_version_string
+        );
+        let workspace_path = ws_meta.workspace_root.as_std_path().join("Cargo.toml");
+        crate::ops::cargo::set_workspace_version(
+            &workspace_path,
+            workspace_version.full_version_string.as_str(),
+            dry_run,
+        )?;
+        // Deferring `update_dependent_versions` to the per-package logic
+        changed = true;
+    }
+
+    for (selected, pkg) in selected_pkgs
+        .iter()
+        .map(|s| (true, s))
+        .chain(excluded_pkgs.iter().map(|s| (false, s)))
+    {
+        let is_inherited =
+            pkg.config.shared_version() == Some(crate::config::SharedVersion::WORKSPACE);
+        let planned_version = if is_inherited {
+            workspace_version.as_ref()
+        } else if let Some(version) = pkg.planned_version.as_ref() {
+            assert!(selected);
+            Some(version)
+        } else {
+            None
+        };
+
+        if let Some(version) = planned_version {
+            if is_inherited {
+                let crate_name = pkg.meta.name.as_str();
+                log::info!(
+                    "Update {} to version {} (inherited from workspace)",
+                    crate_name,
+                    version.full_version_string
+                );
+            } else {
+                let crate_name = pkg.meta.name.as_str();
+                log::info!(
+                    "Update {} to version {}",
+                    crate_name,
+                    version.full_version_string
+                );
+                crate::ops::cargo::set_package_version(
+                    &pkg.manifest_path,
+                    version.full_version_string.as_str(),
+                    dry_run,
+                )?;
             }
-            config::DependentVersion::Error => {
-                if !dep.req.matches(&version.bare_version) {
-                    log::warn!(
-                        "{}'s dependency on {} `{}` is incompatible with {}",
-                        dep.pkg.name,
-                        pkg.meta.name,
-                        dep.req,
-                        new_version_string
-                    );
-                    dependents_failed = true;
-                }
-            }
-            config::DependentVersion::Fix => {
-                if !dep.req.matches(&version.bare_version) {
-                    let new_req =
-                        crate::ops::version::set_requirement(&dep.req, &version.bare_version)?;
-                    if let Some(new_req) = new_req {
-                        log::info!(
-                            "Fixing {}'s dependency on {} to `{}` (from `{}`)",
-                            dep.pkg.name,
-                            pkg.meta.name,
-                            new_req,
-                            dep.req
-                        );
-                        crate::ops::cargo::set_dependency_version(
-                            dep.pkg.manifest_path.as_std_path(),
-                            &pkg.meta.name,
-                            &new_req,
-                            dry_run,
-                        )?;
-                    }
-                }
-            }
-            config::DependentVersion::Upgrade => {
-                let new_req =
-                    crate::ops::version::set_requirement(&dep.req, &version.bare_version)?;
-                if let Some(new_req) = new_req {
-                    log::info!(
-                        "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
-                        dep.pkg.name,
-                        pkg.meta.name,
-                        new_req,
-                        dep.req
-                    );
-                    crate::ops::cargo::set_dependency_version(
-                        dep.pkg.manifest_path.as_std_path(),
-                        &pkg.meta.name,
-                        &new_req,
-                        dry_run,
-                    )?;
-                }
-            }
+            update_dependent_versions(ws_meta, pkg, version, dry_run)?;
+            changed = true;
         }
     }
-    if dependents_failed {
-        Err(FatalError::DependencyVersionConflict)
-    } else {
-        Ok(())
+
+    Ok(changed)
+}
+
+pub fn update_dependent_versions(
+    ws_meta: &cargo_metadata::Metadata,
+    pkg: &plan::PackageRelease,
+    version: &plan::Version,
+    dry_run: bool,
+) -> Result<(), FatalError> {
+    // This is redundant with iterating over `workspace_members`
+    // - As `find_dependency_tables` returns workspace dependencies
+    // - If there is a root package
+    //
+    // But split this out for
+    // - Virtual manifests
+    // - Nicer message to the user
+    {
+        let workspace_path = ws_meta.workspace_root.as_std_path().join("Cargo.toml");
+        crate::ops::cargo::upgrade_dependency_req(
+            "workspace",
+            &workspace_path,
+            &pkg.package_root,
+            &pkg.meta.name,
+            &version.full_version,
+            pkg.config.dependent_version(),
+            dry_run,
+        )?;
     }
+
+    for dep in find_ws_members(ws_meta) {
+        crate::ops::cargo::upgrade_dependency_req(
+            &dep.name,
+            dep.manifest_path.as_std_path(),
+            &pkg.package_root,
+            &pkg.meta.name,
+            &version.full_version,
+            pkg.config.dependent_version(),
+            dry_run,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn find_ws_members(
+    ws_meta: &cargo_metadata::Metadata,
+) -> impl Iterator<Item = &cargo_metadata::Package> {
+    let workspace_members: std::collections::HashSet<_> =
+        ws_meta.workspace_members.iter().collect();
+    ws_meta
+        .packages
+        .iter()
+        .filter(move |p| workspace_members.contains(&p.id))
 }

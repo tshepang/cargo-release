@@ -57,18 +57,17 @@ impl ReplaceStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
+            pkg.config.pre_release_replacements = Some(vec![]);
             pkg.config.release = Some(false);
-            pkg.planned_version = None;
         }
 
         let pkgs = plan::plan(pkgs)?;
 
-        let pkgs: Vec<_> = pkgs
+        let (selected_pkgs, _excluded_pkgs): (Vec<_>, Vec<_>) = pkgs
             .into_iter()
             .map(|(_, pkg)| pkg)
-            .filter(|p| p.config.release())
-            .collect();
-        if pkgs.is_empty() {
+            .partition(|p| p.config.release());
+        if selected_pkgs.is_empty() {
             log::info!("No packages selected.");
             return Err(2.into());
         }
@@ -83,7 +82,7 @@ impl ReplaceStep {
             log::Level::Warn,
         )?;
 
-        super::warn_changed(&ws_meta, &pkgs)?;
+        super::warn_changed(&ws_meta, &selected_pkgs)?;
 
         failed |= !super::verify_git_branch(
             ws_meta.workspace_root.as_std_path(),
@@ -100,40 +99,11 @@ impl ReplaceStep {
         )?;
 
         // STEP 1: Release Confirmation
-        super::confirm("Bump", &pkgs, self.no_confirm, dry_run)?;
+        super::confirm("Bump", &selected_pkgs, self.no_confirm, dry_run)?;
 
         // STEP 2: update current version, save and commit
-        for pkg in &pkgs {
-            let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
-            if !pkg.config.pre_release_replacements().is_empty() {
-                let cwd = &pkg.package_root;
-                let crate_name = pkg.meta.name.as_str();
-                let prev_version_var = pkg.initial_version.bare_version_string.as_str();
-                let prev_metadata_var = pkg.initial_version.full_version.build.as_str();
-                let version_var = version.bare_version_string.as_str();
-                let metadata_var = version.full_version.build.as_str();
-                // try replacing text in configured files
-                let template = Template {
-                    prev_version: Some(prev_version_var),
-                    prev_metadata: Some(prev_metadata_var),
-                    version: Some(version_var),
-                    metadata: Some(metadata_var),
-                    crate_name: Some(crate_name),
-                    date: Some(NOW.as_str()),
-                    tag_name: pkg.planned_tag.as_deref(),
-                    ..Default::default()
-                };
-                let prerelease = version.is_prerelease();
-                let noisy = true;
-                do_file_replacements(
-                    pkg.config.pre_release_replacements(),
-                    &template,
-                    cwd,
-                    prerelease,
-                    noisy,
-                    dry_run,
-                )?;
-            }
+        for pkg in &selected_pkgs {
+            replace(pkg, dry_run)?;
         }
 
         super::finish(failed, dry_run)
@@ -147,4 +117,39 @@ impl ReplaceStep {
             ..Default::default()
         }
     }
+}
+
+pub fn replace(pkg: &plan::PackageRelease, dry_run: bool) -> Result<(), ProcessError> {
+    let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
+    if !pkg.config.pre_release_replacements().is_empty() {
+        let cwd = &pkg.package_root;
+        let crate_name = pkg.meta.name.as_str();
+        let prev_version_var = pkg.initial_version.bare_version_string.as_str();
+        let prev_metadata_var = pkg.initial_version.full_version.build.as_str();
+        let version_var = version.bare_version_string.as_str();
+        let metadata_var = version.full_version.build.as_str();
+        // try replacing text in configured files
+        let template = Template {
+            prev_version: Some(prev_version_var),
+            prev_metadata: Some(prev_metadata_var),
+            version: Some(version_var),
+            metadata: Some(metadata_var),
+            crate_name: Some(crate_name),
+            date: Some(NOW.as_str()),
+            tag_name: pkg.planned_tag.as_deref(),
+            ..Default::default()
+        };
+        let prerelease = version.is_prerelease();
+        let noisy = true;
+        do_file_replacements(
+            pkg.config.pre_release_replacements(),
+            &template,
+            cwd,
+            prerelease,
+            noisy,
+            dry_run,
+        )?;
+    }
+
+    Ok(())
 }

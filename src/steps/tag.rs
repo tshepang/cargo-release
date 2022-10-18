@@ -65,6 +65,8 @@ impl TagStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
+            pkg.planned_tag = None;
+            pkg.config.tag = Some(false);
             pkg.config.release = Some(false);
 
             let crate_name = pkg.meta.name.as_str();
@@ -89,12 +91,11 @@ impl TagStep {
             }
         }
 
-        let pkgs: Vec<_> = pkgs
+        let (selected_pkgs, _excluded_pkgs): (Vec<_>, Vec<_>) = pkgs
             .into_iter()
             .map(|(_, pkg)| pkg)
-            .filter(|p| p.config.release())
-            .collect();
-        if pkgs.is_empty() {
+            .partition(|p| p.config.release());
+        if selected_pkgs.is_empty() {
             log::info!("No packages selected.");
             return Err(2.into());
         }
@@ -124,10 +125,10 @@ impl TagStep {
         )?;
 
         // STEP 1: Release Confirmation
-        super::confirm("Tag", &pkgs, self.no_confirm, dry_run)?;
+        super::confirm("Tag", &selected_pkgs, self.no_confirm, dry_run)?;
 
         // STEP 5: Tag
-        tag(&pkgs, dry_run)?;
+        tag(&selected_pkgs, dry_run)?;
 
         super::finish(failed, dry_run)
     }

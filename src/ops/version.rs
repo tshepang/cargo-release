@@ -2,254 +2,35 @@ use std::str::FromStr;
 
 use crate::error::FatalError;
 
-#[derive(Clone, Debug)]
-pub enum TargetVersion {
-    Relative(BumpLevel),
-    Absolute(semver::Version),
-}
-
-impl TargetVersion {
-    pub fn bump(
-        &self,
-        current: &semver::Version,
-        metadata: Option<&str>,
-    ) -> Result<Option<Version>, FatalError> {
-        let bumped = match self {
-            TargetVersion::Relative(bump_level) => {
-                let mut potential_version = current.to_owned();
-                if bump_level.bump_version(&mut potential_version, metadata)? {
-                    let full_version = potential_version;
-                    let version = Version::from(full_version);
-                    Some(version)
-                } else {
-                    None
-                }
-            }
-            TargetVersion::Absolute(version) => {
-                let mut full_version = version.to_owned();
-                if full_version.build.is_empty() {
-                    if let Some(metadata) = metadata {
-                        full_version.build = semver::BuildMetadata::new(metadata)?;
-                    } else {
-                        full_version.build = current.build.clone();
-                    }
-                }
-                let version = Version::from(full_version);
-                if version.bare_version != Version::from(current.clone()).bare_version {
-                    Some(version)
-                } else {
-                    None
-                }
-            }
-        };
-        Ok(bumped)
-    }
-}
-
-impl Default for TargetVersion {
-    fn default() -> Self {
-        TargetVersion::Relative(BumpLevel::Release)
-    }
-}
-
-impl std::fmt::Display for TargetVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            TargetVersion::Relative(bump_level) => {
-                write!(f, "{}", bump_level)
-            }
-            TargetVersion::Absolute(version) => {
-                write!(f, "{}", version)
-            }
-        }
-    }
-}
-
-impl std::str::FromStr for TargetVersion {
-    type Err = FatalError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Ok(bump_level) = BumpLevel::from_str(s) {
-            Ok(TargetVersion::Relative(bump_level))
-        } else {
-            Ok(TargetVersion::Absolute(semver::Version::parse(s)?))
-        }
-    }
-}
-
-impl clap::builder::ValueParserFactory for TargetVersion {
-    type Parser = TargetVersionParser;
-
-    fn value_parser() -> Self::Parser {
-        TargetVersionParser
-    }
-}
-
-#[derive(Copy, Clone)]
-pub struct TargetVersionParser;
-
-impl clap::builder::TypedValueParser for TargetVersionParser {
-    type Value = TargetVersion;
-
-    fn parse_ref(
-        &self,
-        cmd: &clap::Command,
-        arg: Option<&clap::Arg>,
-        value: &std::ffi::OsStr,
-    ) -> Result<Self::Value, clap::Error> {
-        let inner_parser = TargetVersion::from_str;
-        inner_parser.parse_ref(cmd, arg, value)
-    }
-
-    fn possible_values(
-        &self,
-    ) -> Option<Box<dyn Iterator<Item = clap::builder::PossibleValue> + '_>> {
-        let inner_parser = clap::builder::EnumValueParser::<BumpLevel>::new();
-        #[allow(clippy::needless_collect)] // Erasing a lifetime
-        inner_parser.possible_values().map(|ps| {
-            let ps = ps.collect::<Vec<_>>();
-            let ps: Box<dyn Iterator<Item = clap::builder::PossibleValue> + '_> =
-                Box::new(ps.into_iter());
-            ps
-        })
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Version {
-    pub full_version: semver::Version,
-    pub full_version_string: String,
-    pub bare_version: semver::Version,
-    pub bare_version_string: String,
-}
-
-impl Version {
-    pub fn is_prerelease(&self) -> bool {
-        self.full_version.is_prerelease()
-    }
-}
-
-impl From<semver::Version> for Version {
-    fn from(full_version: semver::Version) -> Self {
-        let full_version_string = full_version.to_string();
-        let mut bare_version = full_version.clone();
-        bare_version.build = semver::BuildMetadata::EMPTY;
-        let bare_version_string = bare_version.to_string();
-        Self {
-            full_version,
-            full_version_string,
-            bare_version,
-            bare_version_string,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, clap::ValueEnum)]
-#[value(rename_all = "kebab-case")]
-pub enum BumpLevel {
-    /// Increase the major version (x.0.0)
-    Major,
-    /// Increase the minor version (x.y.0)
-    Minor,
-    /// Increase the patch version (x.y.z)
-    Patch,
-    /// Increase the rc pre-version (x.y.z-rc.M)
-    Rc,
-    /// Increase the beta pre-version (x.y.z-beta.M)
-    Beta,
-    /// Increase the alpha pre-version (x.y.z-alpha.M)
-    Alpha,
-    /// Remove the pre-version (x.y.z)
-    Release,
-}
-
-impl std::fmt::Display for BumpLevel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use clap::ValueEnum;
-
-        self.to_possible_value()
-            .expect("no values are skipped")
-            .get_name()
-            .fmt(f)
-    }
-}
-
-impl std::str::FromStr for BumpLevel {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use clap::ValueEnum;
-
-        for variant in Self::value_variants() {
-            if variant.to_possible_value().unwrap().matches(s, false) {
-                return Ok(*variant);
-            }
-        }
-        Err(format!("Invalid variant: {}", s))
-    }
-}
-
-impl BumpLevel {
-    pub fn bump_version(
-        self,
-        version: &mut semver::Version,
-        metadata: Option<&str>,
-    ) -> Result<bool, FatalError> {
-        let mut need_commit = false;
-        match self {
-            BumpLevel::Major => {
-                version.increment_major();
-                need_commit = true;
-            }
-            BumpLevel::Minor => {
-                version.increment_minor();
-                need_commit = true;
-            }
-            BumpLevel::Patch => {
-                if !version.is_prerelease() {
-                    version.increment_patch();
-                } else {
-                    version.pre = semver::Prerelease::EMPTY;
-                }
-                need_commit = true;
-            }
-            BumpLevel::Rc => {
-                version.increment_rc()?;
-                need_commit = true;
-            }
-            BumpLevel::Beta => {
-                version.increment_beta()?;
-                need_commit = true;
-            }
-            BumpLevel::Alpha => {
-                version.increment_alpha()?;
-                need_commit = true;
-            }
-            BumpLevel::Release => {
-                if version.is_prerelease() {
-                    version.pre = semver::Prerelease::EMPTY;
-                    need_commit = true;
-                }
-            }
-        };
-
-        if let Some(metadata) = metadata {
-            version.metadata(metadata)?;
-        }
-
-        Ok(need_commit)
-    }
-}
-
+/// Additional version functionality
 pub trait VersionExt {
+    /// Increments the major version number for this Version.
     fn increment_major(&mut self);
+    /// Increments the minor version number for this Version.
     fn increment_minor(&mut self);
+    /// Increments the patch version number for this Version.
     fn increment_patch(&mut self);
+    /// Increment the alpha pre-release number for this Version.
+    ///
+    /// If this isn't alpha, switch to it.
+    ///
+    /// Errors if this would decrement the pre-release phase.
     fn increment_alpha(&mut self) -> Result<(), FatalError>;
+    /// Increment the beta pre-release number for this Version.
+    ///
+    /// If this isn't beta, switch to it.
+    ///
+    /// Errors if this would decrement the pre-release phase.
     fn increment_beta(&mut self) -> Result<(), FatalError>;
+    /// Increment the rc pre-release number for this Version.
+    ///
+    /// If this isn't rc, switch to it.
+    ///
+    /// Errors if this would decrement the pre-release phase.
     fn increment_rc(&mut self) -> Result<(), FatalError>;
-    fn prerelease_id_version(&self) -> Result<Option<(String, Option<u64>)>, FatalError>;
+    /// Append informational-only metadata.
     fn metadata(&mut self, metadata: &str) -> Result<(), FatalError>;
+    /// Checks to see if the current Version is in pre-release status
     fn is_prerelease(&self) -> bool;
 }
 
@@ -275,23 +56,8 @@ impl VersionExt for semver::Version {
         self.build = semver::BuildMetadata::EMPTY;
     }
 
-    fn prerelease_id_version(&self) -> Result<Option<(String, Option<u64>)>, FatalError> {
-        if !self.pre.is_empty() {
-            if let Some((alpha, numeric)) = self.pre.as_str().split_once('.') {
-                let alpha = alpha.to_owned();
-                let numeric = u64::from_str(numeric)
-                    .map_err(|_| FatalError::UnsupportedPrereleaseVersionScheme)?;
-                Ok(Some((alpha, Some(numeric))))
-            } else {
-                Ok(Some((self.pre.as_str().to_owned(), None)))
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
     fn increment_alpha(&mut self) -> Result<(), FatalError> {
-        if let Some((pre_ext, pre_ext_ver)) = self.prerelease_id_version()? {
+        if let Some((pre_ext, pre_ext_ver)) = prerelease_id_version(self)? {
             if pre_ext == VERSION_BETA || pre_ext == VERSION_RC {
                 Err(FatalError::InvalidReleaseLevel(VERSION_ALPHA.to_owned()))
             } else {
@@ -311,7 +77,7 @@ impl VersionExt for semver::Version {
     }
 
     fn increment_beta(&mut self) -> Result<(), FatalError> {
-        if let Some((pre_ext, pre_ext_ver)) = self.prerelease_id_version()? {
+        if let Some((pre_ext, pre_ext_ver)) = prerelease_id_version(self)? {
             if pre_ext == VERSION_RC {
                 Err(FatalError::InvalidReleaseLevel(VERSION_BETA.to_owned()))
             } else {
@@ -331,7 +97,7 @@ impl VersionExt for semver::Version {
     }
 
     fn increment_rc(&mut self) -> Result<(), FatalError> {
-        if let Some((pre_ext, pre_ext_ver)) = self.prerelease_id_version()? {
+        if let Some((pre_ext, pre_ext_ver)) = prerelease_id_version(self)? {
             let new_ext_ver = if pre_ext == VERSION_RC {
                 pre_ext_ver.unwrap_or(0) + 1
             } else {
@@ -360,8 +126,26 @@ static VERSION_ALPHA: &str = "alpha";
 static VERSION_BETA: &str = "beta";
 static VERSION_RC: &str = "rc";
 
-pub fn set_requirement(
-    req: &semver::VersionReq,
+fn prerelease_id_version(
+    version: &semver::Version,
+) -> Result<Option<(String, Option<u64>)>, FatalError> {
+    if !version.pre.is_empty() {
+        if let Some((alpha, numeric)) = version.pre.as_str().split_once('.') {
+            let alpha = alpha.to_owned();
+            let numeric = u64::from_str(numeric)
+                .map_err(|_| FatalError::UnsupportedPrereleaseVersionScheme)?;
+            Ok(Some((alpha, Some(numeric))))
+        } else {
+            Ok(Some((version.pre.as_str().to_owned(), None)))
+        }
+    } else {
+        Ok(None)
+    }
+}
+
+/// Upgrade an existing requirement to a new version
+pub fn upgrade_requirement(
+    req: &str,
     version: &semver::Version,
 ) -> Result<Option<String>, FatalError> {
     let req_text = req.to_string();
@@ -378,7 +162,10 @@ pub fn set_requirement(
             .collect();
         let comparators = comparators?;
         let new_req = semver::VersionReq { comparators };
-        let new_req_text = new_req.to_string();
+        let mut new_req_text = new_req.to_string();
+        if new_req_text.starts_with('^') && !req.starts_with('^') {
+            new_req_text.remove(0);
+        }
         // Validate contract
         #[cfg(debug_assert)]
         {
@@ -411,13 +198,13 @@ fn set_comparator(
             }
             Ok(pred)
         }
-        semver::Op::Exact => assign_partial_req(version, pred),
+        semver::Op::Exact => Ok(assign_partial_req(version, pred)),
         semver::Op::Greater | semver::Op::GreaterEq | semver::Op::Less | semver::Op::LessEq => {
             let user_pred = pred.to_string();
             Err(FatalError::UnsupportedVersionReq(user_pred))
         }
-        semver::Op::Tilde => assign_partial_req(version, pred),
-        semver::Op::Caret => assign_partial_req(version, pred),
+        semver::Op::Tilde => Ok(assign_partial_req(version, pred)),
+        semver::Op::Caret => Ok(assign_partial_req(version, pred)),
         _ => {
             log::debug!("New predicate added");
             let user_pred = pred.to_string();
@@ -429,7 +216,7 @@ fn set_comparator(
 fn assign_partial_req(
     version: &semver::Version,
     mut pred: semver::Comparator,
-) -> Result<semver::Comparator, FatalError> {
+) -> semver::Comparator {
     pred.major = version.major;
     if pred.minor.is_some() {
         pred.minor = Some(version.minor);
@@ -438,7 +225,7 @@ fn assign_partial_req(
         pred.patch = Some(version.patch);
     }
     pred.pre = version.pre.clone();
-    Ok(pred)
+    pred
 }
 
 #[cfg(test)]
@@ -451,15 +238,15 @@ mod test {
         #[test]
         fn alpha() {
             let mut v = semver::Version::parse("1.0.0").unwrap();
-            let _ = v.increment_alpha();
+            v.increment_alpha().unwrap();
             assert_eq!(v, semver::Version::parse("1.0.1-alpha.1").unwrap());
 
             let mut v2 = semver::Version::parse("1.0.1-dev").unwrap();
-            let _ = v2.increment_alpha();
+            v2.increment_alpha().unwrap();
             assert_eq!(v2, semver::Version::parse("1.0.1-alpha.1").unwrap());
 
             let mut v3 = semver::Version::parse("1.0.1-alpha.1").unwrap();
-            let _ = v3.increment_alpha();
+            v3.increment_alpha().unwrap();
             assert_eq!(v3, semver::Version::parse("1.0.1-alpha.2").unwrap());
 
             let mut v4 = semver::Version::parse("1.0.1-beta.1").unwrap();
@@ -469,19 +256,19 @@ mod test {
         #[test]
         fn beta() {
             let mut v = semver::Version::parse("1.0.0").unwrap();
-            let _ = v.increment_beta();
+            v.increment_beta().unwrap();
             assert_eq!(v, semver::Version::parse("1.0.1-beta.1").unwrap());
 
             let mut v2 = semver::Version::parse("1.0.1-dev").unwrap();
-            let _ = v2.increment_beta();
+            v2.increment_beta().unwrap();
             assert_eq!(v2, semver::Version::parse("1.0.1-beta.1").unwrap());
 
             let mut v2 = semver::Version::parse("1.0.1-alpha.1").unwrap();
-            let _ = v2.increment_beta();
+            v2.increment_beta().unwrap();
             assert_eq!(v2, semver::Version::parse("1.0.1-beta.1").unwrap());
 
             let mut v3 = semver::Version::parse("1.0.1-beta.1").unwrap();
-            let _ = v3.increment_beta();
+            v3.increment_beta().unwrap();
             assert_eq!(v3, semver::Version::parse("1.0.1-beta.2").unwrap());
 
             let mut v4 = semver::Version::parse("1.0.1-rc.1").unwrap();
@@ -491,33 +278,33 @@ mod test {
         #[test]
         fn rc() {
             let mut v = semver::Version::parse("1.0.0").unwrap();
-            let _ = v.increment_rc();
+            v.increment_rc().unwrap();
             assert_eq!(v, semver::Version::parse("1.0.1-rc.1").unwrap());
 
             let mut v2 = semver::Version::parse("1.0.1-dev").unwrap();
-            let _ = v2.increment_rc();
+            v2.increment_rc().unwrap();
             assert_eq!(v2, semver::Version::parse("1.0.1-rc.1").unwrap());
 
             let mut v3 = semver::Version::parse("1.0.1-rc.1").unwrap();
-            let _ = v3.increment_rc();
+            v3.increment_rc().unwrap();
             assert_eq!(v3, semver::Version::parse("1.0.1-rc.2").unwrap());
         }
 
         #[test]
         fn metadata() {
             let mut v = semver::Version::parse("1.0.0").unwrap();
-            let _ = v.metadata("git.123456");
+            v.metadata("git.123456").unwrap();
             assert_eq!(v, semver::Version::parse("1.0.0+git.123456").unwrap());
         }
     }
 
-    mod set_requirement {
+    mod upgrade_requirement {
         use super::*;
 
+        #[track_caller]
         fn assert_req_bump<'a, O: Into<Option<&'a str>>>(version: &str, req: &str, expected: O) {
             let version = semver::Version::parse(version).unwrap();
-            let req = semver::VersionReq::parse(req).unwrap();
-            let actual = set_requirement(&req, &version).unwrap();
+            let actual = upgrade_requirement(req, &version).unwrap();
             let expected = expected.into();
             assert_eq!(actual.as_deref(), expected);
         }
@@ -550,7 +337,7 @@ mod test {
             assert_req_bump("1.1.0", "1", None);
             assert_req_bump("1.1.0", "^1", None);
 
-            assert_req_bump("2.0.0", "1", "^2");
+            assert_req_bump("2.0.0", "1", "2");
             assert_req_bump("2.0.0", "^1", "^2");
         }
 
@@ -559,13 +346,13 @@ mod test {
             assert_req_bump("1.0.0", "1.0", None);
             assert_req_bump("1.0.0", "^1.0", None);
 
-            assert_req_bump("1.1.0", "1.0", "^1.1");
+            assert_req_bump("1.1.0", "1.0", "1.1");
             assert_req_bump("1.1.0", "^1.0", "^1.1");
 
-            assert_req_bump("1.1.1", "1.0", "^1.1");
+            assert_req_bump("1.1.1", "1.0", "1.1");
             assert_req_bump("1.1.1", "^1.0", "^1.1");
 
-            assert_req_bump("2.0.0", "1.0", "^2.0");
+            assert_req_bump("2.0.0", "1.0", "2.0");
             assert_req_bump("2.0.0", "^1.0", "^2.0");
         }
 
@@ -574,13 +361,13 @@ mod test {
             assert_req_bump("1.0.0", "1.0.0", None);
             assert_req_bump("1.0.0", "^1.0.0", None);
 
-            assert_req_bump("1.1.0", "1.0.0", "^1.1.0");
+            assert_req_bump("1.1.0", "1.0.0", "1.1.0");
             assert_req_bump("1.1.0", "^1.0.0", "^1.1.0");
 
-            assert_req_bump("1.1.1", "1.0.0", "^1.1.1");
+            assert_req_bump("1.1.1", "1.0.0", "1.1.1");
             assert_req_bump("1.1.1", "^1.0.0", "^1.1.1");
 
-            assert_req_bump("2.0.0", "1.0.0", "^2.0.0");
+            assert_req_bump("2.0.0", "1.0.0", "2.0.0");
             assert_req_bump("2.0.0", "^1.0.0", "^2.0.0");
         }
 
