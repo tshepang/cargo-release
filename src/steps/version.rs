@@ -1,4 +1,3 @@
-use crate::config;
 use crate::error::FatalError;
 use crate::error::ProcessError;
 use crate::ops::git;
@@ -249,52 +248,13 @@ pub fn update_dependent_versions(
     dry_run: bool,
 ) -> Result<(), FatalError> {
     for dep in pkg.dependents.iter() {
-        match pkg.config.dependent_version() {
-            config::DependentVersion::Fix => {
-                if !dep.req.matches(&version.bare_version) {
-                    let new_req = crate::ops::version::upgrade_requirement(
-                        &dep.req.to_string(),
-                        &version.bare_version,
-                    )?;
-                    if let Some(new_req) = new_req {
-                        log::info!(
-                            "Fixing {}'s dependency on {} to `{}` (from `{}`)",
-                            dep.pkg.name,
-                            pkg.meta.name,
-                            new_req,
-                            dep.req
-                        );
-                        crate::ops::cargo::set_dependency_version(
-                            dep.pkg.manifest_path.as_std_path(),
-                            &pkg.meta.name,
-                            &new_req,
-                            dry_run,
-                        )?;
-                    }
-                }
-            }
-            config::DependentVersion::Upgrade => {
-                let new_req = crate::ops::version::upgrade_requirement(
-                    &dep.req.to_string(),
-                    &version.bare_version,
-                )?;
-                if let Some(new_req) = new_req {
-                    log::info!(
-                        "Upgrading {}'s dependency on {} to `{}` (from `{}`)",
-                        dep.pkg.name,
-                        pkg.meta.name,
-                        new_req,
-                        dep.req
-                    );
-                    crate::ops::cargo::set_dependency_version(
-                        dep.pkg.manifest_path.as_std_path(),
-                        &pkg.meta.name,
-                        &new_req,
-                        dry_run,
-                    )?;
-                }
-            }
-        }
+        crate::ops::cargo::upgrade_dependency_req(
+            dep.pkg.manifest_path.as_std_path(),
+            &pkg.meta.name,
+            &version.full_version,
+            pkg.config.dependent_version(),
+            dry_run,
+        )?;
     }
 
     Ok(())

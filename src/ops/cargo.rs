@@ -3,6 +3,7 @@ use std::path::Path;
 
 use bstr::ByteSlice;
 
+use crate::config;
 use crate::error::FatalError;
 use crate::ops::cmd::call;
 
@@ -183,10 +184,11 @@ pub fn set_package_version(
     Ok(())
 }
 
-pub fn set_dependency_version(
+pub fn upgrade_dependency_req(
     manifest_path: &Path,
     name: &str,
-    version: &str,
+    version: &semver::Version,
+    upgrade: config::DependentVersion,
     dry_run: bool,
 ) -> Result<(), FatalError> {
     let original_manifest = std::fs::read_to_string(manifest_path)?;
@@ -201,7 +203,7 @@ pub fn set_dependency_version(
             }
         })
     }) {
-        set_version(dep_item, name, version);
+        upgrade_req(dep_item, name, version, upgrade);
     }
 
     let manifest = manifest.to_string();
@@ -261,27 +263,66 @@ fn find_dependency_tables(
     })
 }
 
-fn set_version(dep_item: &mut dyn toml_edit::TableLike, name: &str, mut version: &str) -> bool {
-    if let Some(version_value) = dep_item.get_mut("version") {
-        // Preserve the presence or lack of an explicit caret.
-        if version.starts_with('^') && !version_item_uses_caret(version_value) {
-            version = &version[1..];
-        }
-
-        *version_value = toml_edit::value(version);
-        true
+fn upgrade_req(
+    dep_item: &mut dyn toml_edit::TableLike,
+    name: &str,
+    version: &semver::Version,
+    upgrade: config::DependentVersion,
+) -> bool {
+    let version_value = if let Some(version_value) = dep_item.get_mut("version") {
+        version_value
     } else {
         log::debug!("Not updating path-only dependency on {}", name);
-        false
-    }
-}
+        return false;
+    };
 
-/// Check if a toml item representing a version starts with a caret.
-fn version_item_uses_caret(version: &toml_edit::Item) -> bool {
-    version
-        .as_str()
-        .map(|s| s.starts_with('^'))
-        .unwrap_or(false)
+    let existing_req_str = if let Some(existing_req) = version_value.as_str() {
+        existing_req
+    } else {
+        log::debug!("Unsupported dependency {}", name);
+        return false;
+    };
+    let existing_req = if let Ok(existing_req) = semver::VersionReq::parse(existing_req_str) {
+        existing_req
+    } else {
+        log::debug!("Unsupported dependency req {}={}", name, existing_req_str);
+        return false;
+    };
+    let new_req = match upgrade {
+        config::DependentVersion::Fix => {
+            if !existing_req.matches(version) {
+                let new_req = crate::ops::version::upgrade_requirement(existing_req_str, version)
+                    .ok()
+                    .flatten();
+                if let Some(new_req) = new_req {
+                    new_req
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+        config::DependentVersion::Upgrade => {
+            let new_req = crate::ops::version::upgrade_requirement(existing_req_str, version)
+                .ok()
+                .flatten();
+            if let Some(new_req) = new_req {
+                new_req
+            } else {
+                return false;
+            }
+        }
+    };
+
+    log::info!(
+        "Updating dependency {} to `{}` (from `{}`)",
+        name,
+        new_req,
+        existing_req_str
+    );
+    *version_value = toml_edit::value(new_req);
+    true
 }
 
 pub fn update_lock(manifest_path: &Path) -> Result<(), FatalError> {
@@ -409,7 +450,7 @@ mod test {
         }
     }
 
-    mod set_dependency_version {
+    mod upgrade_dependency_req {
         use super::*;
 
         #[test]
@@ -434,7 +475,15 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
+            let new_version = semver::Version::parse("2.0.0").unwrap();
+            upgrade_dependency_req(
+                manifest_path.path(),
+                "foo",
+                &new_version,
+                config::DependentVersion::Upgrade,
+                false,
+            )
+            .unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -480,7 +529,15 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
+            let new_version = semver::Version::parse("2.0.0").unwrap();
+            upgrade_dependency_req(
+                manifest_path.path(),
+                "foo",
+                &new_version,
+                config::DependentVersion::Upgrade,
+                false,
+            )
+            .unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -526,7 +583,15 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
+            let new_version = semver::Version::parse("2.0.0").unwrap();
+            upgrade_dependency_req(
+                manifest_path.path(),
+                "foo",
+                &new_version,
+                config::DependentVersion::Upgrade,
+                false,
+            )
+            .unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -572,7 +637,15 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
+            let new_version = semver::Version::parse("2.0.0").unwrap();
+            upgrade_dependency_req(
+                manifest_path.path(),
+                "foo",
+                &new_version,
+                config::DependentVersion::Upgrade,
+                false,
+            )
+            .unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -622,7 +695,15 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
+            let new_version = semver::Version::parse("2.0.0").unwrap();
+            upgrade_dependency_req(
+                manifest_path.path(),
+                "foo",
+                &new_version,
+                config::DependentVersion::Upgrade,
+                false,
+            )
+            .unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -672,7 +753,15 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
+            let new_version = semver::Version::parse("2.0.0").unwrap();
+            upgrade_dependency_req(
+                manifest_path.path(),
+                "foo",
+                &new_version,
+                config::DependentVersion::Upgrade,
+                false,
+            )
+            .unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -716,7 +805,15 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
+            let new_version = semver::Version::parse("2.0.0").unwrap();
+            upgrade_dependency_req(
+                manifest_path.path(),
+                "foo",
+                &new_version,
+                config::DependentVersion::Upgrade,
+                false,
+            )
+            .unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -761,7 +858,15 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "2.0", false).unwrap();
+            let new_version = semver::Version::parse("2.0.0").unwrap();
+            upgrade_dependency_req(
+                manifest_path.path(),
+                "foo",
+                &new_version,
+                config::DependentVersion::Upgrade,
+                false,
+            )
+            .unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -810,7 +915,15 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "^1.0", false).unwrap();
+            let new_version = semver::Version::parse("1.0.5").unwrap();
+            upgrade_dependency_req(
+                manifest_path.path(),
+                "foo",
+                &new_version,
+                config::DependentVersion::Upgrade,
+                false,
+            )
+            .unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
@@ -858,7 +971,15 @@ mod test {
                 )
                 .unwrap();
 
-            set_dependency_version(manifest_path.path(), "foo", "^1.0", false).unwrap();
+            let new_version = semver::Version::parse("1.0.0").unwrap();
+            upgrade_dependency_req(
+                manifest_path.path(),
+                "foo",
+                &new_version,
+                config::DependentVersion::Upgrade,
+                false,
+            )
+            .unwrap();
 
             manifest_path.assert(
                 predicate::str::diff(
