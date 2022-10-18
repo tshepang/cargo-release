@@ -171,7 +171,7 @@ impl VersionStep {
                     version.full_version_string.as_str(),
                     dry_run,
                 )?;
-                update_dependent_versions(pkg, version, dry_run)?;
+                update_dependent_versions(&ws_meta, pkg, version, dry_run)?;
                 update_lock = true;
             }
         }
@@ -243,13 +243,14 @@ pub fn changed_since<'m>(
 }
 
 pub fn update_dependent_versions(
+    ws_meta: &cargo_metadata::Metadata,
     pkg: &plan::PackageRelease,
     version: &plan::Version,
     dry_run: bool,
 ) -> Result<(), FatalError> {
-    for dep in pkg.dependents.iter() {
+    for dep in find_ws_members(ws_meta) {
         crate::ops::cargo::upgrade_dependency_req(
-            dep.pkg.manifest_path.as_std_path(),
+            dep.manifest_path.as_std_path(),
             &pkg.meta.name,
             &version.full_version,
             pkg.config.dependent_version(),
@@ -258,4 +259,15 @@ pub fn update_dependent_versions(
     }
 
     Ok(())
+}
+
+fn find_ws_members(
+    ws_meta: &cargo_metadata::Metadata,
+) -> impl Iterator<Item = &cargo_metadata::Package> {
+    let workspace_members: std::collections::HashSet<_> =
+        ws_meta.workspace_members.iter().collect();
+    ws_meta
+        .packages
+        .iter()
+        .filter(move |p| workspace_members.contains(&p.id))
 }

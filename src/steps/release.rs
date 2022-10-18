@@ -247,7 +247,9 @@ impl ReleaseStep {
                         version.full_version_string.as_str(),
                         dry_run,
                     )?;
-                    crate::steps::version::update_dependent_versions(pkg, version, dry_run)?;
+                    crate::steps::version::update_dependent_versions(
+                        &ws_meta, pkg, version, dry_run,
+                    )?;
                     if dry_run {
                         log::debug!("Updating lock file");
                     } else {
@@ -280,7 +282,9 @@ impl ReleaseStep {
                         version.full_version_string.as_str(),
                         dry_run,
                     )?;
-                    crate::steps::version::update_dependent_versions(pkg, version, dry_run)?;
+                    crate::steps::version::update_dependent_versions(
+                        &ws_meta, pkg, version, dry_run,
+                    )?;
                 }
 
                 super::replace::replace(pkg, dry_run)?;
