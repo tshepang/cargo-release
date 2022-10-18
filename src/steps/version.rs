@@ -157,24 +157,7 @@ impl VersionStep {
         super::confirm("Bump", &selected_pkgs, self.no_confirm, dry_run)?;
 
         // STEP 2: update current version, save and commit
-        let mut update_lock = false;
-        for pkg in &selected_pkgs {
-            if let Some(version) = pkg.planned_version.as_ref() {
-                let crate_name = pkg.meta.name.as_str();
-                log::info!(
-                    "Update {} to version {}",
-                    crate_name,
-                    version.full_version_string
-                );
-                crate::ops::cargo::set_package_version(
-                    &pkg.manifest_path,
-                    version.full_version_string.as_str(),
-                    dry_run,
-                )?;
-                update_dependent_versions(&ws_meta, pkg, version, dry_run)?;
-                update_lock = true;
-            }
-        }
+        let update_lock = update_versions(&ws_meta, &selected_pkgs, dry_run)?;
         if update_lock {
             log::debug!("Updating lock file");
             if !dry_run {
@@ -240,6 +223,33 @@ pub fn changed_since<'m>(
     }
 
     Some((changed, lock_changed))
+}
+
+pub fn update_versions(
+    ws_meta: &cargo_metadata::Metadata,
+    selected_pkgs: &[plan::PackageRelease],
+    dry_run: bool,
+) -> Result<bool, FatalError> {
+    let mut changed = false;
+    for pkg in selected_pkgs {
+        if let Some(version) = pkg.planned_version.as_ref() {
+            let crate_name = pkg.meta.name.as_str();
+            log::info!(
+                "Update {} to version {}",
+                crate_name,
+                version.full_version_string
+            );
+            crate::ops::cargo::set_package_version(
+                &pkg.manifest_path,
+                version.full_version_string.as_str(),
+                dry_run,
+            )?;
+            update_dependent_versions(&ws_meta, pkg, version, dry_run)?;
+            changed = true;
+        }
+    }
+
+    Ok(changed)
 }
 
 pub fn update_dependent_versions(
