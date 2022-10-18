@@ -232,38 +232,68 @@ impl ReleaseStep {
         // STEP 2: update current version, save and commit
         let mut shared_commit = false;
         for pkg in &selected_pkgs {
-            if let Some(version) = pkg.planned_version.as_ref() {
-                let crate_name = pkg.meta.name.as_str();
-                log::info!(
-                    "Update {} to version {}",
-                    crate_name,
-                    version.full_version_string
-                );
-                cargo::set_package_version(
-                    &pkg.manifest_path,
-                    version.full_version_string.as_str(),
-                    dry_run,
-                )?;
-                crate::steps::version::update_dependent_versions(pkg, version, dry_run)?;
-                if dry_run {
-                    log::debug!("Updating lock file");
-                } else {
-                    cargo::update_lock(&pkg.manifest_path)?;
-                }
-            }
-
-            super::replace::replace(pkg, dry_run)?;
-
-            // pre-release hook
-            hook(&ws_meta, pkg, dry_run)?;
-
             if pkg.config.consolidate_commits() {
                 shared_commit = true;
             } else {
+                if let Some(version) = pkg.planned_version.as_ref() {
+                    let crate_name = pkg.meta.name.as_str();
+                    log::info!(
+                        "Update {} to version {}",
+                        crate_name,
+                        version.full_version_string
+                    );
+                    cargo::set_package_version(
+                        &pkg.manifest_path,
+                        version.full_version_string.as_str(),
+                        dry_run,
+                    )?;
+                    crate::steps::version::update_dependent_versions(pkg, version, dry_run)?;
+                    if dry_run {
+                        log::debug!("Updating lock file");
+                    } else {
+                        cargo::update_lock(&pkg.manifest_path)?;
+                    }
+                }
+
+                super::replace::replace(pkg, dry_run)?;
+
+                // pre-release hook
+                hook(&ws_meta, pkg, dry_run)?;
+
                 pkg_commit(pkg, dry_run)?;
             }
         }
         if shared_commit {
+            for pkg in selected_pkgs
+                .iter()
+                .filter(|p| p.config.consolidate_commits())
+            {
+                if let Some(version) = pkg.planned_version.as_ref() {
+                    let crate_name = pkg.meta.name.as_str();
+                    log::info!(
+                        "Update {} to version {}",
+                        crate_name,
+                        version.full_version_string
+                    );
+                    cargo::set_package_version(
+                        &pkg.manifest_path,
+                        version.full_version_string.as_str(),
+                        dry_run,
+                    )?;
+                    crate::steps::version::update_dependent_versions(pkg, version, dry_run)?;
+                }
+
+                super::replace::replace(pkg, dry_run)?;
+
+                // pre-release hook
+                hook(&ws_meta, pkg, dry_run)?;
+            }
+
+            log::debug!("Updating lock file");
+            if !dry_run {
+                let workspace_path = ws_meta.workspace_root.as_std_path().join("Cargo.toml");
+                crate::ops::cargo::update_lock(&workspace_path)?;
+            }
             workspace_commit(&ws_meta, &ws_config, &selected_pkgs, dry_run)?;
         }
 
