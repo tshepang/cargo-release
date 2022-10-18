@@ -19,6 +19,7 @@ fn run() -> Result<(), error::ProcessError> {
     match &release_matches.step {
         Some(Step::Version(config)) => config.run(),
         Some(Step::Replace(config)) => config.run(),
+        Some(Step::Hook(config)) => config.run(),
         Some(Step::Publish(config)) => config.run(),
         Some(Step::Tag(config)) => config.run(),
         Some(Step::Push(config)) => config.run(),
@@ -80,6 +81,7 @@ pub struct ReleaseOpt {
 pub enum Step {
     Version(steps::version::VersionStep),
     Replace(steps::replace::ReplaceStep),
+    Hook(steps::hook::HookStep),
     Publish(steps::publish::PublishStep),
     Tag(steps::tag::TagStep),
     Push(steps::push::PushStep),
