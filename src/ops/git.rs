@@ -223,13 +223,11 @@ pub fn push<'s>(
 }
 
 pub fn top_level(dir: &Path) -> CargoResult<PathBuf> {
-    let output = Command::new("git")
-        .arg("rev-parse")
-        .arg("--show-toplevel")
-        .current_dir(dir)
-        .output()?;
-    let path = std::str::from_utf8(&output.stdout)?.trim_end();
-    Ok(Path::new(path).to_owned())
+    let repo = git2::Repository::discover(dir)?;
+
+    repo.workdir()
+        .map(|p| p.to_owned())
+        .ok_or_else(|| anyhow::format_err!("bare repos are unsupported"))
 }
 
 pub fn git_version() -> CargoResult<()> {
