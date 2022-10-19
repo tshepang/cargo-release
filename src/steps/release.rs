@@ -63,6 +63,10 @@ impl ReleaseStep {
             if let Some(level_or_version) = &self.level_or_version {
                 pkg.bump(level_or_version, self.metadata.as_deref())?;
             }
+            if index.crate_(&pkg.meta.name).is_some() {
+                // Already published, skip it.  Use `cargo release owner` for one-time updates
+                pkg.ensure_owners = false;
+            }
         }
 
         let (_selected_pkgs, excluded_pkgs) = self.workspace.partition_packages(&ws_meta);

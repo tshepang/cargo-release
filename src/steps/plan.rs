@@ -85,6 +85,8 @@ pub struct PackageRelease {
 
     pub planned_version: Option<Version>,
     pub planned_tag: Option<String>,
+
+    pub ensure_owners: bool,
 }
 
 impl PackageRelease {
@@ -132,6 +134,7 @@ impl PackageRelease {
 
         let planned_version = None;
         let planned_tag = None;
+        let ensure_owners = config.publish() && !config.owners().is_empty();
 
         let pkg = PackageRelease {
             meta: pkg_meta.clone(),
@@ -151,6 +154,7 @@ impl PackageRelease {
 
             planned_version,
             planned_tag,
+            ensure_owners,
         };
         Ok(pkg)
     }
