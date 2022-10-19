@@ -4,8 +4,7 @@ use crate::config::load_package_config;
 use crate::config::load_workspace_config;
 use crate::config::Config;
 use crate::config::ConfigArgs;
-use crate::error::FatalError;
-use crate::error::ProcessError;
+use crate::error::CliError;
 
 /// Dump workspace configuration
 #[derive(Debug, Clone, clap::Args)]
@@ -22,15 +21,14 @@ pub struct ConfigStep {
 }
 
 impl ConfigStep {
-    pub fn run(&self) -> Result<(), ProcessError> {
+    pub fn run(&self) -> Result<(), CliError> {
         log::trace!("Initializing");
         let ws_meta = self
             .manifest
             .metadata()
             // When evaluating dependency ordering, we need to consider optional depednencies
             .features(cargo_metadata::CargoOpt::AllFeatures)
-            .exec()
-            .map_err(FatalError::from)?;
+            .exec()?;
 
         let release_config =
             if let Some(root_id) = ws_meta.resolve.as_ref().and_then(|r| r.root.as_ref()) {

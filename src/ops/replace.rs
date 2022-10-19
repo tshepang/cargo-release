@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::config::Replace;
-use crate::error::FatalError;
+use crate::error::CargoResult;
 
 pub static NOW: once_cell::sync::Lazy<String> = once_cell::sync::Lazy::new(|| {
     time::OffsetDateTime::now_utc()
@@ -70,7 +70,7 @@ pub fn do_file_replacements(
     prerelease: bool,
     noisy: bool,
     dry_run: bool,
-) -> Result<bool, FatalError> {
+) -> CargoResult<bool> {
     // Since we don't have a convenient insert-order map, let's do sorted, rather than random.
     let mut by_file = BTreeMap::new();
     for replace in replace_config {
@@ -82,7 +82,7 @@ pub fn do_file_replacements(
         let file = cwd.join(&path);
         log::info!("Applying replacements for {}", path.display());
         if !file.exists() {
-            return Err(FatalError::FileNotFound(file));
+            anyhow::bail!("Unable to find file {} to perform replace", file.display());
         }
         let data = std::fs::read_to_string(&file)?;
         let mut replaced = data.clone();
@@ -94,26 +94,25 @@ pub fn do_file_replacements(
             }
 
             let pattern = replace.search.as_str();
-            let r = regex::RegexBuilder::new(pattern)
-                .multi_line(true)
-                .build()
-                .map_err(FatalError::from)?;
+            let r = regex::RegexBuilder::new(pattern).multi_line(true).build()?;
 
             let min = replace.min.or(replace.exactly).unwrap_or(1);
             let max = replace.max.or(replace.exactly).unwrap_or(std::usize::MAX);
             let actual = r.find_iter(&replaced).count();
             if actual < min {
-                return Err(FatalError::ReplacerMinError(
-                    pattern.to_owned(),
+                anyhow::bail!(
+                    "For `{}`, at least {} replacements expected, found {}",
+                    pattern,
                     min,
-                    actual,
-                ));
+                    actual
+                );
             } else if max < actual {
-                return Err(FatalError::ReplacerMaxError(
-                    pattern.to_owned(),
-                    min,
-                    actual,
-                ));
+                anyhow::bail!(
+                    "For `{}`, at most {} replacements expected, found {}",
+                    pattern,
+                    max,
+                    actual
+                );
             }
 
             let to_replace = replace.replace.as_str();

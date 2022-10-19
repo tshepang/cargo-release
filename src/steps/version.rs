@@ -1,5 +1,5 @@
-use crate::error::FatalError;
-use crate::error::ProcessError;
+use crate::error::CargoResult;
+use crate::error::CliError;
 use crate::ops::git;
 use crate::steps::plan;
 
@@ -46,7 +46,7 @@ pub struct VersionStep {
 }
 
 impl VersionStep {
-    pub fn run(&self) -> Result<(), ProcessError> {
+    pub fn run(&self) -> Result<(), CliError> {
         git::git_version()?;
 
         let ws_meta = self
@@ -54,8 +54,7 @@ impl VersionStep {
             .metadata()
             // When evaluating dependency ordering, we need to consider optional dependencies
             .features(cargo_metadata::CargoOpt::AllFeatures)
-            .exec()
-            .map_err(FatalError::from)?;
+            .exec()?;
         let config = self.to_config();
         let ws_config = crate::config::load_workspace_config(&config, &ws_meta)?;
         let mut pkgs = plan::load(&config, &ws_meta)?;
@@ -233,7 +232,7 @@ pub fn update_versions(
     selected_pkgs: &[plan::PackageRelease],
     excluded_pkgs: &[plan::PackageRelease],
     dry_run: bool,
-) -> Result<bool, FatalError> {
+) -> CargoResult<bool> {
     let mut changed = false;
 
     let workspace_version = selected_pkgs
@@ -308,7 +307,7 @@ pub fn update_dependent_versions(
     pkg: &plan::PackageRelease,
     version: &plan::Version,
     dry_run: bool,
-) -> Result<(), FatalError> {
+) -> CargoResult<()> {
     // This is redundant with iterating over `workspace_members`
     // - As `find_dependency_tables` returns workspace dependencies
     // - If there is a root package

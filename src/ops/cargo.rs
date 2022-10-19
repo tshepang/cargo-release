@@ -4,7 +4,7 @@ use std::path::Path;
 use bstr::ByteSlice;
 
 use crate::config;
-use crate::error::FatalError;
+use crate::error::CargoResult;
 use crate::ops::cmd::call;
 
 /// Expresses what features flags should be used
@@ -21,7 +21,7 @@ fn cargo() -> String {
     env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned())
 }
 
-pub fn package_content(manifest_path: &Path) -> Result<Vec<std::path::PathBuf>, FatalError> {
+pub fn package_content(manifest_path: &Path) -> CargoResult<Vec<std::path::PathBuf>> {
     let mut cmd = std::process::Command::new(cargo());
     cmd.arg("package");
     cmd.arg("--manifest-path");
@@ -29,7 +29,7 @@ pub fn package_content(manifest_path: &Path) -> Result<Vec<std::path::PathBuf>, 
     cmd.arg("--list");
     // Not worth passing around allow_dirty to here since we are just getting a file list.
     cmd.arg("--allow-dirty");
-    let output = cmd.output().map_err(FatalError::from)?;
+    let output = cmd.output()?;
 
     let parent = manifest_path
         .parent()
@@ -42,9 +42,10 @@ pub fn package_content(manifest_path: &Path) -> Result<Vec<std::path::PathBuf>, 
         Ok(paths)
     } else {
         let error = String::from_utf8_lossy(&output.stderr);
-        Err(FatalError::PackageListFailed(
-            manifest_path.to_owned(),
-            error.to_string(),
+        Err(anyhow::format_err!(
+            "Failed to get package content for {}: {}",
+            manifest_path.display(),
+            error
         ))
     }
 }
@@ -58,7 +59,7 @@ pub fn publish(
     features: &Features,
     registry: Option<&str>,
     target: Option<&str>,
-) -> Result<bool, FatalError> {
+) -> CargoResult<bool> {
     let cargo = cargo();
 
     let mut command: Vec<&str> = vec![
@@ -114,7 +115,7 @@ pub fn wait_for_publish(
     version: &str,
     timeout: std::time::Duration,
     dry_run: bool,
-) -> Result<(), FatalError> {
+) -> CargoResult<()> {
     if !dry_run {
         let now = std::time::Instant::now();
         let sleep_time = std::time::Duration::from_secs(1);
@@ -126,7 +127,7 @@ pub fn wait_for_publish(
             if is_published(index, name, version) {
                 break;
             } else if timeout < now.elapsed() {
-                return Err(FatalError::PublishTimeoutError);
+                anyhow::bail!("Timeout waiting for crate to be published");
             }
 
             if !logged {
@@ -152,9 +153,9 @@ pub fn set_workspace_version(
     manifest_path: &Path,
     version: &str,
     dry_run: bool,
-) -> Result<(), FatalError> {
+) -> CargoResult<()> {
     let original_manifest = std::fs::read_to_string(manifest_path)?;
-    let mut manifest: toml_edit::Document = original_manifest.parse().map_err(FatalError::from)?;
+    let mut manifest: toml_edit::Document = original_manifest.parse()?;
     manifest["workspace"]["package"]["version"] = toml_edit::value(version);
     let manifest = manifest.to_string();
 
@@ -184,13 +185,9 @@ pub fn set_workspace_version(
     Ok(())
 }
 
-pub fn set_package_version(
-    manifest_path: &Path,
-    version: &str,
-    dry_run: bool,
-) -> Result<(), FatalError> {
+pub fn set_package_version(manifest_path: &Path, version: &str, dry_run: bool) -> CargoResult<()> {
     let original_manifest = std::fs::read_to_string(manifest_path)?;
-    let mut manifest: toml_edit::Document = original_manifest.parse().map_err(FatalError::from)?;
+    let mut manifest: toml_edit::Document = original_manifest.parse()?;
     manifest["package"]["version"] = toml_edit::value(version);
     let manifest = manifest.to_string();
 
@@ -228,12 +225,12 @@ pub fn upgrade_dependency_req(
     version: &semver::Version,
     upgrade: config::DependentVersion,
     dry_run: bool,
-) -> Result<(), FatalError> {
+) -> CargoResult<()> {
     let manifest_root = manifest_path
         .parent()
         .expect("always at least a parent dir");
     let original_manifest = std::fs::read_to_string(manifest_path)?;
-    let mut manifest: toml_edit::Document = original_manifest.parse().map_err(FatalError::from)?;
+    let mut manifest: toml_edit::Document = original_manifest.parse()?;
 
     for dep_item in find_dependency_tables(manifest.as_table_mut())
         .flat_map(|t| t.iter_mut().filter_map(|(_, d)| d.as_table_like_mut()))
@@ -388,11 +385,10 @@ fn upgrade_req(
     true
 }
 
-pub fn update_lock(manifest_path: &Path) -> Result<(), FatalError> {
+pub fn update_lock(manifest_path: &Path) -> CargoResult<()> {
     cargo_metadata::MetadataCommand::new()
         .manifest_path(manifest_path)
-        .exec()
-        .map_err(FatalError::from)?;
+        .exec()?;
 
     Ok(())
 }

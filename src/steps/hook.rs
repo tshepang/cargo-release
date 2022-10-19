@@ -1,8 +1,7 @@
 use std::ffi::OsStr;
 use std::path::Path;
 
-use crate::error::FatalError;
-use crate::error::ProcessError;
+use crate::error::CliError;
 use crate::ops::cmd;
 use crate::ops::git;
 use crate::ops::replace::{Template, NOW};
@@ -39,7 +38,7 @@ pub struct HookStep {
 }
 
 impl HookStep {
-    pub fn run(&self) -> Result<(), ProcessError> {
+    pub fn run(&self) -> Result<(), CliError> {
         git::git_version()?;
 
         let ws_meta = self
@@ -47,8 +46,7 @@ impl HookStep {
             .metadata()
             // When evaluating dependency ordering, we need to consider optional dependencies
             .features(cargo_metadata::CargoOpt::AllFeatures)
-            .exec()
-            .map_err(FatalError::from)?;
+            .exec()?;
         let config = self.to_config();
         let ws_config = crate::config::load_workspace_config(&config, &ws_meta)?;
         let mut pkgs = plan::load(&config, &ws_meta)?;
@@ -127,7 +125,7 @@ pub fn hook(
     ws_meta: &cargo_metadata::Metadata,
     pkg: &plan::PackageRelease,
     dry_run: bool,
-) -> Result<(), ProcessError> {
+) -> Result<(), CliError> {
     if let Some(pre_rel_hook) = pkg.config.pre_release_hook() {
         let cwd = &pkg.package_root;
         let crate_name = pkg.meta.name.as_str();

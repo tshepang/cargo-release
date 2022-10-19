@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::error::FatalError;
+use crate::error::CargoResult;
 
 /// Additional version functionality
 pub trait VersionExt {
@@ -15,21 +15,21 @@ pub trait VersionExt {
     /// If this isn't alpha, switch to it.
     ///
     /// Errors if this would decrement the pre-release phase.
-    fn increment_alpha(&mut self) -> Result<(), FatalError>;
+    fn increment_alpha(&mut self) -> CargoResult<()>;
     /// Increment the beta pre-release number for this Version.
     ///
     /// If this isn't beta, switch to it.
     ///
     /// Errors if this would decrement the pre-release phase.
-    fn increment_beta(&mut self) -> Result<(), FatalError>;
+    fn increment_beta(&mut self) -> CargoResult<()>;
     /// Increment the rc pre-release number for this Version.
     ///
     /// If this isn't rc, switch to it.
     ///
     /// Errors if this would decrement the pre-release phase.
-    fn increment_rc(&mut self) -> Result<(), FatalError>;
+    fn increment_rc(&mut self) -> CargoResult<()>;
     /// Append informational-only metadata.
-    fn metadata(&mut self, metadata: &str) -> Result<(), FatalError>;
+    fn metadata(&mut self, metadata: &str) -> CargoResult<()>;
     /// Checks to see if the current Version is in pre-release status
     fn is_prerelease(&self) -> bool;
 }
@@ -56,10 +56,13 @@ impl VersionExt for semver::Version {
         self.build = semver::BuildMetadata::EMPTY;
     }
 
-    fn increment_alpha(&mut self) -> Result<(), FatalError> {
+    fn increment_alpha(&mut self) -> CargoResult<()> {
         if let Some((pre_ext, pre_ext_ver)) = prerelease_id_version(self)? {
             if pre_ext == VERSION_BETA || pre_ext == VERSION_RC {
-                Err(FatalError::InvalidReleaseLevel(VERSION_ALPHA.to_owned()))
+                Err(anyhow::format_err!(
+                    "Unsupported release level {}, only major, minor, and patch are supported",
+                    VERSION_ALPHA
+                ))
             } else {
                 let new_ext_ver = if pre_ext == VERSION_ALPHA {
                     pre_ext_ver.unwrap_or(0) + 1
@@ -76,10 +79,13 @@ impl VersionExt for semver::Version {
         }
     }
 
-    fn increment_beta(&mut self) -> Result<(), FatalError> {
+    fn increment_beta(&mut self) -> CargoResult<()> {
         if let Some((pre_ext, pre_ext_ver)) = prerelease_id_version(self)? {
             if pre_ext == VERSION_RC {
-                Err(FatalError::InvalidReleaseLevel(VERSION_BETA.to_owned()))
+                Err(anyhow::format_err!(
+                    "Unsupported release level {}, only major, minor, and patch are supported",
+                    VERSION_BETA
+                ))
             } else {
                 let new_ext_ver = if pre_ext == VERSION_BETA {
                     pre_ext_ver.unwrap_or(0) + 1
@@ -96,7 +102,7 @@ impl VersionExt for semver::Version {
         }
     }
 
-    fn increment_rc(&mut self) -> Result<(), FatalError> {
+    fn increment_rc(&mut self) -> CargoResult<()> {
         if let Some((pre_ext, pre_ext_ver)) = prerelease_id_version(self)? {
             let new_ext_ver = if pre_ext == VERSION_RC {
                 pre_ext_ver.unwrap_or(0) + 1
@@ -112,7 +118,7 @@ impl VersionExt for semver::Version {
         }
     }
 
-    fn metadata(&mut self, build: &str) -> Result<(), FatalError> {
+    fn metadata(&mut self, build: &str) -> CargoResult<()> {
         self.build = semver::BuildMetadata::new(build)?;
         Ok(())
     }
@@ -126,14 +132,12 @@ static VERSION_ALPHA: &str = "alpha";
 static VERSION_BETA: &str = "beta";
 static VERSION_RC: &str = "rc";
 
-fn prerelease_id_version(
-    version: &semver::Version,
-) -> Result<Option<(String, Option<u64>)>, FatalError> {
+fn prerelease_id_version(version: &semver::Version) -> CargoResult<Option<(String, Option<u64>)>> {
     if !version.pre.is_empty() {
         if let Some((alpha, numeric)) = version.pre.as_str().split_once('.') {
             let alpha = alpha.to_owned();
             let numeric = u64::from_str(numeric)
-                .map_err(|_| FatalError::UnsupportedPrereleaseVersionScheme)?;
+                .map_err(|_| anyhow::format_err!("Pre-release `{}` version scheme is not supported by cargo-release.  Use format like `pre`, `dev`, or `alpha.1` for prerelease", version.pre))?;
             Ok(Some((alpha, Some(numeric))))
         } else {
             Ok(Some((version.pre.as_str().to_owned(), None)))
@@ -144,10 +148,7 @@ fn prerelease_id_version(
 }
 
 /// Upgrade an existing requirement to a new version
-pub fn upgrade_requirement(
-    req: &str,
-    version: &semver::Version,
-) -> Result<Option<String>, FatalError> {
+pub fn upgrade_requirement(req: &str, version: &semver::Version) -> CargoResult<Option<String>> {
     let req_text = req.to_string();
     let raw_req = semver::VersionReq::parse(&req_text)
         .expect("semver to generate valid version requirements");
@@ -186,7 +187,7 @@ pub fn upgrade_requirement(
 fn set_comparator(
     mut pred: semver::Comparator,
     version: &semver::Version,
-) -> Result<semver::Comparator, FatalError> {
+) -> CargoResult<semver::Comparator> {
     match pred.op {
         semver::Op::Wildcard => {
             pred.major = version.major;
@@ -199,16 +200,17 @@ fn set_comparator(
             Ok(pred)
         }
         semver::Op::Exact => Ok(assign_partial_req(version, pred)),
-        semver::Op::Greater | semver::Op::GreaterEq | semver::Op::Less | semver::Op::LessEq => {
-            let user_pred = pred.to_string();
-            Err(FatalError::UnsupportedVersionReq(user_pred))
-        }
+        semver::Op::Greater | semver::Op::GreaterEq | semver::Op::Less | semver::Op::LessEq => Err(
+            anyhow::format_err!("Support for modifying {} is currently unsupported", pred),
+        ),
         semver::Op::Tilde => Ok(assign_partial_req(version, pred)),
         semver::Op::Caret => Ok(assign_partial_req(version, pred)),
         _ => {
             log::debug!("New predicate added");
-            let user_pred = pred.to_string();
-            Err(FatalError::UnsupportedVersionReq(user_pred))
+            Err(anyhow::format_err!(
+                "Support for modifying {} is currently unsupported",
+                pred
+            ))
         }
     }
 }

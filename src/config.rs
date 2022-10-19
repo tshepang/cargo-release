@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::FatalError;
+use crate::error::CargoResult;
 use crate::ops::cargo;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -438,7 +438,7 @@ struct CargoMetadata {
 pub fn load_workspace_config(
     args: &ConfigArgs,
     ws_meta: &cargo_metadata::Metadata,
-) -> Result<Config, FatalError> {
+) -> CargoResult<Config> {
     let mut release_config = Config {
         is_workspace: 1 < ws_meta.workspace_members.len(),
         ..Default::default()
@@ -478,7 +478,7 @@ pub fn load_package_config(
     args: &ConfigArgs,
     ws_meta: &cargo_metadata::Metadata,
     pkg: &cargo_metadata::Package,
-) -> Result<Config, FatalError> {
+) -> CargoResult<Config> {
     let manifest_path = pkg.manifest_path.as_std_path();
 
     let is_workspace = 1 < ws_meta.workspace_members.len();
@@ -673,10 +673,10 @@ impl PushArgs {
     }
 }
 
-fn get_pkg_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
+fn get_pkg_config_from_manifest(manifest_path: &Path) -> CargoResult<Option<Config>> {
     if manifest_path.exists() {
-        let m = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
-        let c: CargoManifest = toml_edit::easy::from_str(&m).map_err(FatalError::from)?;
+        let m = std::fs::read_to_string(manifest_path)?;
+        let c: CargoManifest = toml_edit::easy::from_str(&m)?;
 
         Ok(c.package.and_then(|p| p.into_config()))
     } else {
@@ -684,10 +684,10 @@ fn get_pkg_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, 
     }
 }
 
-fn get_ws_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, FatalError> {
+fn get_ws_config_from_manifest(manifest_path: &Path) -> CargoResult<Option<Config>> {
     if manifest_path.exists() {
-        let m = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
-        let c: CargoManifest = toml_edit::easy::from_str(&m).map_err(FatalError::from)?;
+        let m = std::fs::read_to_string(manifest_path)?;
+        let c: CargoManifest = toml_edit::easy::from_str(&m)?;
 
         Ok(c.workspace.and_then(|p| p.into_config()))
     } else {
@@ -695,17 +695,17 @@ fn get_ws_config_from_manifest(manifest_path: &Path) -> Result<Option<Config>, F
     }
 }
 
-fn get_config_from_file(file_path: &Path) -> Result<Option<Config>, FatalError> {
+fn get_config_from_file(file_path: &Path) -> CargoResult<Option<Config>> {
     if file_path.exists() {
-        let c = std::fs::read_to_string(file_path).map_err(FatalError::from)?;
-        let config = toml_edit::easy::from_str(&c).map_err(FatalError::from)?;
+        let c = std::fs::read_to_string(file_path)?;
+        let config = toml_edit::easy::from_str(&c)?;
         Ok(Some(config))
     } else {
         Ok(None)
     }
 }
 
-pub fn resolve_custom_config(file_path: &Path) -> Result<Option<Config>, FatalError> {
+pub fn resolve_custom_config(file_path: &Path) -> CargoResult<Option<Config>> {
     get_config_from_file(file_path)
 }
 
@@ -716,7 +716,7 @@ pub fn resolve_custom_config(file_path: &Path) -> Result<Option<Config>, FatalEr
 /// 2. $HOME/.config/cargo-release/release.toml
 /// 3. $(workspace)/release.toml
 /// 3. $(workspace)/Cargo.toml
-pub fn resolve_workspace_config(workspace_root: &Path) -> Result<Config, FatalError> {
+pub fn resolve_workspace_config(workspace_root: &Path) -> CargoResult<Config> {
     let mut config = Config::default();
 
     // User-local configuration from home directory.
@@ -764,7 +764,7 @@ pub fn resolve_workspace_config(workspace_root: &Path) -> Result<Config, FatalEr
 ///
 /// `$(crate)/Cargo.toml` is a way to differentiate configuration for the root crate and the
 /// workspace.
-pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Config, FatalError> {
+pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> CargoResult<Config> {
     let mut config = resolve_workspace_config(workspace_root)?;
 
     // Crate config
@@ -783,24 +783,20 @@ pub fn resolve_config(workspace_root: &Path, manifest_path: &Path) -> Result<Con
     Ok(config)
 }
 
-pub fn resolve_overrides(
-    workspace_root: &Path,
-    manifest_path: &Path,
-) -> Result<Config, FatalError> {
+pub fn resolve_overrides(workspace_root: &Path, manifest_path: &Path) -> CargoResult<Config> {
     let mut release_config = Config::default();
 
     // the publish flag in cargo file
-    let manifest = std::fs::read_to_string(manifest_path).map_err(FatalError::from)?;
-    let manifest: CargoManifest = toml_edit::easy::from_str(&manifest).map_err(FatalError::from)?;
+    let manifest = std::fs::read_to_string(manifest_path)?;
+    let manifest: CargoManifest = toml_edit::easy::from_str(&manifest)?;
     if let Some(package) = manifest.package.as_ref() {
         let publish = match package.publish.as_ref() {
             Some(MaybeWorkspace::Defined(publish)) => *publish,
             Some(MaybeWorkspace::Workspace(workspace)) => {
                 if workspace.workspace {
                     let workspace = workspace_root.join("Cargo.toml");
-                    let workspace = std::fs::read_to_string(workspace).map_err(FatalError::from)?;
-                    let workspace: CargoManifest =
-                        toml_edit::easy::from_str(&workspace).map_err(FatalError::from)?;
+                    let workspace = std::fs::read_to_string(workspace)?;
+                    let workspace: CargoManifest = toml_edit::easy::from_str(&workspace)?;
                     workspace
                         .workspace
                         .as_ref()

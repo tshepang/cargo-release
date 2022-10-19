@@ -10,7 +10,7 @@ fn main() {
     error::exit(res)
 }
 
-fn run() -> Result<(), error::ProcessError> {
+fn run() -> Result<(), error::CliError> {
     let Command::Release(ref release_matches) = Command::parse();
 
     let mut builder = get_logging(release_matches.logging.log_level());

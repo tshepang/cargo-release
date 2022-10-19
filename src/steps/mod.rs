@@ -10,14 +10,14 @@ pub mod replace;
 pub mod tag;
 pub mod version;
 
-use crate::error::FatalError;
+use crate::error::CargoResult;
 use crate::ops::version::VersionExt as _;
 
 pub fn verify_git_is_clean(
     path: &std::path::Path,
     dry_run: bool,
     level: log::Level,
-) -> Result<bool, crate::error::ProcessError> {
+) -> Result<bool, crate::error::CliError> {
     let mut success = true;
     if crate::ops::git::is_dirty(path)? {
         log::log!(
@@ -38,7 +38,7 @@ pub fn verify_tags_missing(
     pkgs: &[plan::PackageRelease],
     dry_run: bool,
     level: log::Level,
-) -> Result<bool, crate::error::ProcessError> {
+) -> Result<bool, crate::error::CliError> {
     let mut success = true;
 
     let mut tag_exists = false;
@@ -74,7 +74,7 @@ pub fn verify_tags_exist(
     pkgs: &[plan::PackageRelease],
     dry_run: bool,
     level: log::Level,
-) -> Result<bool, crate::error::ProcessError> {
+) -> Result<bool, crate::error::CliError> {
     let mut success = true;
 
     let mut tag_missing = false;
@@ -111,7 +111,7 @@ pub fn verify_git_branch(
     ws_config: &crate::config::Config,
     dry_run: bool,
     level: log::Level,
-) -> Result<bool, crate::error::ProcessError> {
+) -> Result<bool, crate::error::CliError> {
     use itertools::Itertools;
 
     let mut success = true;
@@ -147,7 +147,7 @@ pub fn verify_if_behind(
     ws_config: &crate::config::Config,
     dry_run: bool,
     level: log::Level,
-) -> Result<bool, crate::error::ProcessError> {
+) -> Result<bool, crate::error::CliError> {
     let mut success = true;
 
     let git_remote = ws_config.push_remote();
@@ -170,7 +170,7 @@ pub fn verify_monotonically_increasing(
     pkgs: &[plan::PackageRelease],
     dry_run: bool,
     level: log::Level,
-) -> Result<bool, crate::error::ProcessError> {
+) -> Result<bool, crate::error::CliError> {
     let mut success = true;
 
     let mut downgrades_present = false;
@@ -204,7 +204,7 @@ pub fn verify_rate_limit(
     index: &crates_index::Index,
     dry_run: bool,
     level: log::Level,
-) -> Result<bool, crate::error::ProcessError> {
+) -> Result<bool, crate::error::CliError> {
     let mut success = true;
 
     // "It's not particularly secret, we just don't publish it other than in the code because
@@ -253,7 +253,7 @@ pub fn verify_rate_limit(
 pub fn warn_changed(
     ws_meta: &cargo_metadata::Metadata,
     pkgs: &[plan::PackageRelease],
-) -> Result<(), crate::error::ProcessError> {
+) -> Result<(), crate::error::CliError> {
     let mut changed_pkgs = std::collections::HashSet::new();
     for pkg in pkgs {
         let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
@@ -316,7 +316,7 @@ pub fn warn_changed(
 
 pub fn find_shared_versions(
     pkgs: &[plan::PackageRelease],
-) -> Result<Option<plan::Version>, crate::error::ProcessError> {
+) -> Result<Option<plan::Version>, crate::error::CliError> {
     let mut is_shared = true;
     let mut shared_versions: std::collections::HashMap<&str, &plan::Version> = Default::default();
     for pkg in pkgs {
@@ -358,7 +358,7 @@ pub fn find_shared_versions(
 pub fn consolidate_commits(
     selected_pkgs: &[plan::PackageRelease],
     excluded_pkgs: &[plan::PackageRelease],
-) -> Result<bool, crate::error::ProcessError> {
+) -> Result<bool, crate::error::CliError> {
     let mut consolidate_commits = None;
     for pkg in selected_pkgs.iter().chain(excluded_pkgs.iter()) {
         let current = Some(pkg.config.consolidate_commits());
@@ -377,7 +377,7 @@ pub fn confirm(
     pkgs: &[plan::PackageRelease],
     no_confirm: bool,
     dry_run: bool,
-) -> Result<(), crate::error::ProcessError> {
+) -> Result<(), crate::error::CliError> {
     if !dry_run && !no_confirm {
         let prompt = if pkgs.len() == 1 {
             let pkg = &pkgs[0];
@@ -412,7 +412,7 @@ pub fn confirm(
     Ok(())
 }
 
-pub fn finish(failed: bool, dry_run: bool) -> Result<(), crate::error::ProcessError> {
+pub fn finish(failed: bool, dry_run: bool) -> Result<(), crate::error::CliError> {
     if dry_run {
         if failed {
             log::error!("Dry-run failed, resolve the above errors and try again.");
@@ -437,7 +437,7 @@ impl TargetVersion {
         &self,
         current: &semver::Version,
         metadata: Option<&str>,
-    ) -> Result<Option<plan::Version>, FatalError> {
+    ) -> CargoResult<Option<plan::Version>> {
         match self {
             TargetVersion::Relative(bump_level) => {
                 let mut potential_version = current.to_owned();
@@ -490,13 +490,15 @@ impl std::fmt::Display for TargetVersion {
 }
 
 impl std::str::FromStr for TargetVersion {
-    type Err = FatalError;
+    type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(bump_level) = BumpLevel::from_str(s) {
             Ok(TargetVersion::Relative(bump_level))
         } else {
-            Ok(TargetVersion::Absolute(semver::Version::parse(s)?))
+            Ok(TargetVersion::Absolute(
+                semver::Version::parse(s).map_err(|e| e.to_string())?,
+            ))
         }
     }
 }
@@ -589,7 +591,7 @@ impl BumpLevel {
         self,
         version: &mut semver::Version,
         metadata: Option<&str>,
-    ) -> Result<(), FatalError> {
+    ) -> CargoResult<()> {
         match self {
             BumpLevel::Major => {
                 version.increment_major();
