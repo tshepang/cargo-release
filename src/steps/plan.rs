@@ -96,14 +96,18 @@ impl PackageRelease {
         ws_meta: &cargo_metadata::Metadata,
         pkg_meta: &cargo_metadata::Package,
     ) -> CargoResult<Self> {
-        let manifest_path = pkg_meta.manifest_path.as_std_path();
-        let package_root = manifest_path.parent().unwrap_or_else(|| Path::new("."));
+        let meta = pkg_meta.clone();
+        let manifest_path = pkg_meta.manifest_path.as_std_path().to_owned();
+        let package_root = manifest_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .to_owned();
         let config = config::load_package_config(args, ws_meta, pkg_meta)?;
         if !config.release() {
             log::trace!("Disabled in config, skipping {}", manifest_path.display());
         }
 
-        let package_content = cargo::package_content(manifest_path)?;
+        let package_content = cargo::package_content(&manifest_path)?;
         let bin = pkg_meta
             .targets
             .iter()
@@ -137,9 +141,9 @@ impl PackageRelease {
         let ensure_owners = config.publish() && !config.owners().is_empty();
 
         let pkg = PackageRelease {
-            meta: pkg_meta.clone(),
-            manifest_path: manifest_path.to_owned(),
-            package_root: package_root.to_owned(),
+            meta,
+            manifest_path,
+            package_root,
             is_root,
             config,
 
