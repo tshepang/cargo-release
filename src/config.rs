@@ -19,6 +19,7 @@ pub struct Config {
     pub release: Option<bool>,
     pub publish: Option<bool>,
     pub verify: Option<bool>,
+    pub owners: Option<Vec<String>>,
     pub push: Option<bool>,
     pub push_options: Option<Vec<String>>,
     pub shared_version: Option<SharedVersion>,
@@ -60,6 +61,7 @@ impl Config {
             release: Some(empty.release()),
             publish: Some(empty.publish()),
             verify: Some(empty.verify()),
+            owners: Some(empty.owners().to_vec()),
             push: Some(empty.push()),
             push_options: Some(
                 empty
@@ -111,6 +113,9 @@ impl Config {
         }
         if let Some(verify) = source.verify {
             self.verify = Some(verify);
+        }
+        if let Some(owners) = source.owners.as_deref() {
+            self.owners = Some(owners.to_owned());
         }
         if let Some(push) = source.push {
             self.push = Some(push);
@@ -198,6 +203,10 @@ impl Config {
 
     pub fn verify(&self) -> bool {
         self.verify.unwrap_or(true)
+    }
+
+    pub fn owners(&self) -> &[String] {
+        self.owners.as_ref().map(|v| v.as_ref()).unwrap_or(&[])
     }
 
     pub fn push(&self) -> bool {

@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 pub mod config;
 pub mod hook;
+pub mod owner;
 pub mod plan;
 pub mod publish;
 pub mod push;
