@@ -185,6 +185,82 @@ pub fn set_workspace_version(
     Ok(())
 }
 
+pub fn ensure_owners(
+    name: &str,
+    logins: &[String],
+    registry: Option<&str>,
+    dry_run: bool,
+) -> CargoResult<()> {
+    let cargo = cargo();
+
+    // "Look-before-you-leap" in case the user has permission to publish but not set owners.
+    let mut cmd = std::process::Command::new(&cargo);
+    cmd.arg("owner").arg(name).arg("--color=never");
+    cmd.arg("--list");
+    if let Some(registry) = registry {
+        cmd.arg("--registry");
+        cmd.arg(registry);
+    }
+    let output = cmd.output()?;
+    if !output.status.success() {
+        anyhow::bail!(
+            "Failed talking to registry about crate owners: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    let raw = String::from_utf8(output.stdout)
+        .map_err(|_| anyhow::format_err!("Unrecognized response from registry"))?;
+
+    let mut current = std::collections::BTreeSet::new();
+    // HACK: No programmatic CLI access and don't want to link against `cargo` (yet), so parsing
+    // text output
+    for line in raw.lines() {
+        if let Some((owner, _)) = line.split_once(' ') {
+            if !owner.is_empty() {
+                current.insert(owner);
+            }
+        }
+    }
+
+    let expected = logins
+        .iter()
+        .map(|s| s.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+
+    let missing = expected.difference(&current).copied().collect::<Vec<_>>();
+    if !missing.is_empty() {
+        log::info!("Adding owners for {}: {}", name, missing.join(", "));
+        if !dry_run {
+            let mut cmd = std::process::Command::new(&cargo);
+            cmd.arg("owner").arg(name).arg("--color=never");
+            for missing in missing {
+                cmd.arg("--add").arg(missing);
+            }
+            if let Some(registry) = registry {
+                cmd.arg("--registry");
+                cmd.arg(registry);
+            }
+            let output = cmd.output()?;
+            if !output.status.success() {
+                // HACK: Can't error as the user might not have permission to set owners and we can't
+                // tell what the error was without parsing it
+                log::warn!(
+                    "Failed to set owners for {}: {}",
+                    name,
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+        }
+    }
+
+    let extra = current.difference(&expected).copied().collect::<Vec<_>>();
+    if !extra.is_empty() {
+        log::debug!("Extra owners for {}: {}", name, extra.join(", "));
+    }
+
+    Ok(())
+}
+
 pub fn set_package_version(manifest_path: &Path, version: &str, dry_run: bool) -> CargoResult<()> {
     let original_manifest = std::fs::read_to_string(manifest_path)?;
     let mut manifest: toml_edit::Document = original_manifest.parse()?;
