@@ -137,6 +137,9 @@ impl VersionStep {
             log::Level::Warn,
         )?;
 
+        failed |=
+            !super::verify_monotonically_increasing(&selected_pkgs, dry_run, log::Level::Error)?;
+
         super::warn_changed(&ws_meta, &selected_pkgs)?;
 
         failed |= !super::verify_git_branch(
