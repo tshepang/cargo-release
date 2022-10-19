@@ -84,7 +84,7 @@ Steps:
   hook     Run pre-release hooks
   commit   Owner the specified packages
   publish  Publish the specified packages
-  owner    Owner the specified packages
+  owner    Ensure owners are set on specified packages
   tag      Tag the released commits
   push     Push tags/commits to remote
   config   Dump workspace configuration

@@ -2,9 +2,7 @@ use crate::error::CliError;
 use crate::ops::git;
 use crate::steps::plan;
 
-/// Owner the specified packages
-///
-/// Will automatically skip published versions
+/// Ensure owners are set on specified packages
 #[derive(Debug, Clone, clap::Args)]
 pub struct OwnerStep {
     #[command(flatten)]
