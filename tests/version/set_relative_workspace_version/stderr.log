@@ -1,0 +1,5 @@
+[WARN ] Push target `origin/master` doesn't exist
+[INFO ] Upgrading workspace to version 1.0.0
+[INFO ] Upgrading inherit_ws_version from 0.2.0 to 1.0.0 (inherited from workspace)
+[INFO ] Updating workspace's dependency from 0.2 to 1.0
+[INFO ] Updating with_direct_dep's dependency from 0.2 to 1.0
