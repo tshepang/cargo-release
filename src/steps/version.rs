@@ -240,7 +240,7 @@ pub fn update_versions(
 
     if let Some(workspace_version) = &workspace_version {
         log::info!(
-            "Update workspace to version {}",
+            "Upgrading workspace to version {}",
             workspace_version.full_version_string
         );
         let workspace_path = ws_meta.workspace_root.as_std_path().join("Cargo.toml");
@@ -273,15 +273,17 @@ pub fn update_versions(
             if is_inherited {
                 let crate_name = pkg.meta.name.as_str();
                 log::info!(
-                    "Update {} to version {} (inherited from workspace)",
+                    "Upgrading {} from {} to {} (inherited from workspace)",
                     crate_name,
+                    pkg.initial_version.full_version_string,
                     version.full_version_string
                 );
             } else {
                 let crate_name = pkg.meta.name.as_str();
                 log::info!(
-                    "Update {} to version {}",
+                    "Upgrading {} from {} to {}",
                     crate_name,
+                    pkg.initial_version.full_version_string,
                     version.full_version_string
                 );
                 crate::ops::cargo::set_package_version(
