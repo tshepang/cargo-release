@@ -3,6 +3,59 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+The goal of this release is improved workspace support, including
+- [Workspace inheritance support](https://doc.rust-lang.org/cargo/reference/workspaces.html#the-package-table)
+- Greater control over versioning by supporting calling `cargo release version` as needed and then `cargo release --unpublished`
+- Setting configured crate owners when publishing new crates
+- Improved defaults
+
+This does mean that `cargo release` (no other args) changed from recovering
+from a failed release to releasing the currently specified versions of crates.
+Recovery is now done more manually with `cargo release publish`, etc.
+
+### Breaking Changes
+
+- Removed `dev-version` support
+- `consolidate-commits` is now the default for workspaces
+  - It is also now all-or-nothing
+- `consolidate-pushes` is now exclusively used
+- `dependent-versions = "upgrade"` is now the default
+  - Removed `ignore`, `warn`, and `error`
+- `Cargo.toml`'s `package.publish = false` disables release
+- Removed `--dump-config` in favor of `cargo release config`
+- Remove `--token` in favor in favor of more secure ways of authenticating
+- `cargo release` is no longer used for recovery, instead use `cargo release publish`, `cargo release tag`, etc
+- Error if nothing to release
+- Changed standard exit code to 101
+
+### Compatibility
+
+MSRV is now 1.64.0
+
+### Fixes
+
+- Turn some verification errors into warnings on steps
+- Run replacements when no version is bumped
+- Be smarter about finding previous tags
+- Bail out early when we'll hit crates.io rate limits
+- Bail out early when we'll hit `cargo publish` missing field errors
+- Implicitly layer package over workspace for workspace config when not in a workspace
+- Only update versions for path dependencies
+- Cleaned up output
+
+### Features
+
+- `package.version.workspace = true` support
+  - Forces `consolidate-commits = true`
+  - Forces `shared-version = "workspace"`
+- `dependency.<name>.workspace = true` support
+- `package.publish.workspace = true` support
+- `owners = []` to set crate owners for new workspace members
+  - Use `cargo release owner` to update owners for existing crates
+- In addition to `shared-version = true`, we now support named groups, like `shared-version = "foo"`
+- `--unpublished` flag to automatically release unpublished crates
+- Expose `hook` and `commit` steps
+
 ## [0.21.4] - 2022-10-14
 
 ### Fixes
