@@ -32,13 +32,13 @@ Options:
           Ignore implicit configuration files
       --sign
           Sign both git commit and tag
-      --sign-commit
-          Sign git commit
       --dependent-version <DEPENDENT_VERSION>
           Specify how workspace dependencies on this crate should be handed [possible values:
           upgrade, fix]
       --allow-branch <ALLOW_BRANCH>
           Comma-separated globs of branch names a release can happen from
+      --sign-commit
+          Sign git commit
       --no-publish
           Do not run cargo publish on release
       --registry <REGISTRY>
@@ -82,6 +82,7 @@ Steps:
   version  Bump crate versions
   replace  Perform pre-release replacements
   hook     Run pre-release hooks
+  commit   Owner the specified packages
   publish  Publish the specified packages
   owner    Owner the specified packages
   tag      Tag the released commits

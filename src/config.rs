@@ -531,12 +531,6 @@ pub struct ConfigArgs {
     #[arg(long, overrides_with("sign"), hide(true))]
     pub no_sign: bool,
 
-    /// Sign git commit
-    #[arg(long, overrides_with("no_sign_commit"))]
-    pub sign_commit: bool,
-    #[arg(long, overrides_with("sign_commit"), hide(true))]
-    pub no_sign_commit: bool,
-
     /// Specify how workspace dependencies on this crate should be handed.
     #[arg(long, value_enum)]
     pub dependent_version: Option<crate::config::DependentVersion>,
@@ -544,6 +538,9 @@ pub struct ConfigArgs {
     /// Comma-separated globs of branch names a release can happen from
     #[arg(long, value_delimiter = ',')]
     pub allow_branch: Option<Vec<String>>,
+
+    #[command(flatten)]
+    pub commit: CommitArgs,
 
     #[command(flatten)]
     pub publish: PublishArgs,
@@ -559,12 +556,12 @@ impl ConfigArgs {
     pub fn to_config(&self) -> crate::config::Config {
         let mut config = crate::config::Config {
             allow_branch: self.allow_branch.clone(),
-            sign_commit: resolve_bool_arg(self.sign_commit, self.no_sign_commit)
-                .or_else(|| self.sign()),
+            sign_commit: self.sign(),
             sign_tag: self.sign(),
             dependent_version: self.dependent_version,
             ..Default::default()
         };
+        config.update(&self.commit.to_config());
         config.update(&self.publish.to_config());
         config.update(&self.tag.to_config());
         config.update(&self.push.to_config());
@@ -573,6 +570,25 @@ impl ConfigArgs {
 
     fn sign(&self) -> Option<bool> {
         resolve_bool_arg(self.sign, self.no_sign)
+    }
+}
+
+#[derive(Clone, Default, Debug, clap::Args)]
+#[command(next_help_heading = "Commit")]
+pub struct CommitArgs {
+    /// Sign git commit
+    #[arg(long, overrides_with("no_sign_commit"))]
+    pub sign_commit: bool,
+    #[arg(long, overrides_with("sign_commit"), hide(true))]
+    pub no_sign_commit: bool,
+}
+
+impl CommitArgs {
+    pub fn to_config(&self) -> crate::config::Config {
+        crate::config::Config {
+            sign_commit: resolve_bool_arg(self.sign_commit, self.no_sign_commit),
+            ..Default::default()
+        }
     }
 }
 
