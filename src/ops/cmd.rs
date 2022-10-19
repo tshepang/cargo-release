@@ -3,14 +3,14 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::process::Command;
 
-use crate::error::FatalError;
+use crate::error::CargoResult;
 
 fn do_call(
     command: impl IntoIterator<Item = impl Into<String>>,
     path: Option<&Path>,
     envs: Option<BTreeMap<&OsStr, &OsStr>>,
     dry_run: bool,
-) -> Result<bool, FatalError> {
+) -> CargoResult<bool> {
     let command: Vec<_> = command.into_iter().map(|s| s.into()).collect();
     if dry_run {
         if path.is_some() {
@@ -38,8 +38,8 @@ fn do_call(
         }
     }
 
-    let mut child = cmd.spawn().map_err(FatalError::from)?;
-    let result = child.wait().map_err(FatalError::from)?;
+    let mut child = cmd.spawn()?;
+    let result = child.wait()?;
 
     Ok(result.success())
 }
@@ -47,7 +47,7 @@ fn do_call(
 pub fn call(
     command: impl IntoIterator<Item = impl Into<String>>,
     dry_run: bool,
-) -> Result<bool, FatalError> {
+) -> CargoResult<bool> {
     do_call(command, None, None, dry_run)
 }
 
@@ -55,7 +55,7 @@ pub fn call_on_path(
     command: impl IntoIterator<Item = impl Into<String>>,
     path: &Path,
     dry_run: bool,
-) -> Result<bool, FatalError> {
+) -> CargoResult<bool> {
     do_call(command, Some(path), None, dry_run)
 }
 
@@ -64,6 +64,6 @@ pub fn call_with_env(
     envs: BTreeMap<&OsStr, &OsStr>,
     path: &Path,
     dry_run: bool,
-) -> Result<bool, FatalError> {
+) -> CargoResult<bool> {
     do_call(command, Some(path), Some(envs), dry_run)
 }

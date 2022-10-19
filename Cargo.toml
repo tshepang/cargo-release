@@ -55,6 +55,7 @@ env_logger = "0.9"
 globset = { version = "0.4.9", default-features = false }
 dunce = "1.0.3"
 trycmd = "0.14.0"
+anyhow = "1.0.65"
 
 [dev-dependencies]
 assert_fs = "1.0"

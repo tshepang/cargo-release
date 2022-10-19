@@ -4,10 +4,10 @@ use std::process::Command;
 
 use bstr::ByteSlice;
 
-use crate::error::FatalError;
+use crate::error::CargoResult;
 use crate::ops::cmd::call_on_path;
 
-pub fn fetch(dir: &Path, remote: &str, branch: &str) -> Result<(), FatalError> {
+pub fn fetch(dir: &Path, remote: &str, branch: &str) -> CargoResult<()> {
     Command::new("git")
         .arg("fetch")
         .arg(remote)
@@ -15,10 +15,10 @@ pub fn fetch(dir: &Path, remote: &str, branch: &str) -> Result<(), FatalError> {
         .current_dir(dir)
         .output()
         .map(|_| ())
-        .map_err(|_| FatalError::GitBinError)
+        .map_err(|_| anyhow::format_err!("`git` not found"))
 }
 
-pub fn is_behind_remote(dir: &Path, remote: &str, branch: &str) -> Result<bool, FatalError> {
+pub fn is_behind_remote(dir: &Path, remote: &str, branch: &str) -> CargoResult<bool> {
     let repo = git2::Repository::discover(dir)?;
 
     let branch_id = repo.revparse_single(branch)?.id();
@@ -45,7 +45,7 @@ pub fn is_behind_remote(dir: &Path, remote: &str, branch: &str) -> Result<bool, 
     Ok(behind)
 }
 
-pub fn is_local_unchanged(dir: &Path, remote: &str, branch: &str) -> Result<bool, FatalError> {
+pub fn is_local_unchanged(dir: &Path, remote: &str, branch: &str) -> CargoResult<bool> {
     let repo = git2::Repository::discover(dir)?;
 
     let branch_id = repo.revparse_single(branch)?.id();
@@ -72,7 +72,7 @@ pub fn is_local_unchanged(dir: &Path, remote: &str, branch: &str) -> Result<bool
     Ok(unchanged)
 }
 
-pub fn current_branch(dir: &Path) -> Result<String, FatalError> {
+pub fn current_branch(dir: &Path) -> CargoResult<String> {
     let repo = git2::Repository::discover(dir)?;
 
     let resolved = repo.head()?.resolve()?;
@@ -80,7 +80,7 @@ pub fn current_branch(dir: &Path) -> Result<String, FatalError> {
     Ok(name.to_owned())
 }
 
-pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
+pub fn is_dirty(dir: &Path) -> CargoResult<bool> {
     let output = Command::new("git")
         .arg("diff")
         .arg("HEAD")
@@ -89,8 +89,7 @@ pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
         .arg("--")
         .arg(".")
         .current_dir(dir)
-        .output()
-        .map_err(FatalError::from)?;
+        .output()?;
     let tracked_unclean = !output.status.success();
     if tracked_unclean {
         let tracked = String::from_utf8_lossy(&output.stdout);
@@ -102,8 +101,7 @@ pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
         .arg("--exclude-standard")
         .arg("--others")
         .current_dir(dir)
-        .output()
-        .map_err(FatalError::from)?;
+        .output()?;
     let untracked_files = String::from_utf8_lossy(&output.stdout);
     let untracked = !untracked_files.as_ref().trim().is_empty();
     if untracked {
@@ -113,7 +111,7 @@ pub fn is_dirty(dir: &Path) -> Result<bool, FatalError> {
     Ok(tracked_unclean || untracked)
 }
 
-pub fn changed_files(dir: &Path, tag: &str) -> Result<Option<Vec<PathBuf>>, FatalError> {
+pub fn changed_files(dir: &Path, tag: &str) -> CargoResult<Option<Vec<PathBuf>>> {
     let root = top_level(dir)?;
 
     let output = Command::new("git")
@@ -124,8 +122,7 @@ pub fn changed_files(dir: &Path, tag: &str) -> Result<Option<Vec<PathBuf>>, Fata
         .arg("--")
         .arg(".")
         .current_dir(dir)
-        .output()
-        .map_err(FatalError::from)?;
+        .output()?;
     match output.status.code() {
         Some(0) => Ok(Some(Vec::new())),
         Some(1) => {
@@ -140,7 +137,7 @@ pub fn changed_files(dir: &Path, tag: &str) -> Result<Option<Vec<PathBuf>>, Fata
     }
 }
 
-pub fn commit_all(dir: &Path, msg: &str, sign: bool, dry_run: bool) -> Result<bool, FatalError> {
+pub fn commit_all(dir: &Path, msg: &str, sign: bool, dry_run: bool) -> CargoResult<bool> {
     call_on_path(
         vec!["git", "commit", if sign { "-S" } else { "" }, "-am", msg],
         dir,
@@ -148,13 +145,7 @@ pub fn commit_all(dir: &Path, msg: &str, sign: bool, dry_run: bool) -> Result<bo
     )
 }
 
-pub fn tag(
-    dir: &Path,
-    name: &str,
-    msg: &str,
-    sign: bool,
-    dry_run: bool,
-) -> Result<bool, FatalError> {
+pub fn tag(dir: &Path, name: &str, msg: &str, sign: bool, dry_run: bool) -> CargoResult<bool> {
     let mut cmd = vec!["git", "tag", name];
     if !msg.is_empty() {
         cmd.extend(["-a", "-m", msg]);
@@ -165,7 +156,7 @@ pub fn tag(
     call_on_path(cmd, dir, dry_run)
 }
 
-pub fn tag_exists(dir: &Path, name: &str) -> Result<bool, FatalError> {
+pub fn tag_exists(dir: &Path, name: &str) -> CargoResult<bool> {
     let repo = git2::Repository::discover(dir)?;
 
     let names = repo.tag_names(Some(name))?;
@@ -209,7 +200,7 @@ pub fn push<'s>(
     refs: impl IntoIterator<Item = &'s str>,
     options: impl IntoIterator<Item = &'s str>,
     dry_run: bool,
-) -> Result<bool, FatalError> {
+) -> CargoResult<bool> {
     let mut command = vec!["git", "push"];
 
     for option in options {
@@ -231,23 +222,20 @@ pub fn push<'s>(
     call_on_path(command, dir, dry_run)
 }
 
-pub fn top_level(dir: &Path) -> Result<PathBuf, FatalError> {
+pub fn top_level(dir: &Path) -> CargoResult<PathBuf> {
     let output = Command::new("git")
         .arg("rev-parse")
         .arg("--show-toplevel")
         .current_dir(dir)
-        .output()
-        .map_err(FatalError::from)?;
-    let path = std::str::from_utf8(&output.stdout)
-        .map_err(FatalError::from)?
-        .trim_end();
+        .output()?;
+    let path = std::str::from_utf8(&output.stdout)?.trim_end();
     Ok(Path::new(path).to_owned())
 }
 
-pub fn git_version() -> Result<(), FatalError> {
+pub fn git_version() -> CargoResult<()> {
     Command::new("git")
         .arg("--version")
         .output()
         .map(|_| ())
-        .map_err(|_| FatalError::GitBinError)
+        .map_err(|_| anyhow::format_err!("`git` not found"))
 }

@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
-use crate::error::FatalError;
-use crate::error::ProcessError;
+use crate::error::CliError;
 use crate::ops::git;
 use crate::ops::replace::Template;
 use crate::ops::replace::NOW;
@@ -43,7 +42,7 @@ pub struct TagStep {
 }
 
 impl TagStep {
-    pub fn run(&self) -> Result<(), ProcessError> {
+    pub fn run(&self) -> Result<(), CliError> {
         git::git_version()?;
 
         let ws_meta = self
@@ -51,8 +50,7 @@ impl TagStep {
             .metadata()
             // When evaluating dependency ordering, we need to consider optional dependencies
             .features(cargo_metadata::CargoOpt::AllFeatures)
-            .exec()
-            .map_err(FatalError::from)?;
+            .exec()?;
         let config = self.to_config();
         let ws_config = crate::config::load_workspace_config(&config, &ws_meta)?;
         let mut pkgs = plan::load(&config, &ws_meta)?;
@@ -144,7 +142,7 @@ impl TagStep {
     }
 }
 
-pub fn tag(pkgs: &[plan::PackageRelease], dry_run: bool) -> Result<(), ProcessError> {
+pub fn tag(pkgs: &[plan::PackageRelease], dry_run: bool) -> Result<(), CliError> {
     let mut seen_tags = HashSet::new();
     for pkg in pkgs {
         if let Some(tag_name) = pkg.planned_tag.as_ref() {

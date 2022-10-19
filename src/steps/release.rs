@@ -1,6 +1,5 @@
 use crate::config;
-use crate::error::FatalError;
-use crate::error::ProcessError;
+use crate::error::CliError;
 use crate::ops::cargo;
 use crate::ops::git;
 use crate::ops::replace::{Template, NOW};
@@ -43,7 +42,7 @@ pub struct ReleaseStep {
 }
 
 impl ReleaseStep {
-    pub fn run(&self) -> Result<(), ProcessError> {
+    pub fn run(&self) -> Result<(), CliError> {
         git::git_version()?;
         let mut index = crates_index::Index::new_cargo_default()?;
 
@@ -52,8 +51,7 @@ impl ReleaseStep {
             .metadata()
             // When evaluating dependency ordering, we need to consider optional dependencies
             .features(cargo_metadata::CargoOpt::AllFeatures)
-            .exec()
-            .map_err(FatalError::from)?;
+            .exec()?;
         let ws_config = config::load_workspace_config(&self.config, &ws_meta)?;
         let mut pkgs = plan::load(&self.config, &ws_meta)?;
 
@@ -293,7 +291,7 @@ impl ReleaseStep {
     }
 }
 
-pub fn pkg_commit(pkg: &plan::PackageRelease, dry_run: bool) -> Result<(), ProcessError> {
+pub fn pkg_commit(pkg: &plan::PackageRelease, dry_run: bool) -> Result<(), CliError> {
     let cwd = &pkg.package_root;
     let crate_name = pkg.meta.name.as_str();
     let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
@@ -325,7 +323,7 @@ pub fn workspace_commit(
     ws_config: &config::Config,
     pkgs: &[plan::PackageRelease],
     dry_run: bool,
-) -> Result<(), ProcessError> {
+) -> Result<(), CliError> {
     let shared_version = super::find_shared_versions(pkgs)?;
 
     let shared_commit_msg = {

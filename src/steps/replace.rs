@@ -1,5 +1,4 @@
-use crate::error::FatalError;
-use crate::error::ProcessError;
+use crate::error::CliError;
 use crate::ops::git;
 use crate::ops::replace::{do_file_replacements, Template, NOW};
 use crate::steps::plan;
@@ -39,7 +38,7 @@ pub struct ReplaceStep {
 }
 
 impl ReplaceStep {
-    pub fn run(&self) -> Result<(), ProcessError> {
+    pub fn run(&self) -> Result<(), CliError> {
         git::git_version()?;
         let index = crates_index::Index::new_cargo_default()?;
 
@@ -48,8 +47,7 @@ impl ReplaceStep {
             .metadata()
             // When evaluating dependency ordering, we need to consider optional dependencies
             .features(cargo_metadata::CargoOpt::AllFeatures)
-            .exec()
-            .map_err(FatalError::from)?;
+            .exec()?;
         let config = self.to_config();
         let ws_config = crate::config::load_workspace_config(&config, &ws_meta)?;
         let mut pkgs = plan::load(&config, &ws_meta)?;
@@ -145,7 +143,7 @@ impl ReplaceStep {
     }
 }
 
-pub fn replace(pkg: &plan::PackageRelease, dry_run: bool) -> Result<(), ProcessError> {
+pub fn replace(pkg: &plan::PackageRelease, dry_run: bool) -> Result<(), CliError> {
     let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
     if !pkg.config.pre_release_replacements().is_empty() {
         let cwd = &pkg.package_root;

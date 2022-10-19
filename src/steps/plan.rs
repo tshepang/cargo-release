@@ -2,8 +2,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::config;
-use crate::error;
-use crate::error::FatalError;
+use crate::error::CargoResult;
 use crate::ops::cargo;
 use crate::ops::git;
 use crate::ops::replace::Template;
@@ -12,7 +11,7 @@ use crate::ops::version::VersionExt as _;
 pub fn load(
     args: &config::ConfigArgs,
     ws_meta: &cargo_metadata::Metadata,
-) -> Result<indexmap::IndexMap<cargo_metadata::PackageId, PackageRelease>, error::FatalError> {
+) -> CargoResult<indexmap::IndexMap<cargo_metadata::PackageId, PackageRelease>> {
     let root = git::top_level(ws_meta.workspace_root.as_std_path())?;
 
     let member_ids = cargo::sort_workspace(ws_meta);
@@ -25,7 +24,7 @@ pub fn load(
 
 pub fn plan(
     mut pkgs: indexmap::IndexMap<cargo_metadata::PackageId, PackageRelease>,
-) -> Result<indexmap::IndexMap<cargo_metadata::PackageId, PackageRelease>, error::FatalError> {
+) -> CargoResult<indexmap::IndexMap<cargo_metadata::PackageId, PackageRelease>> {
     let mut shared_versions: std::collections::HashMap<String, Version> = Default::default();
     for pkg in pkgs.values() {
         let group_name = if let Some(group_name) = pkg.config.shared_version() {
@@ -94,7 +93,7 @@ impl PackageRelease {
         git_root: &Path,
         ws_meta: &cargo_metadata::Metadata,
         pkg_meta: &cargo_metadata::Package,
-    ) -> Result<Self, error::FatalError> {
+    ) -> CargoResult<Self> {
         let manifest_path = pkg_meta.manifest_path.as_std_path();
         let package_root = manifest_path.parent().unwrap_or_else(|| Path::new("."));
         let config = config::load_package_config(args, ws_meta, pkg_meta)?;
@@ -164,13 +163,13 @@ impl PackageRelease {
         &mut self,
         level_or_version: &super::TargetVersion,
         metadata: Option<&str>,
-    ) -> Result<(), FatalError> {
+    ) -> CargoResult<()> {
         self.planned_version =
             level_or_version.bump(&self.initial_version.full_version, metadata)?;
         Ok(())
     }
 
-    pub fn plan(&mut self) -> Result<(), FatalError> {
+    pub fn plan(&mut self) -> CargoResult<()> {
         if !self.config.release() {
             return Ok(());
         }

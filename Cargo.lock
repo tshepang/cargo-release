@@ -109,6 +109,7 @@ dependencies = [
 name = "cargo-release"
 version = "0.21.4"
 dependencies = [
+ "anyhow",
  "assert_fs",
  "bstr 1.0.1",
  "cargo-test-macro",

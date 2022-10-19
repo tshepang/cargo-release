@@ -1,5 +1,4 @@
-use crate::error::FatalError;
-use crate::error::ProcessError;
+use crate::error::CliError;
 use crate::ops::git;
 use crate::steps::plan;
 
@@ -39,7 +38,7 @@ pub struct PublishStep {
 }
 
 impl PublishStep {
-    pub fn run(&self) -> Result<(), ProcessError> {
+    pub fn run(&self) -> Result<(), CliError> {
         git::git_version()?;
 
         let ws_meta = self
@@ -47,8 +46,7 @@ impl PublishStep {
             .metadata()
             // When evaluating dependency ordering, we need to consider optional dependencies
             .features(cargo_metadata::CargoOpt::AllFeatures)
-            .exec()
-            .map_err(FatalError::from)?;
+            .exec()?;
         let config = self.to_config();
         let ws_config = crate::config::load_workspace_config(&config, &ws_meta)?;
         let mut pkgs = plan::load(&config, &ws_meta)?;
@@ -148,7 +146,7 @@ pub fn publish(
     pkgs: &[plan::PackageRelease],
     index: &mut crates_index::Index,
     dry_run: bool,
-) -> Result<(), ProcessError> {
+) -> Result<(), CliError> {
     for pkg in pkgs {
         if !pkg.config.publish() {
             continue;

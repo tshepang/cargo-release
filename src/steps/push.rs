@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
-use crate::error::FatalError;
-use crate::error::ProcessError;
+use crate::error::CliError;
 use crate::ops::git;
 use crate::steps::plan;
 
@@ -42,7 +41,7 @@ pub struct PushStep {
 }
 
 impl PushStep {
-    pub fn run(&self) -> Result<(), ProcessError> {
+    pub fn run(&self) -> Result<(), CliError> {
         git::git_version()?;
 
         let ws_meta = self
@@ -50,8 +49,7 @@ impl PushStep {
             .metadata()
             // When evaluating dependency ordering, we need to consider optional dependencies
             .features(cargo_metadata::CargoOpt::AllFeatures)
-            .exec()
-            .map_err(FatalError::from)?;
+            .exec()?;
         let config = self.to_config();
         let ws_config = crate::config::load_workspace_config(&config, &ws_meta)?;
         let mut pkgs = plan::load(&config, &ws_meta)?;
@@ -134,7 +132,7 @@ pub fn push(
     ws_meta: &cargo_metadata::Metadata,
     pkgs: &[plan::PackageRelease],
     dry_run: bool,
-) -> Result<(), ProcessError> {
+) -> Result<(), CliError> {
     if ws_config.push() {
         let git_remote = ws_config.push_remote();
         let branch = crate::ops::git::current_branch(ws_meta.workspace_root.as_std_path())?;
