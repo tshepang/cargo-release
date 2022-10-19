@@ -17,6 +17,10 @@ pub struct HookStep {
     #[command(flatten)]
     workspace: clap_cargo::Workspace,
 
+    /// Process all packages whose current version is unpublished
+    #[arg(long)]
+    unpublished: bool,
+
     /// Custom config file
     #[arg(short, long = "config")]
     custom_config: Option<String>,
@@ -41,6 +45,7 @@ pub struct HookStep {
 impl HookStep {
     pub fn run(&self) -> Result<(), ProcessError> {
         git::git_version()?;
+        let index = crates_index::Index::new_cargo_default()?;
 
         let ws_meta = self
             .manifest
@@ -61,6 +66,27 @@ impl HookStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
+
+            let crate_name = pkg.meta.name.as_str();
+            let explicitly_excluded = self.workspace.exclude.contains(&excluded_pkg.name);
+            // 1. Don't show this message if already not releasing in config
+            // 2. Still respect `--exclude`
+            if pkg.config.release() && pkg.config.publish() && !explicitly_excluded {
+                let version = &pkg.initial_version;
+                if !crate::ops::cargo::is_published(
+                    &index,
+                    crate_name,
+                    &version.full_version_string,
+                ) {
+                    log::debug!(
+                        "Enabled {}, v{} is unpublished",
+                        crate_name,
+                        version.full_version_string
+                    );
+                    continue;
+                }
+            }
+
             pkg.config.pre_release_replacements = Some(vec![]);
             pkg.config.release = Some(false);
         }
