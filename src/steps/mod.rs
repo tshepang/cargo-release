@@ -251,6 +251,69 @@ pub fn verify_rate_limit(
     Ok(success)
 }
 
+pub fn verify_metadata(
+    pkgs: &[plan::PackageRelease],
+    dry_run: bool,
+    level: log::Level,
+) -> Result<bool, crate::error::CliError> {
+    let mut success = true;
+
+    for pkg in pkgs {
+        if !pkg.config.publish() {
+            continue;
+        }
+        let mut missing = Vec::new();
+
+        // General cargo rules
+        if pkg
+            .meta
+            .description
+            .as_deref()
+            .unwrap_or_default()
+            .is_empty()
+        {
+            missing.push("description");
+        }
+        if pkg.meta.license.as_deref().unwrap_or_default().is_empty()
+            && pkg.meta.license_file.is_none()
+        {
+            missing.push("license || license-file");
+        }
+        if pkg
+            .meta
+            .documentation
+            .as_deref()
+            .unwrap_or_default()
+            .is_empty()
+            && pkg.meta.homepage.as_deref().unwrap_or_default().is_empty()
+            && pkg
+                .meta
+                .repository
+                .as_deref()
+                .unwrap_or_default()
+                .is_empty()
+        {
+            missing.push("documentation || homepage || repository");
+        }
+
+        if !missing.is_empty() {
+            log::log!(
+                level,
+                "{} is missing the following fields:\n  {}",
+                pkg.meta.name,
+                missing.join("\n  ")
+            );
+            success = false;
+        }
+    }
+
+    if !success && level == log::Level::Error && !dry_run {
+        return Err(101.into());
+    }
+
+    Ok(success)
+}
+
 pub fn warn_changed(
     ws_meta: &cargo_metadata::Metadata,
     pkgs: &[plan::PackageRelease],

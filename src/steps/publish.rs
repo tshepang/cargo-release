@@ -119,6 +119,7 @@ impl PublishStep {
             log::Level::Warn,
         )?;
 
+        failed |= !super::verify_metadata(&selected_pkgs, dry_run, log::Level::Error)?;
         failed |= !super::verify_rate_limit(&selected_pkgs, &index, dry_run, log::Level::Error)?;
 
         // STEP 1: Release Confirmation
