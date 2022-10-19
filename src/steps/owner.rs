@@ -119,7 +119,7 @@ impl OwnerStep {
 
 pub fn ensure_owners(pkgs: &[plan::PackageRelease], dry_run: bool) -> Result<(), CliError> {
     for pkg in pkgs {
-        if !pkg.config.publish() || pkg.config.owners().is_empty() {
+        if !pkg.config.publish() || !pkg.ensure_owners {
             continue;
         }
 
