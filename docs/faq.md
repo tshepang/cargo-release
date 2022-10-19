@@ -137,8 +137,12 @@ If you run with extra logging, we'll call out which file changed that triggered 
 If that file shouldn't be included in the package, update your `Cargo.toml`'s
 [`include` and `exclude` fields](https://doc.rust-lang.org/cargo/reference/manifest.html#the-exclude-and-include-fields).
 
-## Why does `publish=false` still release?
+## How do I automate creating a Release on Github
 
-`publish` only controls whether to publish to `crates.io`.  Some programs might want version bumping, tagging, replacements, etc without publishing.
+We recommend creating a workflow that creates a Release based on tags being published
+- [Hand-written example](https://github.com/crate-ci/typos/commit/5c92dc6f8cc68b9d1c8cb1e8840b81e78cf7f65d)
+- Pre-built [github-release-action](https://github.com/taiki-e/create-gh-release-action)
 
-If you do want to disable everything, set `release = false`.
+## How do I support [`cargo binstall`](https://crates.io/crates/cargo-binstall)
+
+See [cargo nextest](https://github.com/nextest-rs/nextest/blob/main/internal-docs/releasing.md) as an example workflow for this
