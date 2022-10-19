@@ -21,10 +21,11 @@ pub fn verify_git_is_clean(
     level: log::Level,
 ) -> Result<bool, crate::error::CliError> {
     let mut success = true;
-    if crate::ops::git::is_dirty(path)? {
+    if let Some(dirty) = crate::ops::git::is_dirty(path)? {
         log::log!(
             level,
-            "Uncommitted changes detected, please commit before release."
+            "Uncommitted changes detected, please resolve before release:\n  {}",
+            dirty.join("\n  ")
         );
         if level == log::Level::Error {
             success = false;

@@ -80,35 +80,35 @@ pub fn current_branch(dir: &Path) -> CargoResult<String> {
     Ok(name.to_owned())
 }
 
-pub fn is_dirty(dir: &Path) -> CargoResult<bool> {
-    let output = Command::new("git")
-        .arg("diff")
-        .arg("HEAD")
-        .arg("--exit-code")
-        .arg("--name-only")
-        .arg("--")
-        .arg(".")
-        .current_dir(dir)
-        .output()?;
-    let tracked_unclean = !output.status.success();
-    if tracked_unclean {
-        let tracked = String::from_utf8_lossy(&output.stdout);
-        log::debug!("Dirty because of:\n{}", tracked.trim());
+pub fn is_dirty(dir: &Path) -> CargoResult<Option<Vec<String>>> {
+    let repo = git2::Repository::discover(dir)?;
+
+    let mut entries = Vec::new();
+
+    let state = repo.state();
+    let dirty_state = state != git2::RepositoryState::Clean;
+    if dirty_state {
+        entries.push(format!("Dirty because of state {:?}", state));
     }
 
-    let output = Command::new("git")
-        .arg("ls-files")
-        .arg("--exclude-standard")
-        .arg("--others")
-        .current_dir(dir)
-        .output()?;
-    let untracked_files = String::from_utf8_lossy(&output.stdout);
-    let untracked = !untracked_files.as_ref().trim().is_empty();
-    if untracked {
-        log::debug!("Dirty because of:\n{}", untracked_files.trim());
+    let mut options = git2::StatusOptions::new();
+    options
+        .show(git2::StatusShow::IndexAndWorkdir)
+        .include_untracked(true);
+    let statuses = repo.statuses(Some(&mut options))?;
+    let dirty_tree = !statuses.is_empty();
+    if dirty_tree {
+        for status in statuses.iter() {
+            let path = bytes2path(status.path_bytes());
+            entries.push(format!("{} ({:?})", path.display(), status.status()));
+        }
     }
 
-    Ok(tracked_unclean || untracked)
+    if entries.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(entries))
+    }
 }
 
 pub fn changed_files(dir: &Path, tag: &str) -> CargoResult<Option<Vec<PathBuf>>> {
@@ -238,4 +238,18 @@ pub fn git_version() -> CargoResult<()> {
         .output()
         .map(|_| ())
         .map_err(|_| anyhow::format_err!("`git` not found"))
+}
+
+// From git2 crate
+#[cfg(unix)]
+fn bytes2path(b: &[u8]) -> &std::path::Path {
+    use std::os::unix::prelude::*;
+    std::path::Path::new(std::ffi::OsStr::from_bytes(b))
+}
+
+// From git2 crate
+#[cfg(windows)]
+fn bytes2path(b: &[u8]) -> &std::path::Path {
+    use std::str;
+    std::path::Path::new(str::from_utf8(b).unwrap())
 }
