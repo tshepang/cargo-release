@@ -80,7 +80,6 @@ pub struct PackageRelease {
     pub features: cargo::Features,
 
     pub initial_version: Version,
-    pub initial_tag: String,
     pub prior_tag: Option<String>,
 
     pub planned_version: Option<Version>,
@@ -96,14 +95,18 @@ impl PackageRelease {
         ws_meta: &cargo_metadata::Metadata,
         pkg_meta: &cargo_metadata::Package,
     ) -> CargoResult<Self> {
-        let manifest_path = pkg_meta.manifest_path.as_std_path();
-        let package_root = manifest_path.parent().unwrap_or_else(|| Path::new("."));
+        let meta = pkg_meta.clone();
+        let manifest_path = pkg_meta.manifest_path.as_std_path().to_owned();
+        let package_root = manifest_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .to_owned();
         let config = config::load_package_config(args, ws_meta, pkg_meta)?;
         if !config.release() {
             log::trace!("Disabled in config, skipping {}", manifest_path.display());
         }
 
-        let package_content = cargo::package_content(manifest_path)?;
+        let package_content = cargo::package_content(&manifest_path)?;
         let bin = pkg_meta
             .targets
             .iter()
@@ -122,6 +125,7 @@ impl PackageRelease {
         let tag_name = config.tag_name();
         let tag_prefix = config.tag_prefix(is_root);
         let name = pkg_meta.name.as_str();
+
         let initial_tag = render_tag(
             tag_name,
             tag_prefix,
@@ -129,17 +133,33 @@ impl PackageRelease {
             &initial_version,
             &initial_version,
         );
-
-        let prior_tag = None;
+        let prior_tag = if crate::ops::git::tag_exists(&package_root, &initial_tag)? {
+            Some(initial_tag)
+        } else {
+            let tag_name = config.tag_name();
+            let tag_prefix = config.tag_prefix(is_root);
+            let name = meta.name.as_str();
+            let tag_glob = render_tag_glob(tag_name, tag_prefix, name);
+            match globset::Glob::new(&tag_glob) {
+                Ok(tag_glob) => {
+                    let tag_glob = tag_glob.compile_matcher();
+                    crate::ops::git::find_last_tag(&package_root, &tag_glob)
+                }
+                Err(err) => {
+                    log::debug!("Failed to find tag with glob `{}`: {}", tag_glob, err);
+                    None
+                }
+            }
+        };
 
         let planned_version = None;
         let planned_tag = None;
         let ensure_owners = config.publish() && !config.owners().is_empty();
 
         let pkg = PackageRelease {
-            meta: pkg_meta.clone(),
-            manifest_path: manifest_path.to_owned(),
-            package_root: package_root.to_owned(),
+            meta,
+            manifest_path,
+            package_root,
             is_root,
             config,
 
@@ -149,7 +169,6 @@ impl PackageRelease {
             features,
 
             initial_version,
-            initial_tag,
             prior_tag,
 
             planned_version,
@@ -176,28 +195,6 @@ impl PackageRelease {
     pub fn plan(&mut self) -> CargoResult<()> {
         if !self.config.release() {
             return Ok(());
-        }
-
-        if self.planned_version.is_some()
-            && crate::ops::git::tag_exists(&self.package_root, &self.initial_tag)?
-        {
-            self.prior_tag
-                .get_or_insert_with(|| self.initial_tag.clone());
-        }
-        if self.prior_tag.is_none() {
-            let tag_name = self.config.tag_name();
-            let tag_prefix = self.config.tag_prefix(self.is_root);
-            let name = self.meta.name.as_str();
-            let tag_glob = render_tag_glob(tag_name, tag_prefix, name);
-            match globset::Glob::new(&tag_glob) {
-                Ok(tag_glob) => {
-                    let tag_glob = tag_glob.compile_matcher();
-                    self.prior_tag = crate::ops::git::find_last_tag(&self.package_root, &tag_glob);
-                }
-                Err(err) => {
-                    log::debug!("Failed to find tag with glob `{}`: {}", tag_glob, err);
-                }
-            }
         }
 
         let base = self
