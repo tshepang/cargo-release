@@ -173,7 +173,8 @@ pub fn hook(
         let pre_rel_hook = pre_rel_hook
             .args()
             .into_iter()
-            .map(|arg| template.render(arg));
+            .map(|arg| template.render(arg))
+            .collect::<Vec<_>>();
         log::debug!("Calling pre-release hook: {:?}", pre_rel_hook);
         let envs = maplit::btreemap! {
             OsStr::new("PREV_VERSION") => prev_version_var.as_ref(),
