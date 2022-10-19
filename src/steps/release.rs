@@ -2,7 +2,6 @@ use crate::config;
 use crate::error::CliError;
 use crate::ops::cargo;
 use crate::ops::git;
-use crate::ops::replace::{Template, NOW};
 use crate::steps::plan;
 
 #[derive(Debug, Clone, clap::Args)]
@@ -245,7 +244,7 @@ impl ReleaseStep {
                 super::hook::hook(&ws_meta, pkg, dry_run)?;
             }
 
-            workspace_commit(&ws_meta, &ws_config, &selected_pkgs, dry_run)?;
+            super::commit::workspace_commit(&ws_meta, &ws_config, &selected_pkgs, dry_run)?;
         } else {
             for pkg in &selected_pkgs {
                 if let Some(version) = pkg.planned_version.as_ref() {
@@ -275,7 +274,7 @@ impl ReleaseStep {
                 // pre-release hook
                 super::hook::hook(&ws_meta, pkg, dry_run)?;
 
-                pkg_commit(pkg, dry_run)?;
+                super::commit::pkg_commit(pkg, dry_run)?;
             }
         }
 
@@ -291,67 +290,4 @@ impl ReleaseStep {
 
         super::finish(failed, dry_run)
     }
-}
-
-pub fn pkg_commit(pkg: &plan::PackageRelease, dry_run: bool) -> Result<(), CliError> {
-    let cwd = &pkg.package_root;
-    let crate_name = pkg.meta.name.as_str();
-    let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
-    let prev_version_var = pkg.initial_version.bare_version_string.as_str();
-    let prev_metadata_var = pkg.initial_version.full_version.build.as_str();
-    let version_var = version.bare_version_string.as_str();
-    let metadata_var = version.full_version.build.as_str();
-    let template = Template {
-        prev_version: Some(prev_version_var),
-        prev_metadata: Some(prev_metadata_var),
-        version: Some(version_var),
-        metadata: Some(metadata_var),
-        crate_name: Some(crate_name),
-        date: Some(NOW.as_str()),
-        ..Default::default()
-    };
-    let commit_msg = template.render(pkg.config.pre_release_commit_message());
-    let sign = pkg.config.sign_commit();
-    if !git::commit_all(cwd, &commit_msg, sign, dry_run)? {
-        // commit failed, abort release
-        return Err(101.into());
-    }
-
-    Ok(())
-}
-
-pub fn workspace_commit(
-    ws_meta: &cargo_metadata::Metadata,
-    ws_config: &config::Config,
-    pkgs: &[plan::PackageRelease],
-    dry_run: bool,
-) -> Result<(), CliError> {
-    let shared_version = super::find_shared_versions(pkgs)?;
-
-    let shared_commit_msg = {
-        let version_var = shared_version
-            .as_ref()
-            .map(|v| v.bare_version_string.as_str());
-        let metadata_var = shared_version
-            .as_ref()
-            .map(|v| v.full_version.build.as_str());
-        let template = Template {
-            version: version_var,
-            metadata: metadata_var,
-            date: Some(NOW.as_str()),
-            ..Default::default()
-        };
-        template.render(ws_config.pre_release_commit_message())
-    };
-    if !git::commit_all(
-        ws_meta.workspace_root.as_std_path(),
-        &shared_commit_msg,
-        ws_config.sign_commit(),
-        dry_run,
-    )? {
-        // commit failed, abort release
-        return Err(101.into());
-    }
-
-    Ok(())
 }
