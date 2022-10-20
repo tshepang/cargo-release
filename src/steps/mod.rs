@@ -417,7 +417,7 @@ pub fn find_shared_versions(
         }
     }
     if !is_shared {
-        let _ = crate::ops::shell::error(format!("crate versions deviated, aborting"));
+        let _ = crate::ops::shell::error("crate versions deviated, aborting");
         return Err(101.into());
     }
 
@@ -438,7 +438,7 @@ pub fn consolidate_commits(
         if consolidate_commits.is_none() {
             consolidate_commits = current;
         } else if consolidate_commits != current {
-            let _ = crate::ops::shell::error(format!("inconsistent `consolidate-commits` setting"));
+            let _ = crate::ops::shell::error("inconsistent `consolidate-commits` setting");
             return Err(101.into());
         }
     }
