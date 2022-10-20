@@ -1,6 +1,8 @@
 use crate::error::CargoResult;
 use crate::error::CliError;
 use crate::ops::git;
+use crate::ops::shell::Color;
+use crate::ops::shell::ColorSpec;
 use crate::steps::plan;
 
 /// Bump crate versions
@@ -159,17 +161,23 @@ pub fn changes(
             }
 
             if !commits.is_empty() {
-                log::info!(
-                    "{} changed from {} to {}:\n  {}",
-                    crate_name,
-                    prior_tag_name,
-                    version.full_version_string,
-                    commits
-                        .iter()
-                        .map(|c| { format!("{} {}", c.short_id, c.summary) })
-                        .collect::<Vec<_>>()
-                        .join("\n  ")
-                );
+                crate::ops::shell::status(
+                    "Changes",
+                    format!(
+                        "for {} from {} to {}",
+                        crate_name, prior_tag_name, version.full_version_string
+                    ),
+                )?;
+                let prefix = format!("{:>13}", " ");
+                for commit in &commits {
+                    let _ = crate::ops::shell::write_stderr(&prefix, &ColorSpec::new());
+                    let _ = crate::ops::shell::write_stderr(
+                        &commit.short_id,
+                        &ColorSpec::new().set_fg(Some(Color::Yellow)),
+                    );
+                    let _ = crate::ops::shell::write_stderr(" ", &ColorSpec::new());
+                    let _ = crate::ops::shell::write_stderr(&commit.summary, &ColorSpec::new());
+                }
             }
         } else {
             log::debug!(
