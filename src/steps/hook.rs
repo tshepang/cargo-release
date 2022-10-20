@@ -96,7 +96,7 @@ impl HookStep {
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
         if selected_pkgs.is_empty() {
-            log::info!("No packages selected.");
+            let _ = crate::ops::shell::error("No packages selected");
             return Err(2.into());
         }
 
@@ -189,10 +189,10 @@ pub fn hook(
         // we use dry_run environmental variable to run the script
         // so here we set dry_run=false and always execute the command.
         if !cmd::call_with_env(pre_rel_hook, envs, cwd, false)? {
-            log::error!(
+            let _ = crate::ops::shell::error(format!(
                 "Release of {} aborted by non-zero return of prerelease hook.",
                 crate_name
-            );
+            ));
             return Err(101.into());
         }
     }

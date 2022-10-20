@@ -102,18 +102,16 @@ impl ReleaseStep {
                     crate::steps::version::changed_since(&ws_meta, pkg, prior_tag_name)
                 {
                     if !changed.is_empty() {
-                        log::warn!(
+                        let _ = crate::ops::shell::warn(format!(
                             "Disabled by user, skipping {} which has files changed since {}: {:#?}",
-                            crate_name,
-                            prior_tag_name,
-                            changed
-                        );
+                            crate_name, prior_tag_name, changed
+                        ));
                     } else if lock_changed {
-                        log::warn!(
-                        "Disabled by user, skipping {} despite lock file being changed since {}",
-                        crate_name,
-                        prior_tag_name
-                    );
+                        let _ = crate::ops::shell::warn(format!(
+                            "Disabled by user, skipping {} despite lock file being changed since {}",
+                            crate_name,
+                            prior_tag_name
+                        ));
                     } else {
                         log::trace!(
                             "Disabled by user, skipping {} (no changes since {})",
@@ -147,11 +145,10 @@ impl ReleaseStep {
                 let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
                 let crate_name = pkg.meta.name.as_str();
                 if !cargo::is_published(&index, crate_name, &version.full_version_string) {
-                    log::warn!(
+                    let _ = crate::ops::shell::warn(format!(
                         "Disabled by user, skipping {} v{} despite being unpublished",
-                        crate_name,
-                        version.full_version_string,
-                    );
+                        crate_name, version.full_version_string,
+                    ));
                 }
             }
         }
@@ -161,7 +158,7 @@ impl ReleaseStep {
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
         if selected_pkgs.is_empty() {
-            log::info!("No packages selected.");
+            let _ = crate::ops::shell::error("No packages selected");
             return Err(2.into());
         }
 
@@ -191,11 +188,10 @@ impl ReleaseStep {
                 let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
                 let crate_name = pkg.meta.name.as_str();
                 if cargo::is_published(&index, crate_name, &version.full_version_string) {
-                    log::error!(
+                    let _ = crate::ops::shell::error(format!(
                         "{} {} is already published",
-                        crate_name,
-                        version.full_version_string
-                    );
+                        crate_name, version.full_version_string
+                    ));
                     double_publish = true;
                 }
             }
@@ -253,10 +249,14 @@ impl ReleaseStep {
             for pkg in &selected_pkgs {
                 if let Some(version) = pkg.planned_version.as_ref() {
                     let crate_name = pkg.meta.name.as_str();
-                    log::info!(
-                        "Update {} to version {}",
-                        crate_name,
-                        version.full_version_string
+                    let _ = crate::ops::shell::status(
+                        "Upgrading",
+                        format!(
+                            "{} from {} to {}",
+                            crate_name,
+                            pkg.initial_version.full_version_string,
+                            version.full_version_string
+                        ),
                     );
                     cargo::set_package_version(
                         &pkg.manifest_path,

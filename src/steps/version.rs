@@ -87,7 +87,7 @@ impl VersionStep {
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
         if selected_pkgs.is_empty() {
-            log::info!("No packages selected.");
+            let _ = crate::ops::shell::error("No packages selected");
             return Err(2.into());
         }
 
@@ -206,9 +206,12 @@ pub fn update_versions(
         .find_map(|p| p.planned_version.clone());
 
     if let Some(workspace_version) = &workspace_version {
-        log::info!(
-            "Upgrading workspace to version {}",
-            workspace_version.full_version_string
+        let _ = crate::ops::shell::status(
+            "Upgrading",
+            format!(
+                "workspace to version {}",
+                workspace_version.full_version_string
+            ),
         );
         let workspace_path = ws_meta.workspace_root.as_std_path().join("Cargo.toml");
         crate::ops::cargo::set_workspace_version(
@@ -239,19 +242,25 @@ pub fn update_versions(
         if let Some(version) = planned_version {
             if is_inherited {
                 let crate_name = pkg.meta.name.as_str();
-                log::info!(
-                    "Upgrading {} from {} to {} (inherited from workspace)",
-                    crate_name,
-                    pkg.initial_version.full_version_string,
-                    version.full_version_string
+                let _ = crate::ops::shell::status(
+                    "Upgrading",
+                    format!(
+                        "{} from {} to {} (inherited from workspace)",
+                        crate_name,
+                        pkg.initial_version.full_version_string,
+                        version.full_version_string
+                    ),
                 );
             } else {
                 let crate_name = pkg.meta.name.as_str();
-                log::info!(
-                    "Upgrading {} from {} to {}",
-                    crate_name,
-                    pkg.initial_version.full_version_string,
-                    version.full_version_string
+                let _ = crate::ops::shell::status(
+                    "Upgrading",
+                    format!(
+                        "{} from {} to {}",
+                        crate_name,
+                        pkg.initial_version.full_version_string,
+                        version.full_version_string
+                    ),
                 );
                 crate::ops::cargo::set_package_version(
                     &pkg.manifest_path,

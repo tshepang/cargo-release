@@ -131,7 +131,10 @@ pub fn wait_for_publish(
             }
 
             if !logged {
-                log::info!("Waiting for publish to complete...");
+                let _ = crate::ops::shell::status(
+                    "Waiting",
+                    format!("on {name} to propagate to index"),
+                );
                 logged = true;
             }
             std::thread::sleep(sleep_time);
@@ -229,7 +232,10 @@ pub fn ensure_owners(
 
     let missing = expected.difference(&current).copied().collect::<Vec<_>>();
     if !missing.is_empty() {
-        log::info!("Adding owners for {}: {}", name, missing.join(", "));
+        let _ = crate::ops::shell::status(
+            "Adding",
+            format!("owners for {}: {}", name, missing.join(", ")),
+        );
         if !dry_run {
             let mut cmd = std::process::Command::new(&cargo);
             cmd.arg("owner").arg(name).arg("--color=never");
@@ -244,11 +250,11 @@ pub fn ensure_owners(
             if !output.status.success() {
                 // HACK: Can't error as the user might not have permission to set owners and we can't
                 // tell what the error was without parsing it
-                log::warn!(
+                let _ = crate::ops::shell::warn(format!(
                     "Failed to set owners for {}: {}",
                     name,
                     String::from_utf8_lossy(&output.stderr)
-                );
+                ));
             }
         }
     }
@@ -451,11 +457,12 @@ fn upgrade_req(
         }
     };
 
-    log::info!(
-        "Updating {}'s dependency from {} to {}",
-        manifest_name,
-        existing_req_str,
-        new_req,
+    let _ = crate::ops::shell::status(
+        "Updating",
+        format!(
+            "{}'s dependency from {} to {}",
+            manifest_name, existing_req_str, new_req
+        ),
     );
     *version_value = toml_edit::value(new_req);
     true

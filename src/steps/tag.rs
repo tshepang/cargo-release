@@ -77,11 +77,10 @@ impl TagStep {
             if let Some(tag_name) = pkg.planned_tag.as_ref() {
                 if crate::ops::git::tag_exists(ws_meta.workspace_root.as_std_path(), tag_name)? {
                     let crate_name = pkg.meta.name.as_str();
-                    log::warn!(
+                    let _ = crate::ops::shell::warn(format!(
                         "Disabled due to existing tag ({}), skipping {}",
-                        tag_name,
-                        crate_name
-                    );
+                        tag_name, crate_name
+                    ));
                     pkg.planned_tag = None;
                     pkg.config.tag = Some(false);
                     pkg.config.release = Some(false);
@@ -94,7 +93,7 @@ impl TagStep {
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
         if selected_pkgs.is_empty() {
-            log::info!("No packages selected.");
+            let _ = crate::ops::shell::error("No packages selected");
             return Err(2.into());
         }
 

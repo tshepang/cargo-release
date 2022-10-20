@@ -75,11 +75,10 @@ impl PublishStep {
                 let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
                 if crate::ops::cargo::is_published(&index, crate_name, &version.full_version_string)
                 {
-                    log::warn!(
+                    let _ = crate::ops::shell::warn(format!(
                         "Disabled due to previous publish ({}), skipping {}",
-                        version.full_version_string,
-                        crate_name
-                    );
+                        version.full_version_string, crate_name
+                    ));
                     pkg.config.publish = Some(false);
                     pkg.config.release = Some(false);
                 }
@@ -91,7 +90,7 @@ impl PublishStep {
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
         if selected_pkgs.is_empty() {
-            log::info!("No packages selected.");
+            let _ = crate::ops::shell::error("No packages selected");
             return Err(2.into());
         }
 
@@ -154,7 +153,7 @@ pub fn publish(
         }
 
         let crate_name = pkg.meta.name.as_str();
-        log::info!("Publishing {}", crate_name);
+        let _ = crate::ops::shell::status("Publishing", crate_name);
 
         let verify = if !pkg.config.verify() {
             false
@@ -203,7 +202,7 @@ pub fn publish(
                     .parse()
                     .unwrap_or(0);
                 if 0 < publish_grace_sleep {
-                    log::info!(
+                    log::debug!(
                         "Waiting an additional {} seconds for crates.io to update its indices...",
                         publish_grace_sleep
                     );

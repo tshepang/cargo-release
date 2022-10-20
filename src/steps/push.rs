@@ -76,7 +76,7 @@ impl PushStep {
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
         if selected_pkgs.is_empty() {
-            log::info!("No packages selected.");
+            let _ = crate::ops::shell::error("No packages selected");
             return Err(2.into());
         }
 
@@ -157,7 +157,10 @@ pub fn push(
         if !shared_refs.is_empty() {
             let mut shared_refs = shared_refs.into_iter().collect::<Vec<_>>();
             shared_refs.sort_unstable();
-            log::info!("Pushing {} to {}", shared_refs.join(", "), git_remote);
+            let _ = crate::ops::shell::status(
+                "Pushing",
+                format!("Pushing {} to {}", shared_refs.join(", "), git_remote),
+            );
             if !git::push(
                 ws_meta.workspace_root.as_std_path(),
                 git_remote,

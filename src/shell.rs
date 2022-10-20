@@ -1,33 +1,10 @@
-use std::io::{stdin, stdout, Write};
+use std::io::Write;
 
 use anyhow::Context as _;
-use termcolor::{ColorChoice, ColorSpec, StandardStream, WriteColor};
-
-pub use termcolor::Color;
+pub use termcolor::{Color, ColorChoice};
+use termcolor::{ColorSpec, StandardStream, WriteColor};
 
 use crate::error::CargoResult;
-
-pub fn confirm(prompt: &str) -> bool {
-    let mut input = String::new();
-
-    console_println(&format!("{} [y/N] ", prompt), None, true);
-
-    stdout().flush().unwrap();
-    stdin().read_line(&mut input).expect("y/n required");
-
-    input.trim().to_lowercase() == "y"
-}
-
-fn console_println(text: &str, color: Option<Color>, bold: bool) {
-    let mut stdout = StandardStream::stdout(ColorChoice::Auto);
-    stdout.reset().unwrap();
-    // unwrap the result, panic if error
-    stdout
-        .set_color(ColorSpec::new().set_fg(color).set_bold(bold))
-        .unwrap();
-    writeln!(&mut stdout, "{}", text).unwrap();
-    stdout.reset().unwrap();
-}
 
 /// Whether to color logged output
 fn colorize_stderr() -> ColorChoice {
@@ -81,18 +58,6 @@ pub fn warn(message: impl std::fmt::Display) -> CargoResult<()> {
 /// Print a styled warning message.
 pub fn note(message: impl std::fmt::Display) -> CargoResult<()> {
     print("note", message, Color::Cyan, false)
-}
-
-pub fn log(level: log::Level, message: impl std::fmt::Display) -> CargoResult<()> {
-    match level {
-        log::Level::Error => error(message),
-        log::Level::Warn => warn(message),
-        log::Level::Info => note(message),
-        _ => {
-            log::log!(level, "{}", message);
-            Ok(())
-        }
-    }
 }
 
 /// Print a part of a line with formatting

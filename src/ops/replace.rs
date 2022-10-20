@@ -80,7 +80,6 @@ pub fn do_file_replacements(
 
     for (path, replaces) in by_file.into_iter() {
         let file = cwd.join(&path);
-        log::info!("Applying replacements for {}", path.display());
         if !file.exists() {
             anyhow::bail!("Unable to find file {} to perform replace", file.display());
         }
@@ -135,12 +134,19 @@ pub fn do_file_replacements(
                     "replaced",
                     0,
                 );
-                let level = if noisy {
-                    log::Level::Info
+                if noisy {
+                    let _ = crate::ops::shell::status(
+                        "Replacing",
+                        format!(
+                            "in {}\n{}",
+                            path.display(),
+                            itertools::join(diff.into_iter(), "")
+                        ),
+                    );
                 } else {
-                    log::Level::Debug
-                };
-                log::log!(level, "Change:\n{}", itertools::join(diff.into_iter(), ""));
+                    let _ =
+                        crate::ops::shell::status("Replacing", format!("in {}", path.display()));
+                }
             } else {
                 std::fs::write(&file, replaced)?;
             }
