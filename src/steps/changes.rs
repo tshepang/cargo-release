@@ -173,7 +173,7 @@ pub fn changes(
                     let _ = crate::ops::shell::write_stderr(&prefix, &ColorSpec::new());
                     let _ = crate::ops::shell::write_stderr(
                         &commit.short_id,
-                        &ColorSpec::new().set_fg(Some(Color::Yellow)),
+                        ColorSpec::new().set_fg(Some(Color::Yellow)),
                     );
                     let _ = crate::ops::shell::write_stderr(" ", &ColorSpec::new());
                     let _ = crate::ops::shell::write_stderr(&commit.summary, &ColorSpec::new());
