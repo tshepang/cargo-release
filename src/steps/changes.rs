@@ -177,6 +177,9 @@ pub fn changes(
                     );
                     let _ = crate::ops::shell::write_stderr(" ", &ColorSpec::new());
                     let _ = crate::ops::shell::write_stderr(&commit.summary, &ColorSpec::new());
+
+                    write_status(commit.status());
+                    let _ = crate::ops::shell::write_stderr("\n", &ColorSpec::new());
                 }
             }
         } else {
@@ -190,6 +193,31 @@ pub fn changes(
     Ok(())
 }
 
+fn write_status(status: Option<CommitStatus>) {
+    if let Some(status) = status {
+        let suffix;
+        let mut color = ColorSpec::new();
+        match status {
+            CommitStatus::Breaking => {
+                suffix = " (breaking)";
+                color.set_fg(Some(Color::Red));
+            }
+            CommitStatus::Feature => {
+                suffix = " (feature)";
+                color.set_fg(Some(Color::Yellow));
+            }
+            CommitStatus::Fix => {
+                suffix = " (fix)";
+                color.set_fg(Some(Color::Green));
+            }
+            CommitStatus::Ignore => {
+                suffix = "";
+            }
+        }
+        let _ = crate::ops::shell::write_stderr(suffix, &color);
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct PackageCommit {
     pub id: git2::Oid,
@@ -197,4 +225,53 @@ pub struct PackageCommit {
     pub summary: String,
     pub message: String,
     pub paths: std::collections::BTreeSet<std::path::PathBuf>,
+}
+
+impl PackageCommit {
+    pub fn status(&self) -> Option<CommitStatus> {
+        if let Some(status) = self.conventional_status() {
+            return status;
+        }
+
+        None
+    }
+
+    fn conventional_status(&self) -> Option<Option<CommitStatus>> {
+        let parts = git_conventional::Commit::parse(&self.message).ok()?;
+        if parts.breaking() {
+            return Some(Some(CommitStatus::Breaking));
+        }
+
+        if [
+            git_conventional::Type::CHORE,
+            git_conventional::Type::TEST,
+            git_conventional::Type::STYLE,
+            git_conventional::Type::REFACTOR,
+            git_conventional::Type::REVERT,
+        ]
+        .contains(&parts.type_())
+        {
+            Some(Some(CommitStatus::Ignore))
+        } else if [
+            git_conventional::Type::DOCS,
+            git_conventional::Type::PERF,
+            git_conventional::Type::FIX,
+        ]
+        .contains(&parts.type_())
+        {
+            Some(Some(CommitStatus::Fix))
+        } else if [git_conventional::Type::FEAT].contains(&parts.type_()) {
+            Some(Some(CommitStatus::Feature))
+        } else {
+            Some(None)
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CommitStatus {
+    Breaking,
+    Feature,
+    Fix,
+    Ignore,
 }
