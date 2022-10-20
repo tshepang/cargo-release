@@ -130,6 +130,11 @@ impl PackageRelease {
             // Lock files are not relevant when publishing non-bins
             package_content.retain(|p| !p.ends_with("Cargo.lock"));
         }
+        package_content.retain(|p| {
+            !p.strip_prefix(&package_root)
+                .map(|p| p.starts_with("tests"))
+                .unwrap_or(false)
+        });
         let features = config.features();
         let dependents = find_dependents(ws_meta, pkg_meta)
             .map(|(pkg, dep)| Dependency {
