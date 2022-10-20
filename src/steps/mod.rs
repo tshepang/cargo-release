@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+pub mod changes;
 pub mod commit;
 pub mod config;
 pub mod hook;
@@ -334,7 +335,7 @@ pub fn warn_changed(
         let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
         let crate_name = pkg.meta.name.as_str();
         if let Some(prior_tag_name) = &pkg.prior_tag {
-            if let Some((changed, lock_changed)) =
+            if let Some(changed) =
                 crate::steps::version::changed_since(ws_meta, pkg, prior_tag_name)
             {
                 if !changed.is_empty() {
@@ -345,7 +346,11 @@ pub fn warn_changed(
                         changed
                     );
                     changed_pkgs.insert(&pkg.meta.id);
-                    changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
+                    if changed.len() == 1 && changed[0].ends_with("Cargo.lock") {
+                        // Lock file changes don't invalidate dependencies
+                    } else {
+                        changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
+                    }
                 } else if changed_pkgs.contains(&pkg.meta.id) {
                     log::debug!(
                         "Dependency changed for {} since {}",
@@ -354,15 +359,6 @@ pub fn warn_changed(
                     );
                     changed_pkgs.insert(&pkg.meta.id);
                     changed_pkgs.extend(pkg.dependents.iter().map(|d| &d.pkg.id));
-                } else if lock_changed {
-                    log::debug!(
-                        "Lock file changed for {} since {}, assuming its relevant",
-                        crate_name,
-                        prior_tag_name
-                    );
-                    changed_pkgs.insert(&pkg.meta.id);
-                    // Lock file changes don't invalidate dependents, which is why this check is
-                    // after the transitive check, so that can invalidate dependents
                 } else {
                     let _ = crate::ops::shell::warn(format!(
                         "updating {} to {} despite no changes made since tag {}",

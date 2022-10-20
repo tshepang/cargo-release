@@ -17,6 +17,7 @@ fn run() -> Result<(), error::CliError> {
     builder.init();
 
     match &release_matches.step {
+        Some(Step::Changes(config)) => config.run(),
         Some(Step::Version(config)) => config.run(),
         Some(Step::Replace(config)) => config.run(),
         Some(Step::Hook(config)) => config.run(),
@@ -87,6 +88,7 @@ pub struct ReleaseOpt {
 
 #[derive(Clone, Debug, clap::Subcommand)]
 pub enum Step {
+    Changes(steps::changes::ChangesStep),
     Version(steps::version::VersionStep),
     Replace(steps::replace::ReplaceStep),
     Hook(steps::hook::HookStep),

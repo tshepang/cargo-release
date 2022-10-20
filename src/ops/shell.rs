@@ -1,9 +1,10 @@
 use std::io::{stdin, stdout, Write};
 
 use anyhow::Context as _;
-use termcolor::{ColorChoice, ColorSpec, StandardStream, WriteColor};
+use termcolor::{ColorChoice, StandardStream, WriteColor};
 
 pub use termcolor::Color;
+pub use termcolor::ColorSpec;
 
 use crate::error::CargoResult;
 
