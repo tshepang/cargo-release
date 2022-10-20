@@ -5,7 +5,7 @@ use crate::ops::shell::Color;
 use crate::ops::shell::ColorSpec;
 use crate::steps::plan;
 
-/// Bump crate versions
+/// Print commits since last tag
 #[derive(Debug, Clone, clap::Args)]
 pub struct ChangesStep {
     #[command(flatten)]

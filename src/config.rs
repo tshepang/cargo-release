@@ -532,7 +532,7 @@ pub struct ConfigArgs {
     pub no_sign: bool,
 
     /// Specify how workspace dependencies on this crate should be handed.
-    #[arg(long, value_enum)]
+    #[arg(long, value_name = "ACTION", value_enum)]
     pub dependent_version: Option<crate::config::DependentVersion>,
 
     /// Comma-separated globs of branch names a release can happen from

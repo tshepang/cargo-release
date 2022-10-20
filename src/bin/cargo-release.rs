@@ -56,22 +56,8 @@ pub enum Command {
     Release(ReleaseOpt),
 }
 
+/// Automated release for Rust crates
 #[derive(Debug, Clone, clap::Args)]
-#[command(help_template = "\
-{before-help}{about-with-newline}
-{usage-heading} {usage}
-
-Arguments:
-{positionals}
-
-Options:
-{options}
-
-Steps:
-{subcommands}{after-help}
-
-(release steps broken out for custom behavior and/or recovering from failures)
-")]
 #[command(subcommand_value_name = "STEP")]
 #[command(subcommand_help_heading = "Steps")]
 #[command(args_conflicts_with_subcommands = true)]
