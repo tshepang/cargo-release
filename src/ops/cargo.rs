@@ -43,7 +43,7 @@ pub fn package_content(manifest_path: &Path) -> CargoResult<Vec<std::path::PathB
     } else {
         let error = String::from_utf8_lossy(&output.stderr);
         Err(anyhow::format_err!(
-            "Failed to get package content for {}: {}",
+            "failed to get package content for {}: {}",
             manifest_path.display(),
             error
         ))
@@ -122,16 +122,19 @@ pub fn wait_for_publish(
         let mut logged = false;
         loop {
             if let Err(e) = index.update() {
-                log::debug!("Crate index update failed with {}", e);
+                log::debug!("crate index update failed with {}", e);
             }
             if is_published(index, name, version) {
                 break;
             } else if timeout < now.elapsed() {
-                anyhow::bail!("Timeout waiting for crate to be published");
+                anyhow::bail!("timeout waiting for crate to be published");
             }
 
             if !logged {
-                log::info!("Waiting for publish to complete...");
+                let _ = crate::ops::shell::status(
+                    "Waiting",
+                    format!("on {name} to propagate to index"),
+                );
                 logged = true;
             }
             std::thread::sleep(sleep_time);
@@ -176,7 +179,7 @@ pub fn set_workspace_version(
                 "updated",
                 0,
             );
-            log::debug!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+            log::debug!("change:\n{}", itertools::join(diff.into_iter(), ""));
         }
     } else {
         atomic_write(manifest_path, &manifest)?;
@@ -204,12 +207,12 @@ pub fn ensure_owners(
     let output = cmd.output()?;
     if !output.status.success() {
         anyhow::bail!(
-            "Failed talking to registry about crate owners: {}",
+            "failed talking to registry about crate owners: {}",
             String::from_utf8_lossy(&output.stderr)
         );
     }
     let raw = String::from_utf8(output.stdout)
-        .map_err(|_| anyhow::format_err!("Unrecognized response from registry"))?;
+        .map_err(|_| anyhow::format_err!("unrecognized response from registry"))?;
 
     let mut current = std::collections::BTreeSet::new();
     // HACK: No programmatic CLI access and don't want to link against `cargo` (yet), so parsing
@@ -229,7 +232,10 @@ pub fn ensure_owners(
 
     let missing = expected.difference(&current).copied().collect::<Vec<_>>();
     if !missing.is_empty() {
-        log::info!("Adding owners for {}: {}", name, missing.join(", "));
+        let _ = crate::ops::shell::status(
+            "Adding",
+            format!("owners for {}: {}", name, missing.join(", ")),
+        );
         if !dry_run {
             let mut cmd = std::process::Command::new(&cargo);
             cmd.arg("owner").arg(name).arg("--color=never");
@@ -244,18 +250,18 @@ pub fn ensure_owners(
             if !output.status.success() {
                 // HACK: Can't error as the user might not have permission to set owners and we can't
                 // tell what the error was without parsing it
-                log::warn!(
-                    "Failed to set owners for {}: {}",
+                let _ = crate::ops::shell::warn(format!(
+                    "failed to set owners for {}: {}",
                     name,
                     String::from_utf8_lossy(&output.stderr)
-                );
+                ));
             }
         }
     }
 
     let extra = current.difference(&expected).copied().collect::<Vec<_>>();
     if !extra.is_empty() {
-        log::debug!("Extra owners for {}: {}", name, extra.join(", "));
+        log::debug!("extra owners for {}: {}", name, extra.join(", "));
     }
 
     Ok(())
@@ -284,7 +290,7 @@ pub fn set_package_version(manifest_path: &Path, version: &str, dry_run: bool) -
                 "updated",
                 0,
             );
-            log::debug!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+            log::debug!("change:\n{}", itertools::join(diff.into_iter(), ""));
         }
     } else {
         atomic_write(manifest_path, &manifest)?;
@@ -333,7 +339,7 @@ pub fn upgrade_dependency_req(
                 "updated",
                 0,
             );
-            log::debug!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+            log::debug!("change:\n{}", itertools::join(diff.into_iter(), ""));
         } else {
             atomic_write(manifest_path, &manifest)?;
         }
@@ -408,20 +414,20 @@ fn upgrade_req(
     let version_value = if let Some(version_value) = dep_item.get_mut("version") {
         version_value
     } else {
-        log::debug!("Not updating path-only dependency on {}", name);
+        log::debug!("not updating path-only dependency on {}", name);
         return false;
     };
 
     let existing_req_str = if let Some(existing_req) = version_value.as_str() {
         existing_req
     } else {
-        log::debug!("Unsupported dependency {}", name);
+        log::debug!("unsupported dependency {}", name);
         return false;
     };
     let existing_req = if let Ok(existing_req) = semver::VersionReq::parse(existing_req_str) {
         existing_req
     } else {
-        log::debug!("Unsupported dependency req {}={}", name, existing_req_str);
+        log::debug!("unsupported dependency req {}={}", name, existing_req_str);
         return false;
     };
     let new_req = match upgrade {
@@ -451,11 +457,12 @@ fn upgrade_req(
         }
     };
 
-    log::info!(
-        "Updating {}'s dependency from {} to {}",
-        manifest_name,
-        existing_req_str,
-        new_req,
+    let _ = crate::ops::shell::status(
+        "Updating",
+        format!(
+            "{}'s dependency from {} to {}",
+            manifest_name, existing_req_str, new_req
+        ),
     );
     *version_value = toml_edit::value(new_req);
     true

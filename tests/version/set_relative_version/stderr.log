@@ -1,2 +1,2 @@
-[WARN ] Push target `origin/master` doesn't exist
-[INFO ] Upgrading sample from 0.1.0 to 1.0.0
+warning: push target `origin/master` doesn't exist
+   Upgrading sample from 0.1.0 to 1.0.0

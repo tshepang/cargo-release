@@ -86,7 +86,7 @@ impl ReleaseStep {
                 let version = &pkg.initial_version;
                 if !cargo::is_published(&index, crate_name, &version.full_version_string) {
                     log::debug!(
-                        "Enabled {}, v{} is unpublished",
+                        "enabled {}, v{} is unpublished",
                         crate_name,
                         version.full_version_string
                     );
@@ -102,34 +102,32 @@ impl ReleaseStep {
                     crate::steps::version::changed_since(&ws_meta, pkg, prior_tag_name)
                 {
                     if !changed.is_empty() {
-                        log::warn!(
-                            "Disabled by user, skipping {} which has files changed since {}: {:#?}",
-                            crate_name,
-                            prior_tag_name,
-                            changed
-                        );
+                        let _ = crate::ops::shell::warn(format!(
+                            "disabled by user, skipping {} which has files changed since {}: {:#?}",
+                            crate_name, prior_tag_name, changed
+                        ));
                     } else if lock_changed {
-                        log::warn!(
-                        "Disabled by user, skipping {} despite lock file being changed since {}",
-                        crate_name,
-                        prior_tag_name
-                    );
+                        let _ = crate::ops::shell::warn(format!(
+                            "disabled by user, skipping {} despite lock file being changed since {}",
+                            crate_name,
+                            prior_tag_name
+                        ));
                     } else {
                         log::trace!(
-                            "Disabled by user, skipping {} (no changes since {})",
+                            "disabled by user, skipping {} (no changes since {})",
                             crate_name,
                             prior_tag_name
                         );
                     }
                 } else {
                     log::debug!(
-                        "Disabled by user, skipping {} (no {} tag)",
+                        "disabled by user, skipping {} (no {} tag)",
                         crate_name,
                         prior_tag_name
                     );
                 }
             } else {
-                log::debug!("Disabled by user, skipping {} (no tag found)", crate_name,);
+                log::debug!("disabled by user, skipping {} (no tag found)", crate_name,);
             }
         }
 
@@ -147,11 +145,10 @@ impl ReleaseStep {
                 let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
                 let crate_name = pkg.meta.name.as_str();
                 if !cargo::is_published(&index, crate_name, &version.full_version_string) {
-                    log::warn!(
-                        "Disabled by user, skipping {} v{} despite being unpublished",
-                        crate_name,
-                        version.full_version_string,
-                    );
+                    let _ = crate::ops::shell::warn(format!(
+                        "disabled by user, skipping {} v{} despite being unpublished",
+                        crate_name, version.full_version_string,
+                    ));
                 }
             }
         }
@@ -161,7 +158,7 @@ impl ReleaseStep {
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
         if selected_pkgs.is_empty() {
-            log::info!("No packages selected.");
+            let _ = crate::ops::shell::error("no packages selected");
             return Err(2.into());
         }
 
@@ -191,11 +188,10 @@ impl ReleaseStep {
                 let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
                 let crate_name = pkg.meta.name.as_str();
                 if cargo::is_published(&index, crate_name, &version.full_version_string) {
-                    log::error!(
+                    let _ = crate::ops::shell::error(format!(
                         "{} {} is already published",
-                        crate_name,
-                        version.full_version_string
-                    );
+                        crate_name, version.full_version_string
+                    ));
                     double_publish = true;
                 }
             }
@@ -234,7 +230,7 @@ impl ReleaseStep {
             let update_lock =
                 super::version::update_versions(&ws_meta, &selected_pkgs, &excluded_pkgs, dry_run)?;
             if update_lock {
-                log::debug!("Updating lock file");
+                log::debug!("updating lock file");
                 if !dry_run {
                     let workspace_path = ws_meta.workspace_root.as_std_path().join("Cargo.toml");
                     crate::ops::cargo::update_lock(&workspace_path)?;
@@ -253,10 +249,14 @@ impl ReleaseStep {
             for pkg in &selected_pkgs {
                 if let Some(version) = pkg.planned_version.as_ref() {
                     let crate_name = pkg.meta.name.as_str();
-                    log::info!(
-                        "Update {} to version {}",
-                        crate_name,
-                        version.full_version_string
+                    let _ = crate::ops::shell::status(
+                        "Upgrading",
+                        format!(
+                            "{} from {} to {}",
+                            crate_name,
+                            pkg.initial_version.full_version_string,
+                            version.full_version_string
+                        ),
                     );
                     cargo::set_package_version(
                         &pkg.manifest_path,
@@ -267,7 +267,7 @@ impl ReleaseStep {
                         &ws_meta, pkg, version, dry_run,
                     )?;
                     if dry_run {
-                        log::debug!("Updating lock file");
+                        log::debug!("updating lock file");
                     } else {
                         cargo::update_lock(&pkg.manifest_path)?;
                     }

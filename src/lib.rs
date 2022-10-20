@@ -7,4 +7,5 @@
 pub mod config;
 pub mod error;
 pub mod ops;
+pub mod shell;
 pub mod steps;

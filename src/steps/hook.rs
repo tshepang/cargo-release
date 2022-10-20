@@ -77,7 +77,7 @@ impl HookStep {
                     &version.full_version_string,
                 ) {
                     log::debug!(
-                        "Enabled {}, v{} is unpublished",
+                        "enabled {}, v{} is unpublished",
                         crate_name,
                         version.full_version_string
                     );
@@ -96,7 +96,7 @@ impl HookStep {
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
         if selected_pkgs.is_empty() {
-            log::info!("No packages selected.");
+            let _ = crate::ops::shell::error("no packages selected");
             return Err(2.into());
         }
 
@@ -175,7 +175,7 @@ pub fn hook(
             .into_iter()
             .map(|arg| template.render(arg))
             .collect::<Vec<_>>();
-        log::debug!("Calling pre-release hook: {:?}", pre_rel_hook);
+        log::debug!("calling pre-release hook: {:?}", pre_rel_hook);
         let envs = maplit::btreemap! {
             OsStr::new("PREV_VERSION") => prev_version_var.as_ref(),
             OsStr::new("PREV_METADATA") => prev_metadata_var.as_ref(),
@@ -189,10 +189,10 @@ pub fn hook(
         // we use dry_run environmental variable to run the script
         // so here we set dry_run=false and always execute the command.
         if !cmd::call_with_env(pre_rel_hook, envs, cwd, false)? {
-            log::error!(
-                "Release of {} aborted by non-zero return of prerelease hook.",
+            let _ = crate::ops::shell::error(format!(
+                "release of {} aborted by non-zero return of prerelease hook.",
                 crate_name
-            );
+            ));
             return Err(101.into());
         }
     }

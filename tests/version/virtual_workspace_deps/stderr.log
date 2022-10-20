@@ -1,4 +1,4 @@
-[WARN ] Push target `origin/master` doesn't exist
-[INFO ] Upgrading cargo-list-test-fixture-dependency from 0.4.3 to 2.0.0
-[INFO ] Updating workspace's dependency from 0.4.3 to 2.0.0
-[INFO ] Upgrading cargo-list-test-fixture from 0.0.0 to 2.0.0
+warning: push target `origin/master` doesn't exist
+   Upgrading cargo-list-test-fixture-dependency from 0.4.3 to 2.0.0
+    Updating workspace's dependency from 0.4.3 to 2.0.0
+   Upgrading cargo-list-test-fixture from 0.0.0 to 2.0.0

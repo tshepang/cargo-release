@@ -36,8 +36,9 @@ pub fn is_behind_remote(dir: &Path, remote: &str, branch: &str) -> CargoResult<b
             base_id != remote_branch_id
         }
         Err(err) => {
-            log::warn!("Push target `{}` doesn't exist", remote_branch);
-            log::trace!("Error {}", err);
+            let _ =
+                crate::ops::shell::warn(format!("push target `{}` doesn't exist", remote_branch));
+            log::trace!("error {}", err);
             false
         }
     };
@@ -63,8 +64,9 @@ pub fn is_local_unchanged(dir: &Path, remote: &str, branch: &str) -> CargoResult
             base_id != branch_id
         }
         Err(err) => {
-            log::warn!("Push target `{}` doesn't exist", remote_branch);
-            log::trace!("Error {}", err);
+            let _ =
+                crate::ops::shell::warn(format!("push target `{}` doesn't exist", remote_branch));
+            log::trace!("error {}", err);
             false
         }
     };

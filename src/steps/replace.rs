@@ -73,7 +73,7 @@ impl ReplaceStep {
                     &version.full_version_string,
                 ) {
                     log::debug!(
-                        "Enabled {}, v{} is unpublished",
+                        "enabled {}, v{} is unpublished",
                         crate_name,
                         version.full_version_string
                     );
@@ -92,7 +92,7 @@ impl ReplaceStep {
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
         if selected_pkgs.is_empty() {
-            log::info!("No packages selected.");
+            let _ = crate::ops::shell::error("no packages selected");
             return Err(2.into());
         }
 

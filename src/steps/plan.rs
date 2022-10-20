@@ -103,7 +103,7 @@ impl PackageRelease {
             .to_owned();
         let config = config::load_package_config(args, ws_meta, pkg_meta)?;
         if !config.release() {
-            log::trace!("Disabled in config, skipping {}", manifest_path.display());
+            log::trace!("disabled in config, skipping {}", manifest_path.display());
         }
 
         let package_content = cargo::package_content(&manifest_path)?;
@@ -146,7 +146,7 @@ impl PackageRelease {
                     crate::ops::git::find_last_tag(&package_root, &tag_glob)
                 }
                 Err(err) => {
-                    log::debug!("Failed to find tag with glob `{}`: {}", tag_glob, err);
+                    log::debug!("failed to find tag with glob `{}`: {}", tag_glob, err);
                     None
                 }
             }

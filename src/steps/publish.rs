@@ -63,7 +63,7 @@ impl PublishStep {
             pkg.config.release = Some(false);
 
             let crate_name = pkg.meta.name.as_str();
-            log::debug!("Disabled by user, skipping {}", crate_name,);
+            log::debug!("disabled by user, skipping {}", crate_name,);
         }
 
         let mut pkgs = plan::plan(pkgs)?;
@@ -75,11 +75,10 @@ impl PublishStep {
                 let version = pkg.planned_version.as_ref().unwrap_or(&pkg.initial_version);
                 if crate::ops::cargo::is_published(&index, crate_name, &version.full_version_string)
                 {
-                    log::warn!(
-                        "Disabled due to previous publish ({}), skipping {}",
-                        version.full_version_string,
-                        crate_name
-                    );
+                    let _ = crate::ops::shell::warn(format!(
+                        "disabled due to previous publish ({}), skipping {}",
+                        version.full_version_string, crate_name
+                    ));
                     pkg.config.publish = Some(false);
                     pkg.config.release = Some(false);
                 }
@@ -91,7 +90,7 @@ impl PublishStep {
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
         if selected_pkgs.is_empty() {
-            log::info!("No packages selected.");
+            let _ = crate::ops::shell::error("no packages selected");
             return Err(2.into());
         }
 
@@ -154,12 +153,12 @@ pub fn publish(
         }
 
         let crate_name = pkg.meta.name.as_str();
-        log::info!("Publishing {}", crate_name);
+        let _ = crate::ops::shell::status("Publishing", crate_name);
 
         let verify = if !pkg.config.verify() {
             false
         } else if dry_run && pkgs.len() != 1 {
-            log::debug!("Skipping verification to avoid unpublished dependencies from dry-run");
+            log::debug!("skipping verification to avoid unpublished dependencies from dry-run");
             false
         } else {
             true
@@ -203,15 +202,15 @@ pub fn publish(
                     .parse()
                     .unwrap_or(0);
                 if 0 < publish_grace_sleep {
-                    log::info!(
-                        "Waiting an additional {} seconds for crates.io to update its indices...",
+                    log::debug!(
+                        "waiting an additional {} seconds for crates.io to update its indices...",
                         publish_grace_sleep
                     );
                     std::thread::sleep(std::time::Duration::from_secs(publish_grace_sleep));
                 }
             }
         } else {
-            log::debug!("Not waiting for publish because the registry is not crates.io and doesn't get updated automatically");
+            log::debug!("not waiting for publish because the registry is not crates.io and doesn't get updated automatically");
         }
     }
 

@@ -22,10 +22,12 @@ pub fn verify_git_is_clean(
 ) -> Result<bool, crate::error::CliError> {
     let mut success = true;
     if let Some(dirty) = crate::ops::git::is_dirty(path)? {
-        log::log!(
+        let _ = crate::ops::shell::log(
             level,
-            "Uncommitted changes detected, please resolve before release:\n  {}",
-            dirty.join("\n  ")
+            format!(
+                "uncommitted changes detected, please resolve before release:\n  {}",
+                dirty.join("\n  ")
+            ),
         );
         if level == log::Level::Error {
             success = false;
@@ -52,11 +54,9 @@ pub fn verify_tags_missing(
                 let cwd = &pkg.package_root;
                 if crate::ops::git::tag_exists(cwd, tag_name)? {
                     let crate_name = pkg.meta.name.as_str();
-                    log::log!(
+                    let _ = crate::ops::shell::log(
                         level,
-                        "Tag `{}` already exists (for `{}`)",
-                        tag_name,
-                        crate_name
+                        format!("tag `{}` already exists (for `{}`)", tag_name, crate_name),
                     );
                     tag_exists = true;
                 }
@@ -88,11 +88,9 @@ pub fn verify_tags_exist(
                 let cwd = &pkg.package_root;
                 if !crate::ops::git::tag_exists(cwd, tag_name)? {
                     let crate_name = pkg.meta.name.as_str();
-                    log::log!(
+                    let _ = crate::ops::shell::log(
                         level,
-                        "Tag `{}` doesn't exist (for `{}`)",
-                        tag_name,
-                        crate_name
+                        format!("tag `{}` doesn't exist (for `{}`)", tag_name, crate_name),
                     );
                     tag_missing = true;
                 }
@@ -127,13 +125,15 @@ pub fn verify_git_branch(
     let good_branches = good_branches.build()?;
     let good_branch_match = good_branches.matched_path_or_any_parents(&branch, false);
     if !good_branch_match.is_ignore() {
-        log::log!(
+        let _ = crate::ops::shell::log(
             level,
-            "Cannot release from branch {:?}, instead switch to {:?}",
-            branch,
-            ws_config.allow_branch().join(", ")
+            format!(
+                "cannot release from branch {:?}, instead switch to {:?}",
+                branch,
+                ws_config.allow_branch().join(", ")
+            ),
         );
-        log::trace!("Due to {:?}", good_branch_match);
+        log::trace!("due to {:?}", good_branch_match);
         if level == log::Level::Error {
             success = false;
             if !dry_run {
@@ -157,7 +157,10 @@ pub fn verify_if_behind(
     let branch = crate::ops::git::current_branch(path)?;
     crate::ops::git::fetch(path, git_remote, &branch)?;
     if crate::ops::git::is_behind_remote(path, git_remote, &branch)? {
-        log::log!(level, "{} is behind {}/{}", branch, git_remote, branch);
+        let _ = crate::ops::shell::log(
+            level,
+            format!("{} is behind {}/{}", branch, git_remote, branch),
+        );
         if level == log::Level::Error {
             success = false;
             if !dry_run {
@@ -181,12 +184,12 @@ pub fn verify_monotonically_increasing(
         if let Some(version) = pkg.planned_version.as_ref() {
             if version.full_version < pkg.initial_version.full_version {
                 let crate_name = pkg.meta.name.as_str();
-                log::log!(
+                let _ = crate::ops::shell::log(
                     level,
-                    "Cannot downgrade {} from {} to {}",
-                    crate_name,
-                    version.full_version,
-                    pkg.initial_version.full_version
+                    format!(
+                        "cannot downgrade {} from {} to {}",
+                        crate_name, version.full_version, pkg.initial_version.full_version
+                    ),
                 );
                 downgrades_present = true;
             }
@@ -229,20 +232,24 @@ pub fn verify_rate_limit(
     if 5 < new {
         // "The rate limit for creating new crates is 1 crate every 10 minutes, with a burst of 5 crates."
         success = false;
-        log::log!(
+        let _ = crate::ops::shell::log(
             level,
-            "Attempting to publish {} new crates which is above the crates.io rate limit",
-            new
+            format!(
+                "attempting to publish {} new crates which is above the crates.io rate limit",
+                new
+            ),
         );
     }
 
     if 30 < existing {
         // "The rate limit for new versions of existing crates is 1 per minute, with a burst of 30 crates, so when releasing new versions of these crates, you shouldn't hit the limit."
         success = false;
-        log::log!(
+        let _ = crate::ops::shell::log(
             level,
-            "Attempting to publish {} existing crates which is above the crates.io rate limit",
-            existing
+            format!(
+                "attempting to publish {} existing crates which is above the crates.io rate limit",
+                existing
+            ),
         );
     }
 
@@ -299,11 +306,13 @@ pub fn verify_metadata(
         }
 
         if !missing.is_empty() {
-            log::log!(
+            let _ = crate::ops::shell::log(
                 level,
-                "{} is missing the following fields:\n  {}",
-                pkg.meta.name,
-                missing.join("\n  ")
+                format!(
+                    "{} is missing the following fields:\n  {}",
+                    pkg.meta.name,
+                    missing.join("\n  ")
+                ),
             );
             success = false;
         }
@@ -355,23 +364,21 @@ pub fn warn_changed(
                     // Lock file changes don't invalidate dependents, which is why this check is
                     // after the transitive check, so that can invalidate dependents
                 } else {
-                    log::warn!(
-                        "Updating {} to {} despite no changes made since tag {}",
-                        crate_name,
-                        version.full_version_string,
-                        prior_tag_name
-                    );
+                    let _ = crate::ops::shell::warn(format!(
+                        "updating {} to {} despite no changes made since tag {}",
+                        crate_name, version.full_version_string, prior_tag_name
+                    ));
                 }
             } else {
                 log::debug!(
-                        "Cannot detect changes for {} because tag {} is missing. Try setting `--prev-tag-name <TAG>`.",
+                        "cannot detect changes for {} because tag {} is missing. Try setting `--prev-tag-name <TAG>`.",
                         crate_name,
                         prior_tag_name
                     );
             }
         } else {
             log::debug!(
-                    "Cannot detect changes for {} because no tag was found. Try setting `--prev-tag-name <TAG>`.",
+                    "cannot detect changes for {} because no tag was found. Try setting `--prev-tag-name <TAG>`.",
                     crate_name,
                 );
         }
@@ -396,12 +403,12 @@ pub fn find_shared_versions(
             std::collections::hash_map::Entry::Occupied(existing) => {
                 if version.bare_version != existing.get().bare_version {
                     is_shared = false;
-                    log::error!(
+                    let _ = crate::ops::shell::error(format!(
                         "{} has version {}, should be {}",
                         pkg.meta.name,
                         version.bare_version_string,
                         existing.get().bare_version_string
-                    );
+                    ));
                 }
             }
             std::collections::hash_map::Entry::Vacant(vacant) => {
@@ -410,7 +417,7 @@ pub fn find_shared_versions(
         }
     }
     if !is_shared {
-        log::error!("Crate versions deviated, aborting");
+        let _ = crate::ops::shell::error("crate versions deviated, aborting");
         return Err(101.into());
     }
 
@@ -431,7 +438,7 @@ pub fn consolidate_commits(
         if consolidate_commits.is_none() {
             consolidate_commits = current;
         } else if consolidate_commits != current {
-            log::error!("Inconsistent `consolidate-commits` setting");
+            let _ = crate::ops::shell::error("inconsistent `consolidate-commits` setting");
             return Err(101.into());
         }
     }
@@ -481,10 +488,12 @@ pub fn confirm(
 pub fn finish(failed: bool, dry_run: bool) -> Result<(), crate::error::CliError> {
     if dry_run {
         if failed {
-            log::error!("Dry-run failed, resolve the above errors and try again.");
+            let _ =
+                crate::ops::shell::error("dry-run failed, resolve the above errors and try again.");
             Err(101.into())
         } else {
-            log::warn!("Ran a `dry-run`, re-run with `--execute` if all looked good.");
+            let _ =
+                crate::ops::shell::warn("aborting release due to dry run; re-run with `--execute`");
             Ok(())
         }
     } else {
