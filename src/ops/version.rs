@@ -60,7 +60,7 @@ impl VersionExt for semver::Version {
         if let Some((pre_ext, pre_ext_ver)) = prerelease_id_version(self)? {
             if pre_ext == VERSION_BETA || pre_ext == VERSION_RC {
                 Err(anyhow::format_err!(
-                    "Unsupported release level {}, only major, minor, and patch are supported",
+                    "unsupported release level {}, only major, minor, and patch are supported",
                     VERSION_ALPHA
                 ))
             } else {
@@ -83,7 +83,7 @@ impl VersionExt for semver::Version {
         if let Some((pre_ext, pre_ext_ver)) = prerelease_id_version(self)? {
             if pre_ext == VERSION_RC {
                 Err(anyhow::format_err!(
-                    "Unsupported release level {}, only major, minor, and patch are supported",
+                    "unsupported release level {}, only major, minor, and patch are supported",
                     VERSION_BETA
                 ))
             } else {
@@ -137,7 +137,7 @@ fn prerelease_id_version(version: &semver::Version) -> CargoResult<Option<(Strin
         if let Some((alpha, numeric)) = version.pre.as_str().split_once('.') {
             let alpha = alpha.to_owned();
             let numeric = u64::from_str(numeric)
-                .map_err(|_| anyhow::format_err!("Pre-release `{}` version scheme is not supported by cargo-release.  Use format like `pre`, `dev`, or `alpha.1` for prerelease", version.pre))?;
+                .map_err(|_| anyhow::format_err!("pre-release `{}` version scheme is not supported by cargo-release.  Use format like `pre`, `dev`, or `alpha.1` for prerelease", version.pre))?;
             Ok(Some((alpha, Some(numeric))))
         } else {
             Ok(Some((version.pre.as_str().to_owned(), None)))
@@ -201,14 +201,14 @@ fn set_comparator(
         }
         semver::Op::Exact => Ok(assign_partial_req(version, pred)),
         semver::Op::Greater | semver::Op::GreaterEq | semver::Op::Less | semver::Op::LessEq => Err(
-            anyhow::format_err!("Support for modifying {} is currently unsupported", pred),
+            anyhow::format_err!("support for modifying {} is currently unsupported", pred),
         ),
         semver::Op::Tilde => Ok(assign_partial_req(version, pred)),
         semver::Op::Caret => Ok(assign_partial_req(version, pred)),
         _ => {
-            log::debug!("New predicate added");
+            log::debug!("new predicate added");
             Err(anyhow::format_err!(
-                "Support for modifying {} is currently unsupported",
+                "support for modifying {} is currently unsupported",
                 pred
             ))
         }

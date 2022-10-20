@@ -25,7 +25,7 @@ pub fn verify_git_is_clean(
         let _ = crate::ops::shell::log(
             level,
             format!(
-                "Uncommitted changes detected, please resolve before release:\n  {}",
+                "uncommitted changes detected, please resolve before release:\n  {}",
                 dirty.join("\n  ")
             ),
         );
@@ -56,7 +56,7 @@ pub fn verify_tags_missing(
                     let crate_name = pkg.meta.name.as_str();
                     let _ = crate::ops::shell::log(
                         level,
-                        format!("Tag `{}` already exists (for `{}`)", tag_name, crate_name),
+                        format!("tag `{}` already exists (for `{}`)", tag_name, crate_name),
                     );
                     tag_exists = true;
                 }
@@ -90,7 +90,7 @@ pub fn verify_tags_exist(
                     let crate_name = pkg.meta.name.as_str();
                     let _ = crate::ops::shell::log(
                         level,
-                        format!("Tag `{}` doesn't exist (for `{}`)", tag_name, crate_name),
+                        format!("tag `{}` doesn't exist (for `{}`)", tag_name, crate_name),
                     );
                     tag_missing = true;
                 }
@@ -128,12 +128,12 @@ pub fn verify_git_branch(
         let _ = crate::ops::shell::log(
             level,
             format!(
-                "Cannot release from branch {:?}, instead switch to {:?}",
+                "cannot release from branch {:?}, instead switch to {:?}",
                 branch,
                 ws_config.allow_branch().join(", ")
             ),
         );
-        log::trace!("Due to {:?}", good_branch_match);
+        log::trace!("due to {:?}", good_branch_match);
         if level == log::Level::Error {
             success = false;
             if !dry_run {
@@ -187,7 +187,7 @@ pub fn verify_monotonically_increasing(
                 let _ = crate::ops::shell::log(
                     level,
                     format!(
-                        "Cannot downgrade {} from {} to {}",
+                        "cannot downgrade {} from {} to {}",
                         crate_name, version.full_version, pkg.initial_version.full_version
                     ),
                 );
@@ -235,7 +235,7 @@ pub fn verify_rate_limit(
         let _ = crate::ops::shell::log(
             level,
             format!(
-                "Attempting to publish {} new crates which is above the crates.io rate limit",
+                "attempting to publish {} new crates which is above the crates.io rate limit",
                 new
             ),
         );
@@ -247,7 +247,7 @@ pub fn verify_rate_limit(
         let _ = crate::ops::shell::log(
             level,
             format!(
-                "Attempting to publish {} existing crates which is above the crates.io rate limit",
+                "attempting to publish {} existing crates which is above the crates.io rate limit",
                 existing
             ),
         );
@@ -365,20 +365,20 @@ pub fn warn_changed(
                     // after the transitive check, so that can invalidate dependents
                 } else {
                     let _ = crate::ops::shell::warn(format!(
-                        "Updating {} to {} despite no changes made since tag {}",
+                        "updating {} to {} despite no changes made since tag {}",
                         crate_name, version.full_version_string, prior_tag_name
                     ));
                 }
             } else {
                 log::debug!(
-                        "Cannot detect changes for {} because tag {} is missing. Try setting `--prev-tag-name <TAG>`.",
+                        "cannot detect changes for {} because tag {} is missing. Try setting `--prev-tag-name <TAG>`.",
                         crate_name,
                         prior_tag_name
                     );
             }
         } else {
             log::debug!(
-                    "Cannot detect changes for {} because no tag was found. Try setting `--prev-tag-name <TAG>`.",
+                    "cannot detect changes for {} because no tag was found. Try setting `--prev-tag-name <TAG>`.",
                     crate_name,
                 );
         }
@@ -417,7 +417,7 @@ pub fn find_shared_versions(
         }
     }
     if !is_shared {
-        let _ = crate::ops::shell::error(format!("Crate versions deviated, aborting"));
+        let _ = crate::ops::shell::error(format!("crate versions deviated, aborting"));
         return Err(101.into());
     }
 
@@ -438,7 +438,7 @@ pub fn consolidate_commits(
         if consolidate_commits.is_none() {
             consolidate_commits = current;
         } else if consolidate_commits != current {
-            let _ = crate::ops::shell::error(format!("Inconsistent `consolidate-commits` setting"));
+            let _ = crate::ops::shell::error(format!("inconsistent `consolidate-commits` setting"));
             return Err(101.into());
         }
     }
@@ -489,12 +489,11 @@ pub fn finish(failed: bool, dry_run: bool) -> Result<(), crate::error::CliError>
     if dry_run {
         if failed {
             let _ =
-                crate::ops::shell::error("Dry-run failed, resolve the above errors and try again.");
+                crate::ops::shell::error("dry-run failed, resolve the above errors and try again.");
             Err(101.into())
         } else {
-            let _ = crate::ops::shell::warn(
-                "Ran a `dry-run`, re-run with `--execute` if all looked good.",
-            );
+            let _ =
+                crate::ops::shell::warn("aborting release due to dry run; re-run with `--execute`");
             Ok(())
         }
     } else {

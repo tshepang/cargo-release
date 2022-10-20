@@ -57,7 +57,7 @@ impl CommitStep {
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
         if crate::ops::git::is_dirty(ws_meta.workspace_root.as_std_path())?.is_none() {
-            let _ = crate::ops::shell::error("Nothing to commit");
+            let _ = crate::ops::shell::error("nothing to commit");
             return Err(2.into());
         }
 

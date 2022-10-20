@@ -87,7 +87,7 @@ impl VersionStep {
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
         if selected_pkgs.is_empty() {
-            let _ = crate::ops::shell::error("No packages selected");
+            let _ = crate::ops::shell::error("no packages selected");
             return Err(2.into());
         }
 
@@ -180,7 +180,7 @@ pub fn changed_since<'m>(
         if !pkg.bin {
             let crate_name = pkg.meta.name.as_str();
             log::trace!(
-                "Ignoring lock file change since {}; {} has no [[bin]]",
+                "ignoring lock file change since {}; {} has no [[bin]]",
                 since_ref,
                 crate_name
             );

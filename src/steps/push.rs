@@ -66,7 +66,7 @@ impl PushStep {
             pkg.config.release = Some(false);
 
             let crate_name = pkg.meta.name.as_str();
-            log::debug!("Disabled by user, skipping {}", crate_name,);
+            log::debug!("disabled by user, skipping {}", crate_name,);
         }
 
         let pkgs = plan::plan(pkgs)?;
@@ -76,7 +76,7 @@ impl PushStep {
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
         if selected_pkgs.is_empty() {
-            let _ = crate::ops::shell::error("No packages selected");
+            let _ = crate::ops::shell::error("no packages selected");
             return Err(2.into());
         }
 

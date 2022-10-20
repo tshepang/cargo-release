@@ -43,7 +43,7 @@ pub fn package_content(manifest_path: &Path) -> CargoResult<Vec<std::path::PathB
     } else {
         let error = String::from_utf8_lossy(&output.stderr);
         Err(anyhow::format_err!(
-            "Failed to get package content for {}: {}",
+            "failed to get package content for {}: {}",
             manifest_path.display(),
             error
         ))
@@ -122,12 +122,12 @@ pub fn wait_for_publish(
         let mut logged = false;
         loop {
             if let Err(e) = index.update() {
-                log::debug!("Crate index update failed with {}", e);
+                log::debug!("crate index update failed with {}", e);
             }
             if is_published(index, name, version) {
                 break;
             } else if timeout < now.elapsed() {
-                anyhow::bail!("Timeout waiting for crate to be published");
+                anyhow::bail!("timeout waiting for crate to be published");
             }
 
             if !logged {
@@ -179,7 +179,7 @@ pub fn set_workspace_version(
                 "updated",
                 0,
             );
-            log::debug!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+            log::debug!("change:\n{}", itertools::join(diff.into_iter(), ""));
         }
     } else {
         atomic_write(manifest_path, &manifest)?;
@@ -207,12 +207,12 @@ pub fn ensure_owners(
     let output = cmd.output()?;
     if !output.status.success() {
         anyhow::bail!(
-            "Failed talking to registry about crate owners: {}",
+            "failed talking to registry about crate owners: {}",
             String::from_utf8_lossy(&output.stderr)
         );
     }
     let raw = String::from_utf8(output.stdout)
-        .map_err(|_| anyhow::format_err!("Unrecognized response from registry"))?;
+        .map_err(|_| anyhow::format_err!("unrecognized response from registry"))?;
 
     let mut current = std::collections::BTreeSet::new();
     // HACK: No programmatic CLI access and don't want to link against `cargo` (yet), so parsing
@@ -251,7 +251,7 @@ pub fn ensure_owners(
                 // HACK: Can't error as the user might not have permission to set owners and we can't
                 // tell what the error was without parsing it
                 let _ = crate::ops::shell::warn(format!(
-                    "Failed to set owners for {}: {}",
+                    "failed to set owners for {}: {}",
                     name,
                     String::from_utf8_lossy(&output.stderr)
                 ));
@@ -261,7 +261,7 @@ pub fn ensure_owners(
 
     let extra = current.difference(&expected).copied().collect::<Vec<_>>();
     if !extra.is_empty() {
-        log::debug!("Extra owners for {}: {}", name, extra.join(", "));
+        log::debug!("extra owners for {}: {}", name, extra.join(", "));
     }
 
     Ok(())
@@ -290,7 +290,7 @@ pub fn set_package_version(manifest_path: &Path, version: &str, dry_run: bool) -
                 "updated",
                 0,
             );
-            log::debug!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+            log::debug!("change:\n{}", itertools::join(diff.into_iter(), ""));
         }
     } else {
         atomic_write(manifest_path, &manifest)?;
@@ -339,7 +339,7 @@ pub fn upgrade_dependency_req(
                 "updated",
                 0,
             );
-            log::debug!("Change:\n{}", itertools::join(diff.into_iter(), ""));
+            log::debug!("change:\n{}", itertools::join(diff.into_iter(), ""));
         } else {
             atomic_write(manifest_path, &manifest)?;
         }
@@ -414,20 +414,20 @@ fn upgrade_req(
     let version_value = if let Some(version_value) = dep_item.get_mut("version") {
         version_value
     } else {
-        log::debug!("Not updating path-only dependency on {}", name);
+        log::debug!("not updating path-only dependency on {}", name);
         return false;
     };
 
     let existing_req_str = if let Some(existing_req) = version_value.as_str() {
         existing_req
     } else {
-        log::debug!("Unsupported dependency {}", name);
+        log::debug!("unsupported dependency {}", name);
         return false;
     };
     let existing_req = if let Ok(existing_req) = semver::VersionReq::parse(existing_req_str) {
         existing_req
     } else {
-        log::debug!("Unsupported dependency req {}={}", name, existing_req_str);
+        log::debug!("unsupported dependency req {}={}", name, existing_req_str);
         return false;
     };
     let new_req = match upgrade {

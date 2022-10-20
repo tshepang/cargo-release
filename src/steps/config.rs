@@ -22,7 +22,7 @@ pub struct ConfigStep {
 
 impl ConfigStep {
     pub fn run(&self) -> Result<(), CliError> {
-        log::trace!("Initializing");
+        log::trace!("initializing");
         let ws_meta = self
             .manifest
             .metadata()

@@ -68,7 +68,7 @@ impl TagStep {
             pkg.config.release = Some(false);
 
             let crate_name = pkg.meta.name.as_str();
-            log::debug!("Disabled by user, skipping {}", crate_name,);
+            log::debug!("disabled by user, skipping {}", crate_name,);
         }
 
         let mut pkgs = plan::plan(pkgs)?;
@@ -78,7 +78,7 @@ impl TagStep {
                 if crate::ops::git::tag_exists(ws_meta.workspace_root.as_std_path(), tag_name)? {
                     let crate_name = pkg.meta.name.as_str();
                     let _ = crate::ops::shell::warn(format!(
-                        "Disabled due to existing tag ({}), skipping {}",
+                        "disabled due to existing tag ({}), skipping {}",
                         tag_name, crate_name
                     ));
                     pkg.planned_tag = None;
@@ -93,7 +93,7 @@ impl TagStep {
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
         if selected_pkgs.is_empty() {
-            let _ = crate::ops::shell::error("No packages selected");
+            let _ = crate::ops::shell::error("no packages selected");
             return Err(2.into());
         }
 
@@ -166,7 +166,7 @@ pub fn tag(pkgs: &[plan::PackageRelease], dry_run: bool) -> Result<(), CliError>
                 };
                 let tag_message = template.render(pkg.config.tag_message());
 
-                log::debug!("Creating git tag {}", tag_name);
+                log::debug!("creating git tag {}", tag_name);
                 if !git::tag(cwd, tag_name, &tag_message, pkg.config.sign_tag(), dry_run)? {
                     // tag failed, abort release
                     return Err(101.into());

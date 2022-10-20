@@ -81,14 +81,14 @@ pub fn do_file_replacements(
     for (path, replaces) in by_file.into_iter() {
         let file = cwd.join(&path);
         if !file.exists() {
-            anyhow::bail!("Unable to find file {} to perform replace", file.display());
+            anyhow::bail!("unable to find file {} to perform replace", file.display());
         }
         let data = std::fs::read_to_string(&file)?;
         let mut replaced = data.clone();
 
         for replace in replaces {
             if prerelease && !replace.prerelease {
-                log::debug!("Pre-release, not replacing {}", replace.search);
+                log::debug!("pre-release, not replacing {}", replace.search);
                 continue;
             }
 
@@ -100,14 +100,14 @@ pub fn do_file_replacements(
             let actual = r.find_iter(&replaced).count();
             if actual < min {
                 anyhow::bail!(
-                    "For `{}`, at least {} replacements expected, found {}",
+                    "for `{}`, at least {} replacements expected, found {}",
                     pattern,
                     min,
                     actual
                 );
             } else if max < actual {
                 anyhow::bail!(
-                    "For `{}`, at most {} replacements expected, found {}",
+                    "for `{}`, at most {} replacements expected, found {}",
                     pattern,
                     max,
                     actual
