@@ -60,8 +60,10 @@ impl ReleaseStep {
                 // they don't care about any changes from before this tag.
                 pkg.set_prior_tag(prev_tag.to_owned());
             }
-            if let Some(level_or_version) = &self.level_or_version {
-                pkg.bump(level_or_version, self.metadata.as_deref())?;
+            if pkg.config.release() {
+                if let Some(level_or_version) = &self.level_or_version {
+                    pkg.bump(level_or_version, self.metadata.as_deref())?;
+                }
             }
             if index.crate_(&pkg.meta.name).is_some() {
                 // Already published, skip it.  Use `cargo release owner` for one-time updates
@@ -94,8 +96,8 @@ impl ReleaseStep {
                 }
             }
 
-            pkg.config.release = Some(false);
             pkg.planned_version = None;
+            pkg.config.release = Some(false);
 
             if let Some(prior_tag_name) = &pkg.prior_tag {
                 if let Some((changed, lock_changed)) =

@@ -27,6 +27,9 @@ pub fn plan(
 ) -> CargoResult<indexmap::IndexMap<cargo_metadata::PackageId, PackageRelease>> {
     let mut shared_versions: std::collections::HashMap<String, Version> = Default::default();
     for pkg in pkgs.values() {
+        if !pkg.config.release() {
+            continue;
+        }
         let group_name = if let Some(group_name) = pkg.config.shared_version() {
             group_name.to_owned()
         } else {
@@ -46,6 +49,9 @@ pub fn plan(
     }
     if !shared_versions.is_empty() {
         for pkg in pkgs.values_mut() {
+            if !pkg.config.release() {
+                continue;
+            }
             let group_name = if let Some(group_name) = pkg.config.shared_version() {
                 group_name
             } else {
@@ -67,6 +73,7 @@ pub fn plan(
     Ok(pkgs)
 }
 
+#[derive(Debug)]
 pub struct PackageRelease {
     pub meta: cargo_metadata::Package,
     pub manifest_path: PathBuf,
@@ -282,6 +289,7 @@ fn find_dependents<'w>(
     })
 }
 
+#[derive(Debug)]
 pub struct Dependency {
     pub pkg: cargo_metadata::Package,
     pub req: semver::VersionReq,
