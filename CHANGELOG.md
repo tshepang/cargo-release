@@ -3,12 +3,14 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Highlights
+
 The goal of this release is improved workspace support, including
 - [Workspace inheritance support](https://doc.rust-lang.org/cargo/reference/workspaces.html#the-package-table)
 - Greater control over versioning by supporting calling `cargo release version` as needed and then `cargo release --unpublished`
 - Setting configured crate owners when publishing new crates
 - Identifying failures early like missing metadata, hitting rate limits, etc
-- Inspect changes with `cargo release changes`, including convention commit support
+- Inspect changes with `cargo release changes`, including conventional commit support
 - Improved defaults
 
 This does mean that `cargo release` (no other args) changed from recovering
