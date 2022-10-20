@@ -65,7 +65,9 @@ impl VersionStep {
                 // they don't care about any changes from before this tag.
                 pkg.set_prior_tag(prev_tag.to_owned());
             }
-            pkg.bump(&self.level_or_version, self.metadata.as_deref())?;
+            if pkg.config.release() {
+                pkg.bump(&self.level_or_version, self.metadata.as_deref())?;
+            }
         }
 
         let (_selected_pkgs, excluded_pkgs) = self.workspace.partition_packages(&ws_meta);

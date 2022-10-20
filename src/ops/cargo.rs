@@ -8,6 +8,7 @@ use crate::error::CargoResult;
 use crate::ops::cmd::call;
 
 /// Expresses what features flags should be used
+#[derive(Clone, Debug)]
 pub enum Features {
     /// None - don't use special features
     None,
