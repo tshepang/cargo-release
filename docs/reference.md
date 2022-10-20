@@ -79,6 +79,7 @@ Options:
           Print version information
 
 Steps:
+  changes  Bump crate versions
   version  Bump crate versions
   replace  Perform pre-release replacements
   hook     Run pre-release hooks

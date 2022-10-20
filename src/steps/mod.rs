@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+pub mod changes;
 pub mod commit;
 pub mod config;
 pub mod hook;
