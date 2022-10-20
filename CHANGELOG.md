@@ -8,6 +8,7 @@ The goal of this release is improved workspace support, including
 - Greater control over versioning by supporting calling `cargo release version` as needed and then `cargo release --unpublished`
 - Setting configured crate owners when publishing new crates
 - Identifying failures early like missing metadata, hitting rate limits, etc
+- Inspect changes with `cargo release changes`, including convention commit support
 - Improved defaults
 
 This does mean that `cargo release` (no other args) changed from recovering
@@ -43,6 +44,7 @@ MSRV is now 1.64.0
 - Implicitly layer package over workspace for workspace config when not in a workspace
 - Only update versions for path dependencies
 - Cleaned up output
+- Ignore tests when tracking changes
 
 ### Features
 
@@ -55,7 +57,7 @@ MSRV is now 1.64.0
   - Use `cargo release owner` to update owners for existing crates
 - In addition to `shared-version = true`, we now support named groups, like `shared-version = "foo"`
 - `--unpublished` flag to automatically release unpublished crates
-- Expose `hook` and `commit` steps
+- Expose `changes`, `hook`, and `commit` steps
 
 ## [0.21.4] - 2022-10-14
 
