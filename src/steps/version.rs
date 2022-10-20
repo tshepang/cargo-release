@@ -152,8 +152,7 @@ pub fn changed_since<'m>(
     ws_meta: &cargo_metadata::Metadata,
     pkg: &'m plan::PackageRelease,
     since_ref: &str,
-) -> Option<(Vec<std::path::PathBuf>, bool)> {
-    let lock_path = ws_meta.workspace_root.join("Cargo.lock");
+) -> Option<Vec<std::path::PathBuf>> {
     let changed_root = if pkg.bin {
         ws_meta.workspace_root.as_std_path()
     } else {
@@ -161,37 +160,12 @@ pub fn changed_since<'m>(
         &pkg.package_root
     };
     let changed = git::changed_files(changed_root, since_ref).ok().flatten()?;
-    let mut changed: Vec<_> = changed
+    let changed: Vec<_> = changed
         .into_iter()
         .filter(|p| pkg.package_content.contains(p))
         .collect();
 
-    let mut lock_changed = false;
-    if let Some(lock_index) =
-        changed.iter().enumerate().find_map(
-            |(idx, path)| {
-                if path == &lock_path {
-                    Some(idx)
-                } else {
-                    None
-                }
-            },
-        )
-    {
-        let _ = changed.swap_remove(lock_index);
-        if !pkg.bin {
-            let crate_name = pkg.meta.name.as_str();
-            log::trace!(
-                "ignoring lock file change since {}; {} has no [[bin]]",
-                since_ref,
-                crate_name
-            );
-        } else {
-            lock_changed = true;
-        }
-    }
-
-    Some((changed, lock_changed))
+    Some(changed)
 }
 
 pub fn update_versions(

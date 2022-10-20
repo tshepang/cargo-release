@@ -113,12 +113,23 @@ impl PackageRelease {
             log::trace!("disabled in config, skipping {}", manifest_path.display());
         }
 
-        let package_content = cargo::package_content(&manifest_path)?;
         let bin = pkg_meta
             .targets
             .iter()
             .flat_map(|t| t.kind.iter())
             .any(|k| k == "bin");
+        let mut package_content = cargo::package_content(&manifest_path)?;
+        if bin {
+            // When publishing bins, the lock file is listed as relative to the package root, so
+            // let's remap it to the workspace root
+            let lock_file = ws_meta.workspace_root.as_std_path().join("Cargo.lock");
+            if !package_content.contains(&lock_file) {
+                package_content.push(lock_file);
+            }
+        } else {
+            // Lock files are not relevant when publishing non-bins
+            package_content.retain(|p| !p.ends_with("Cargo.lock"));
+        }
         let features = config.features();
         let dependents = find_dependents(ws_meta, pkg_meta)
             .map(|(pkg, dep)| Dependency {

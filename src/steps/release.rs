@@ -100,19 +100,13 @@ impl ReleaseStep {
             pkg.config.release = Some(false);
 
             if let Some(prior_tag_name) = &pkg.prior_tag {
-                if let Some((changed, lock_changed)) =
+                if let Some(changed) =
                     crate::steps::version::changed_since(&ws_meta, pkg, prior_tag_name)
                 {
                     if !changed.is_empty() {
                         let _ = crate::ops::shell::warn(format!(
                             "disabled by user, skipping {} which has files changed since {}: {:#?}",
                             crate_name, prior_tag_name, changed
-                        ));
-                    } else if lock_changed {
-                        let _ = crate::ops::shell::warn(format!(
-                            "disabled by user, skipping {} despite lock file being changed since {}",
-                            crate_name,
-                            prior_tag_name
                         ));
                     } else {
                         log::trace!(
