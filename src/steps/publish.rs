@@ -59,6 +59,10 @@ impl PublishStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
+            if !pkg.config.release() {
+                continue;
+            }
+
             pkg.config.publish = Some(false);
             pkg.config.release = Some(false);
 
