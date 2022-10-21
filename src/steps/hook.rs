@@ -64,6 +64,9 @@ impl HookStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
+            if !pkg.config.release() {
+                continue;
+            }
 
             let crate_name = pkg.meta.name.as_str();
             let explicitly_excluded = self.workspace.exclude.contains(&excluded_pkg.name);

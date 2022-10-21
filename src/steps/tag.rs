@@ -63,6 +63,10 @@ impl TagStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
+            if !pkg.config.release() {
+                continue;
+            }
+
             pkg.planned_tag = None;
             pkg.config.tag = Some(false);
             pkg.config.release = Some(false);

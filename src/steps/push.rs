@@ -62,6 +62,10 @@ impl PushStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
+            if !pkg.config.release() {
+                continue;
+            }
+
             pkg.config.push = Some(false);
             pkg.config.release = Some(false);
 

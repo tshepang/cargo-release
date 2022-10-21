@@ -78,6 +78,10 @@ impl VersionStep {
                 // Either not in workspace or marked as `release = false`.
                 continue;
             };
+            if !pkg.config.release() {
+                continue;
+            }
+
             pkg.planned_version = None;
             pkg.config.release = Some(false);
         }
