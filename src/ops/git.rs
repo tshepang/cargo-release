@@ -61,7 +61,7 @@ pub fn is_local_unchanged(dir: &Path, remote: &str, branch: &str) -> CargoResult
             log::trace!("{}: {}", remote_branch, remote_branch_id);
             log::trace!("merge base: {}", base_id);
 
-            base_id != branch_id
+            base_id == branch_id
         }
         Err(err) => {
             let _ =

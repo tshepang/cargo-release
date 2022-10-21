@@ -6,6 +6,8 @@
 ### Fixes
 
 - Don't claim the user excluded a crate when the config did
+- Actually push the branch
+- Show we'll push the branch in dry-run mode, even if we won't as its better than not showing it even if we will
 
 ## [0.22.0] - 2022-10-21
 

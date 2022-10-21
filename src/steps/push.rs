@@ -151,7 +151,8 @@ pub fn push(
                 ws_meta.workspace_root.as_std_path(),
                 git_remote,
                 branch.as_str(),
-            )? {
+            )? || dry_run
+            {
                 shared_refs.insert(branch.as_str());
             }
             if let Some(tag_name) = pkg.planned_tag.as_deref() {
