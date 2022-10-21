@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Don't claim the user excluded a crate when the config did
+
 ## [0.22.0] - 2022-10-21
 
 ### Highlights
