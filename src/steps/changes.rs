@@ -3,6 +3,7 @@ use crate::error::CliError;
 use crate::ops::git;
 use crate::ops::shell::Color;
 use crate::ops::shell::ColorSpec;
+use crate::ops::version::VersionExt as _;
 use crate::steps::plan;
 
 /// Print commits since last tag
@@ -169,6 +170,7 @@ pub fn changes(
                     ),
                 )?;
                 let prefix = format!("{:>13}", " ");
+                let mut max_status = None;
                 for commit in &commits {
                     let _ = crate::ops::shell::write_stderr(&prefix, &ColorSpec::new());
                     let _ = crate::ops::shell::write_stderr(
@@ -178,8 +180,68 @@ pub fn changes(
                     let _ = crate::ops::shell::write_stderr(" ", &ColorSpec::new());
                     let _ = crate::ops::shell::write_stderr(&commit.summary, &ColorSpec::new());
 
-                    write_status(commit.status());
+                    let current_status = commit.status();
+                    write_status(current_status);
                     let _ = crate::ops::shell::write_stderr("\n", &ColorSpec::new());
+                    match (current_status, max_status) {
+                        (Some(cur), Some(max)) => {
+                            max_status = Some(cur.max(max));
+                        }
+                        (Some(s), None) | (None, Some(s)) => {
+                            max_status = Some(s);
+                        }
+                        (None, None) => {}
+                    }
+                }
+                if version.full_version.is_prerelease() {
+                    // Enough unknowns about pre-release to not bother
+                    max_status = None;
+                }
+                let unbumped = pkg
+                    .planned_tag
+                    .as_deref()
+                    .and_then(|t| crate::ops::git::tag_exists(workspace_root, t).ok())
+                    .unwrap_or(false);
+                let bumped = !unbumped;
+                if let Some(max_status) = max_status {
+                    let suggested = match max_status {
+                        CommitStatus::Breaking => {
+                            match (
+                                version.full_version.major,
+                                version.full_version.minor,
+                                version.full_version.patch,
+                            ) {
+                                (0, 0, _) if bumped => None,
+                                (0, 0, _) => Some("patch"),
+                                (0, _, 0) if bumped => None,
+                                (0, _, _) => Some("minor"),
+                                (_, 0, 0) if bumped => None,
+                                (_, _, _) => Some("major"),
+                            }
+                        }
+                        CommitStatus::Feature => {
+                            match (
+                                version.full_version.major,
+                                version.full_version.minor,
+                                version.full_version.patch,
+                            ) {
+                                (0, 0, _) if bumped => None,
+                                (0, 0, _) => Some("patch"),
+                                (0, _, _) if bumped => None,
+                                (0, _, _) => Some("patch"),
+                                (_, _, 0) if bumped => None,
+                                (_, _, _) => Some("minor"),
+                            }
+                        }
+                        CommitStatus::Fix if bumped => None,
+                        CommitStatus::Fix => Some("patch"),
+                        CommitStatus::Ignore => None,
+                    };
+                    if let Some(suggested) = suggested {
+                        let _ = crate::ops::shell::note(format!("to update the version, run `cargo release version -p {crate_name} {suggested}`"));
+                    } else if unbumped {
+                        let _ = crate::ops::shell::note(format!("to update the version, run `cargo release version -p {crate_name} <LEVEL|VERSION>`"));
+                    }
                 }
             }
         } else {
@@ -270,8 +332,8 @@ impl PackageCommit {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CommitStatus {
-    Breaking,
-    Feature,
-    Fix,
     Ignore,
+    Fix,
+    Feature,
+    Breaking,
 }
