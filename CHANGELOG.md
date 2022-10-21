@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.22.1] - 2022-10-21
+
 ### Fixes
 
 - Don't claim the user excluded a crate when the config did
@@ -530,7 +532,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.22.1...HEAD
+[0.22.1]: https://github.com/crate-ci/cargo-release/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/crate-ci/cargo-release/compare/v0.21.4...v0.22.0
 [0.21.4]: https://github.com/crate-ci/cargo-release/compare/v0.21.3...v0.21.4
 [0.21.3]: https://github.com/crate-ci/cargo-release/compare/v0.21.2...v0.21.3
