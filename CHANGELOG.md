@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.22.0] - 2022-10-21
+
 ### Highlights
 
 The goal of this release is improved workspace support, including
@@ -522,7 +524,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.21.4...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/crate-ci/cargo-release/compare/v0.21.4...v0.22.0
 [0.21.4]: https://github.com/crate-ci/cargo-release/compare/v0.21.3...v0.21.4
 [0.21.3]: https://github.com/crate-ci/cargo-release/compare/v0.21.2...v0.21.3
 [0.21.2]: https://github.com/crate-ci/cargo-release/compare/v0.21.1...v0.21.2
