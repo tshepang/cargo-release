@@ -13,7 +13,7 @@ pub struct CommitStep {
     manifest: clap_cargo::Manifest,
 
     /// Custom config file
-    #[arg(short, long = "config")]
+    #[arg(short, long = "config", value_name = "PATH")]
     custom_config: Option<String>,
 
     /// Ignore implicit configuration files.

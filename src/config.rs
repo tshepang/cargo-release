@@ -518,7 +518,7 @@ pub fn load_package_config(
 #[derive(Clone, Default, Debug, clap::Args)]
 pub struct ConfigArgs {
     /// Custom config file
-    #[arg(short, long = "config")]
+    #[arg(short, long = "config", value_name = "PATH")]
     pub custom_config: Option<String>,
 
     /// Ignore implicit configuration files.
@@ -536,7 +536,7 @@ pub struct ConfigArgs {
     pub dependent_version: Option<crate::config::DependentVersion>,
 
     /// Comma-separated globs of branch names a release can happen from
-    #[arg(long, value_delimiter = ',')]
+    #[arg(long, value_delimiter = ',', value_name = "GLOB[,...]")]
     pub allow_branch: Option<Vec<String>>,
 
     #[command(flatten)]
@@ -602,7 +602,7 @@ pub struct PublishArgs {
     no_publish: bool,
 
     /// Cargo registry to upload to
-    #[arg(long)]
+    #[arg(long, value_name = "NAME")]
     registry: Option<String>,
 
     #[arg(long, overrides_with("no_verify"), hide(true))]
@@ -620,7 +620,7 @@ pub struct PublishArgs {
     all_features: bool,
 
     /// Build for the target triple
-    #[arg(long)]
+    #[arg(long, value_name = "TRIPLE")]
     target: Option<String>,
 }
 
@@ -654,11 +654,11 @@ pub struct TagArgs {
     no_sign_tag: bool,
 
     /// Prefix of git tag, note that this will override default prefix based on sub-directory
-    #[arg(long)]
+    #[arg(long, value_name = "PREFIX")]
     tag_prefix: Option<String>,
 
     /// The name of the git tag.
-    #[arg(long)]
+    #[arg(long, value_name = "NAME")]
     tag_name: Option<String>,
 }
 
@@ -684,7 +684,7 @@ pub struct PushArgs {
     no_push: bool,
 
     /// Git remote to push
-    #[arg(long)]
+    #[arg(long, value_name = "NAME")]
     push_remote: Option<String>,
 }
 

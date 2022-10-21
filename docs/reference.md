@@ -27,62 +27,47 @@ Arguments:
                    values: major, minor, patch, release, rc, beta, alpha]
 
 Options:
-      --manifest-path <PATH>
-          Path to Cargo.toml
-  -p, --package <SPEC>
-          Package to process (see `cargo help pkgid`)
-      --workspace
-          Process all packages in the workspace
-      --exclude <SPEC>
-          Exclude packages from being processed
-      --unpublished
-          Process all packages whose current version is unpublished
-  -m, --metadata <METADATA>
-          Semver metadata
-  -c, --config <CUSTOM_CONFIG>
-          Custom config file
-      --isolated
-          Ignore implicit configuration files
-      --sign
-          Sign both git commit and tag
-      --dependent-version <ACTION>
-          Specify how workspace dependencies on this crate should be handed [possible values:
-          upgrade, fix]
-      --allow-branch <ALLOW_BRANCH>
-          Comma-separated globs of branch names a release can happen from
-  -q, --quiet...
-          Pass many times for less log output
-  -v, --verbose...
-          Pass many times for more log output
-  -h, --help
-          Print help information (use `--help` for more detail)
-  -V, --version
-          Print version information
+      --manifest-path <PATH>        Path to Cargo.toml
+  -p, --package <SPEC>              Package to process (see `cargo help pkgid`)
+      --workspace                   Process all packages in the workspace
+      --exclude <SPEC>              Exclude packages from being processed
+      --unpublished                 Process all packages whose current version is unpublished
+  -m, --metadata <METADATA>         Semver metadata
+  -x, --execute                     Actually perform a release. Dry-run mode is the default
+      --no-confirm                  Skip release confirmation and version preview
+      --prev-tag-name <NAME>        The name of tag for the previous release
+  -c, --config <PATH>               Custom config file
+      --isolated                    Ignore implicit configuration files
+      --sign                        Sign both git commit and tag
+      --dependent-version <ACTION>  Specify how workspace dependencies on this crate should be
+                                    handed [possible values: upgrade, fix]
+      --allow-branch <GLOB[,...]>   Comma-separated globs of branch names a release can happen from
+  -q, --quiet...                    Pass many times for less log output
+  -v, --verbose...                  Pass many times for more log output
+  -h, --help                        Print help information (use `--help` for more detail)
+  -V, --version                     Print version information
 
 Commit:
       --sign-commit  Sign git commit
 
 Publish:
       --no-publish           Do not run cargo publish on release
-      --registry <REGISTRY>  Cargo registry to upload to
+      --registry <NAME>      Cargo registry to upload to
       --no-verify            Don't verify the contents by building them
       --features <FEATURES>  Provide a set of features that need to be enabled
       --all-features         Enable all features via `all-features`. Overrides `features`
-      --target <TARGET>      Build for the target triple
+      --target <TRIPLE>      Build for the target triple
 
 Tag:
-      --no-tag                   Do not create git tag
-      --sign-tag                 Sign git tag
-      --tag-prefix <TAG_PREFIX>  Prefix of git tag, note that this will override default prefix
-                                 based on sub-directory
-      --tag-name <TAG_NAME>      The name of the git tag
+      --no-tag               Do not create git tag
+      --sign-tag             Sign git tag
+      --tag-prefix <PREFIX>  Prefix of git tag, note that this will override default prefix based on
+                             sub-directory
+      --tag-name <NAME>      The name of the git tag
 
 Push:
-      --no-push                        Do not run git push in the last step
-      --push-remote <PUSH_REMOTE>      Git remote to push
-  -x, --execute                        Actually perform a release. Dry-run mode is the default
-      --no-confirm                     Skip release confirmation and version preview
-      --prev-tag-name <PREV_TAG_NAME>  The name of tag for the previous release
+      --no-push             Do not run git push in the last step
+      --push-remote <NAME>  Git remote to push
 
 ```
 

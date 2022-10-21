@@ -41,7 +41,7 @@ pub struct VersionStep {
     metadata: Option<String>,
 
     /// The name of tag for the previous release.
-    #[arg(long, help_heading = "Version")]
+    #[arg(long, value_name = "NAME", help_heading = "Version")]
     prev_tag_name: Option<String>,
 }
 

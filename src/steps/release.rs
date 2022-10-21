@@ -24,9 +24,6 @@ pub struct ReleaseStep {
     #[arg(short, long, requires = "level_or_version")]
     metadata: Option<String>,
 
-    #[command(flatten)]
-    config: crate::config::ConfigArgs,
-
     /// Actually perform a release. Dry-run mode is the default
     #[arg(short = 'x', long)]
     execute: bool,
@@ -36,8 +33,11 @@ pub struct ReleaseStep {
     no_confirm: bool,
 
     /// The name of tag for the previous release.
-    #[arg(long)]
+    #[arg(long, value_name = "NAME")]
     prev_tag_name: Option<String>,
+
+    #[command(flatten)]
+    config: crate::config::ConfigArgs,
 }
 
 impl ReleaseStep {
