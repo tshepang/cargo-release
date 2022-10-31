@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Limit rate-limiting to crates being published
+
 ## [0.22.1] - 2022-10-21
 
 ### Fixes
