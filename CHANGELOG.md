@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.22.2] - 2022-10-31
+
 ### Fixes
 
 - Limit rate-limiting to crates being published
@@ -536,7 +538,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.22.1...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.22.2...HEAD
+[0.22.2]: https://github.com/crate-ci/cargo-release/compare/v0.22.1...v0.22.2
 [0.22.1]: https://github.com/crate-ci/cargo-release/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/crate-ci/cargo-release/compare/v0.21.4...v0.22.0
 [0.21.4]: https://github.com/crate-ci/cargo-release/compare/v0.21.3...v0.21.4
