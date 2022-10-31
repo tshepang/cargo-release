@@ -220,7 +220,7 @@ pub fn verify_rate_limit(
     let mut new = 0;
     let mut existing = 0;
     for pkg in pkgs {
-        if pkg.config.registry().is_none() {
+        if pkg.config.registry().is_none() && pkg.config.publish() {
             let crate_name = pkg.meta.name.as_str();
             if index.crate_(crate_name).is_some() {
                 existing += 1;
