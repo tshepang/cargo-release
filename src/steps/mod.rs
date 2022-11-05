@@ -154,6 +154,11 @@ pub fn verify_if_behind(
 ) -> Result<bool, crate::error::CliError> {
     let mut success = true;
 
+    // If we are not pushing, we are not behind our push target.
+    if !ws_config.push() {
+        return Ok(success);
+    }
+
     let git_remote = ws_config.push_remote();
     let branch = crate::ops::git::current_branch(path)?;
     crate::ops::git::fetch(path, git_remote, &branch)?;
