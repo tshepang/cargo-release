@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Ensure pushes are atomic
+
 ## [0.22.2] - 2022-10-31
 
 ### Fixes
