@@ -140,11 +140,8 @@ Workspace configuration is read from the following (in precedence order)
 | `target`       | \-              | string                      | \-            | Target triple to use for the verification build |
 | `dependent-version` | \-         | `upgrade`, `fix`, `error`, `warn`, `ignore` | `upgrade`      | Policy for upgrading path dependency versions within the workspace |
 
-Note: fields are from the package-configuration unless otherwise specified.
 
-Note:
-[`package.publish`](https://doc.rust-lang.org/cargo/reference/manifest.html#the-publish-field)
-is interpreted the same as `release = false`
+Note: fields are from the package-configuration unless otherwise specified.
 
 ### Supported Environment Variables
 

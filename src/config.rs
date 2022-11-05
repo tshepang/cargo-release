@@ -835,7 +835,6 @@ pub fn resolve_overrides(workspace_root: &Path, manifest_path: &Path) -> CargoRe
             None => true,
         };
         if !publish {
-            release_config.release = Some(false);
             release_config.publish = Some(false);
         }
         if package
