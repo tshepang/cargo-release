@@ -203,7 +203,9 @@ pub fn push<'s>(
     options: impl IntoIterator<Item = &'s str>,
     dry_run: bool,
 ) -> CargoResult<bool> {
-    let mut command = vec!["git", "push"];
+    // Use an atomic push to ensure that e.g. if main and a tag are pushed together, and the local
+    // main diverges from the remote main, that the push fails entirely.
+    let mut command = vec!["git", "push", "--atomic"];
 
     for option in options {
         command.push("--push-option");
