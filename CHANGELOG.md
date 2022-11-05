@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Breaking Changes
+
+- No longer assume `package.publish = false` also means that releases are disabled (#597)
+
 ## [0.22.4] - 2022-11-05
 
 ### Fixes
