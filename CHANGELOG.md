@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Skip remote check if not pushing
+
 ## [0.22.3] - 2022-11-05
 
 ### Fixes
