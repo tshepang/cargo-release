@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.22.4] - 2022-11-05
+
 ### Fixes
 
 - Skip remote check if not pushing
@@ -548,7 +550,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.22.3...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.22.4...HEAD
+[0.22.4]: https://github.com/crate-ci/cargo-release/compare/v0.22.3...v0.22.4
 [0.22.3]: https://github.com/crate-ci/cargo-release/compare/v0.22.2...v0.22.3
 [0.22.2]: https://github.com/crate-ci/cargo-release/compare/v0.22.1...v0.22.2
 [0.22.1]: https://github.com/crate-ci/cargo-release/compare/v0.22.0...v0.22.1
