@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Respect `--unpublished`
+
 ## [0.23.0] - 2022-11-05
 
 ### Breaking Changes
