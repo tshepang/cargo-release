@@ -72,7 +72,11 @@ impl HookStep {
             let explicitly_excluded = self.workspace.exclude.contains(&excluded_pkg.name);
             // 1. Don't show this message if already not releasing in config
             // 2. Still respect `--exclude`
-            if pkg.config.release() && pkg.config.publish() && !explicitly_excluded {
+            if pkg.config.release()
+                && pkg.config.publish()
+                && self.unpublished
+                && !explicitly_excluded
+            {
                 let version = &pkg.initial_version;
                 if !crate::ops::cargo::is_published(
                     &index,
