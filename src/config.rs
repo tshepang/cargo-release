@@ -25,9 +25,7 @@ pub struct Config {
     pub shared_version: Option<SharedVersion>,
     pub consolidate_commits: Option<bool>,
     pub pre_release_commit_message: Option<String>,
-    pub post_release_commit_message: Option<String>,
     pub pre_release_replacements: Option<Vec<Replace>>,
-    pub post_release_replacements: Option<Vec<Replace>>,
     pub pre_release_hook: Option<Command>,
     pub tag_message: Option<String>,
     pub tag_prefix: Option<String>,
@@ -74,9 +72,7 @@ impl Config {
                 .map(|s| SharedVersion::Name(s.to_owned())),
             consolidate_commits: Some(empty.consolidate_commits()),
             pre_release_commit_message: Some(empty.pre_release_commit_message().to_owned()),
-            post_release_commit_message: Some(empty.post_release_commit_message().to_owned()),
             pre_release_replacements: Some(empty.pre_release_replacements().to_vec()),
-            post_release_replacements: Some(empty.post_release_replacements().to_vec()),
             pre_release_hook: empty.pre_release_hook().cloned(),
             tag_message: Some(empty.tag_message().to_owned()),
             tag_prefix: None, // Skipping, its location dependent
@@ -132,14 +128,8 @@ impl Config {
         if let Some(pre_release_commit_message) = source.pre_release_commit_message.as_deref() {
             self.pre_release_commit_message = Some(pre_release_commit_message.to_owned());
         }
-        if let Some(post_release_commit_message) = source.post_release_commit_message.as_deref() {
-            self.post_release_commit_message = Some(post_release_commit_message.to_owned());
-        }
         if let Some(pre_release_replacements) = source.pre_release_replacements.as_deref() {
             self.pre_release_replacements = Some(pre_release_replacements.to_owned());
-        }
-        if let Some(post_release_replacements) = source.post_release_replacements.as_deref() {
-            self.post_release_replacements = Some(post_release_replacements.to_owned());
         }
         if let Some(pre_release_hook) = source.pre_release_hook.as_ref() {
             self.pre_release_hook = Some(pre_release_hook.to_owned());
@@ -240,27 +230,8 @@ impl Config {
             })
     }
 
-    pub fn post_release_commit_message(&self) -> &str {
-        self.post_release_commit_message
-            .as_deref()
-            .unwrap_or_else(|| {
-                if self.consolidate_commits() {
-                    "chore: Start development"
-                } else {
-                    "chore: Start development of {{next_version}}"
-                }
-            })
-    }
-
     pub fn pre_release_replacements(&self) -> &[Replace] {
         self.pre_release_replacements
-            .as_ref()
-            .map(|v| v.as_ref())
-            .unwrap_or(&[])
-    }
-
-    pub fn post_release_replacements(&self) -> &[Replace] {
-        self.post_release_replacements
             .as_ref()
             .map(|v| v.as_ref())
             .unwrap_or(&[])
