@@ -80,6 +80,7 @@ pub fn do_file_replacements(
 
     for (path, replaces) in by_file.into_iter() {
         let file = cwd.join(&path);
+        log::debug!("processing replacements for file {}", file.display());
         if !file.exists() {
             anyhow::bail!("unable to find file {} to perform replace", file.display());
         }
@@ -100,15 +101,17 @@ pub fn do_file_replacements(
             let actual = r.find_iter(&replaced).count();
             if actual < min {
                 anyhow::bail!(
-                    "for `{}`, at least {} replacements expected, found {}",
+                    "for `{}` in '{}', at least {} replacements expected, found {}",
                     pattern,
+                    path.display(),
                     min,
                     actual
                 );
             } else if max < actual {
                 anyhow::bail!(
-                    "for `{}`, at most {} replacements expected, found {}",
+                    "for `{}` in '{}', at most {} replacements expected, found {}",
                     pattern,
+                    path.display(),
                     max,
                     actual
                 );
