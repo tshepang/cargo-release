@@ -123,9 +123,9 @@ Workspace configuration is read from the following (in precedence order)
 | `push-options` | \-              | list of strings             | `[]`          | Flags to send to the server when doing a `git push` |
 | `shared-version` | \-            | bool or string              | `false`       | Ensure all crates with `shared-version` are the same version.  May also be a string to create named subsets of shared versions |
 | `consolidate-commits` | \-       | bool                        | `true`        | When releasing a workspace, use a single commit for the pre-release version bump and a single commit for the post-release version bump.  Commit settings will be read from the workspace-config. |
-| `pre-release-commit-message`     | \- | string                 | `"(cargo-release) version {{version}}"` | A commit message template for release. For example: `"release {{version}}"`, where `{{version}}` will be replaced by actual version. |
+| `pre-release-commit-message`     | \- | string                 | `"chore: Release"` | A commit message template for release. |
 | `tag`          | `--no-tag`      | bool                        | `true`        | Don't do git tag |
-| `tag-message`  | \-              | string                      | `"(cargo-release) {{crate_name}} version {{version}}"`                | A message template for an annotated tag (set to blank for lightweight tags). The placeholder `{{tag_name}}` and `{{prefix}}` (the tag prefix) is supported in addition to the global placeholders mentioned below. |
+| `tag-message`  | \-              | string                      | `"chore: Release {{crate_name}} version {{version}}"`                | A message template for an annotated tag (set to blank for lightweight tags). The placeholder `{{tag_name}}` and `{{prefix}}` (the tag prefix) is supported in addition to the global placeholders mentioned below. |
 | `tag-prefix`   | `--tag-prefix`  | string                      | *depends*     | Prefix of git tag, note that this will override default prefix based on crate name. |
 | `tag-name`     | `--tag-name`    | string                      | `"{{prefix}}v{{version}}"` | The name of the git tag.  The placeholder `{{prefix}}` (the tag prefix) is supported in addition to the global placeholders mentioned below. |
 | `pre-release-replacements` | \-  | array of tables (see below) | `[]`          | Specify files that cargo-release will search and replace with new version for the release commit |
@@ -164,7 +164,6 @@ See [Cargo.toml](https://github.com/crate-ci/cargo-release/blob/master/Cargo.tom
 The following fields support placeholders for information about your release:
 
 - `pre-release-commit-message`
-- `post-release-commit-message`
 - `tag-message`
 - `tag-prefix`
 - `tag-name`
@@ -175,6 +174,7 @@ The following placeholders are supported:
 * `{{prev_version}}`: The version before `cargo-release` was executed (before any version bump).
 * `{{prev_metadata}}`: The version's metadata before `cargo-release` was executed (before any version bump).
 * `{{version}}`: The current (bumped) crate version.
+  * Only works for `pre-release-commit-message` when `consolidate-commits = false` or when using `shared-version = true`.
 * `{{metadata}}`: The current (bumped) crate version's metadata field.
 * `{{next_version}}` (only valid for `post-release-{commit-message,replacements}`): The crate version for starting development.
 * `{{next_metadata}}` (only valid for `post-release-{commit-message,replacements}`): The crate version's metadata field for starting development.
