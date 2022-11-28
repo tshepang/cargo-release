@@ -137,7 +137,7 @@ pub fn changes(
                         for path in pkg
                             .package_content
                             .iter()
-                            .filter_map(|p| p.strip_prefix(&workspace_root).ok())
+                            .filter_map(|p| p.strip_prefix(workspace_root).ok())
                         {
                             if path == entry_relpath {
                                 changed_paths.insert(path.to_owned());

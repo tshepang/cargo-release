@@ -517,14 +517,13 @@ pub fn sort_workspace(ws_meta: &cargo_metadata::Metadata) -> Vec<&cargo_metadata
     let mut sorted = Vec::new();
     let mut processed = std::collections::HashSet::new();
     for pkg_id in ws_meta.workspace_members.iter() {
-        sort_workspace_inner(ws_meta, pkg_id, &dep_tree, &mut processed, &mut sorted);
+        sort_workspace_inner(pkg_id, &dep_tree, &mut processed, &mut sorted);
     }
 
     sorted
 }
 
 fn sort_workspace_inner<'m>(
-    ws_meta: &'m cargo_metadata::Metadata,
     pkg_id: &'m cargo_metadata::PackageId,
     dep_tree: &std::collections::HashMap<
         &'m cargo_metadata::PackageId,
@@ -541,7 +540,7 @@ fn sort_workspace_inner<'m>(
         .iter()
         .filter(|dep_id| dep_tree.contains_key(*dep_id))
     {
-        sort_workspace_inner(ws_meta, dep_id, dep_tree, processed, sorted);
+        sort_workspace_inner(dep_id, dep_tree, processed, sorted);
     }
 
     sorted.push(pkg_id);
@@ -552,7 +551,7 @@ fn atomic_write(path: &Path, data: &str) -> std::io::Result<()> {
         .parent()
         .unwrap_or_else(|| Path::new("."))
         .join("Cargo.toml.work");
-    std::fs::write(&temp_path, &data)?;
+    std::fs::write(&temp_path, data)?;
     std::fs::rename(&temp_path, path)?;
 
     Ok(())

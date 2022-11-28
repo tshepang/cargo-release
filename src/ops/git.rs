@@ -171,7 +171,7 @@ pub fn find_last_tag(dir: &Path, glob: &globset::GlobMatcher) -> Option<String> 
     repo.tag_foreach(|id, name| {
         let name = String::from_utf8_lossy(name);
         let name = name.strip_prefix("refs/tags/").unwrap_or(&name);
-        if glob.is_match(&name) {
+        if glob.is_match(name) {
             let name = name.to_owned();
             let tag = repo.find_tag(id);
             let target = tag.and_then(|t| t.target());
