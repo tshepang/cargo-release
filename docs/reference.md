@@ -122,7 +122,7 @@ Workspace configuration is read from the following (in precedence order)
 | `push-remote`  | `--push-remote` | string                      | `origin`      | Default git remote to push |
 | `push-options` | \-              | list of strings             | `[]`          | Flags to send to the server when doing a `git push` |
 | `shared-version` | \-            | bool or string              | `false`       | Ensure all crates with `shared-version` are the same version.  May also be a string to create named subsets of shared versions |
-| `consolidate-commits` | \-       | bool                        | `true`        | When releasing a workspace, use a single commit for the pre-release version bump and a single commit for the post-release version bump.  Commit settings will be read from the workspace-config. |
+| `consolidate-commits` | \-       | bool                        | `true`        | When releasing a workspace, use a single commit for the pre-release version bump.  Commit settings will be read from the workspace-config. |
 | `pre-release-commit-message`     | \- | string                 | `"chore: Release"` | A commit message template for release. |
 | `tag`          | `--no-tag`      | bool                        | `true`        | Don't do git tag |
 | `tag-message`  | \-              | string                      | `"chore: Release {{crate_name}} version {{version}}"`                | A message template for an annotated tag (set to blank for lightweight tags). The placeholder `{{tag_name}}` and `{{prefix}}` (the tag prefix) is supported in addition to the global placeholders mentioned below. |
@@ -176,8 +176,6 @@ The following placeholders are supported:
 * `{{version}}`: The current (bumped) crate version.
   * Only works for `pre-release-commit-message` when `consolidate-commits = false` or when using `shared-version = true`.
 * `{{metadata}}`: The current (bumped) crate version's metadata field.
-* `{{next_version}}` (only valid for `post-release-{commit-message,replacements}`): The crate version for starting development.
-* `{{next_metadata}}` (only valid for `post-release-{commit-message,replacements}`): The crate version's metadata field for starting development.
 * `{{crate_name}}`: The name of the current crate in `Cargo.toml`.
 * `{{date}}`: The current date in `%Y-%m-%d` format.
 * `{{prefix}}` (only valid for `tag-name` / `tag-message`): The value prepended to the tag name.

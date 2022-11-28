@@ -53,12 +53,6 @@ impl<'a> Template<'a> {
         if let Some(tag_name) = self.tag_name {
             s = s.replace("{{tag_name}}", tag_name);
         }
-        if let Some(next_version) = self.next_version {
-            s = s.replace("{{next_version}}", next_version);
-        }
-        if let Some(next_metadata) = self.next_metadata {
-            s = s.replace("{{next_metadata}}", next_metadata);
-        }
         s
     }
 }
