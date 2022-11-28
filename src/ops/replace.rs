@@ -26,30 +26,38 @@ pub struct Template<'a> {
 impl<'a> Template<'a> {
     pub fn render(&self, input: &str) -> String {
         let mut s = input.to_string();
+        const PREV_VERSION: &str = "{{prev_version}}";
         if let Some(prev_version) = self.prev_version {
-            s = s.replace("{{prev_version}}", prev_version);
+            s = s.replace(PREV_VERSION, prev_version);
         }
+        const PREV_METADATA: &str = "{{prev_metadata}}";
         if let Some(prev_metadata) = self.prev_metadata {
-            s = s.replace("{{prev_metadata}}", prev_metadata);
+            s = s.replace(PREV_METADATA, prev_metadata);
         }
+        const VERSION: &str = "{{version}}";
         if let Some(version) = self.version {
-            s = s.replace("{{version}}", version);
+            s = s.replace(VERSION, version);
         }
+        const METADATA: &str = "{{metadata}}";
         if let Some(metadata) = self.metadata {
-            s = s.replace("{{metadata}}", metadata);
+            s = s.replace(METADATA, metadata);
         }
+        const CRATE_NAME: &str = "{{crate_name}}";
         if let Some(crate_name) = self.crate_name {
-            s = s.replace("{{crate_name}}", crate_name);
+            s = s.replace(CRATE_NAME, crate_name);
         }
+        const DATE: &str = "{{date}}";
         if let Some(date) = self.date {
-            s = s.replace("{{date}}", date);
+            s = s.replace(DATE, date);
         }
 
+        const PREFIX: &str = "{{prefix}}";
         if let Some(prefix) = self.prefix {
-            s = s.replace("{{prefix}}", prefix);
+            s = s.replace(PREFIX, prefix);
         }
+        const TAG_NAME: &str = "{{tag_name}}";
         if let Some(tag_name) = self.tag_name {
-            s = s.replace("{{tag_name}}", tag_name);
+            s = s.replace(TAG_NAME, tag_name);
         }
         s
     }
