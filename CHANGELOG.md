@@ -3,6 +3,14 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Breaking Changes
+
+- Remove support for unused config fields (post-release)
+
+### Fixes
+
+- Help catch unused template variables by logging them
+
 ## [0.23.1] - 2022-11-16
 
 ### Fixes
