@@ -50,6 +50,8 @@ impl<'a> Template<'a> {
 fn render_var(mut template: String, var_name: &str, var_value: Option<&str>) -> String {
     if let Some(var_value) = var_value {
         template = template.replace(var_name, var_value);
+    } else if template.contains(var_name) {
+        log::debug!("Unrendered {} present in template {:?}", var_name, template);
     }
     template
 }
