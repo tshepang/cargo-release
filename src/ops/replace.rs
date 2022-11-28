@@ -21,8 +21,6 @@ pub struct Template<'a> {
 
     pub prefix: Option<&'a str>,
     pub tag_name: Option<&'a str>,
-    pub next_version: Option<&'a str>,
-    pub next_metadata: Option<&'a str>,
 }
 
 impl<'a> Template<'a> {
