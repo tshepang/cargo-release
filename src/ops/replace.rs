@@ -26,33 +26,34 @@ pub struct Template<'a> {
 impl<'a> Template<'a> {
     pub fn render(&self, input: &str) -> String {
         let mut s = input.to_string();
-        if let Some(prev_version) = self.prev_version {
-            s = s.replace("{{prev_version}}", prev_version);
-        }
-        if let Some(prev_metadata) = self.prev_metadata {
-            s = s.replace("{{prev_metadata}}", prev_metadata);
-        }
-        if let Some(version) = self.version {
-            s = s.replace("{{version}}", version);
-        }
-        if let Some(metadata) = self.metadata {
-            s = s.replace("{{metadata}}", metadata);
-        }
-        if let Some(crate_name) = self.crate_name {
-            s = s.replace("{{crate_name}}", crate_name);
-        }
-        if let Some(date) = self.date {
-            s = s.replace("{{date}}", date);
-        }
+        const PREV_VERSION: &str = "{{prev_version}}";
+        s = render_var(s, PREV_VERSION, self.prev_version);
+        const PREV_METADATA: &str = "{{prev_metadata}}";
+        s = render_var(s, PREV_METADATA, self.prev_metadata);
+        const VERSION: &str = "{{version}}";
+        s = render_var(s, VERSION, self.version);
+        const METADATA: &str = "{{metadata}}";
+        s = render_var(s, METADATA, self.metadata);
+        const CRATE_NAME: &str = "{{crate_name}}";
+        s = render_var(s, CRATE_NAME, self.crate_name);
+        const DATE: &str = "{{date}}";
+        s = render_var(s, DATE, self.date);
 
-        if let Some(prefix) = self.prefix {
-            s = s.replace("{{prefix}}", prefix);
-        }
-        if let Some(tag_name) = self.tag_name {
-            s = s.replace("{{tag_name}}", tag_name);
-        }
+        const PREFIX: &str = "{{prefix}}";
+        s = render_var(s, PREFIX, self.prefix);
+        const TAG_NAME: &str = "{{tag_name}}";
+        s = render_var(s, TAG_NAME, self.tag_name);
         s
     }
+}
+
+fn render_var(mut template: String, var_name: &str, var_value: Option<&str>) -> String {
+    if let Some(var_value) = var_value {
+        template = template.replace(var_name, var_value);
+    } else if template.contains(var_name) {
+        log::debug!("Unrendered {} present in template {:?}", var_name, template);
+    }
+    template
 }
 
 pub fn do_file_replacements(
