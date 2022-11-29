@@ -27,6 +27,9 @@ pub struct OwnerStep {
     #[arg(short = 'x', long)]
     execute: bool,
 
+    #[arg(short = 'n', long, conflicts_with = "execute", hide = true)]
+    dry_run: bool,
+
     /// Skip release confirmation and version preview
     #[arg(long)]
     no_confirm: bool,
@@ -35,6 +38,11 @@ pub struct OwnerStep {
 impl OwnerStep {
     pub fn run(&self) -> Result<(), CliError> {
         git::git_version()?;
+
+        if self.dry_run {
+            let _ =
+                crate::ops::shell::warn("`--dry-run` is superfluous, dry-run is done by default");
+        }
 
         let ws_meta = self
             .manifest

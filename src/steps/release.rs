@@ -28,6 +28,9 @@ pub struct ReleaseStep {
     #[arg(short = 'x', long)]
     execute: bool,
 
+    #[arg(short = 'n', long, conflicts_with = "execute", hide = true)]
+    dry_run: bool,
+
     /// Skip release confirmation and version preview
     #[arg(long)]
     no_confirm: bool,
@@ -44,6 +47,11 @@ impl ReleaseStep {
     pub fn run(&self) -> Result<(), CliError> {
         git::git_version()?;
         let mut index = crates_index::Index::new_cargo_default()?;
+
+        if self.dry_run {
+            let _ =
+                crate::ops::shell::warn("`--dry-run` is superfluous, dry-run is done by default");
+        }
 
         let ws_meta = self
             .manifest
