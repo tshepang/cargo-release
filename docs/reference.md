@@ -14,7 +14,7 @@ Steps:
   version  Bump crate versions
   replace  Perform pre-release replacements
   hook     Run pre-release hooks
-  commit   Owner the specified packages
+  commit   Commit the specified packages
   publish  Publish the specified packages
   owner    Ensure owners are set on specified packages
   tag      Tag the released commits

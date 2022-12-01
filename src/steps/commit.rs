@@ -4,7 +4,7 @@ use crate::ops::git;
 use crate::ops::replace::{Template, NOW};
 use crate::steps::plan;
 
-/// Owner the specified packages
+/// Commit the specified packages
 ///
 /// Will automatically skip published versions
 #[derive(Debug, Clone, clap::Args)]
