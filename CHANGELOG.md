@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Don't error out if nothing to commit
+
 ## [0.24.0] - 2022-11-28
 
 ### Breaking Changes
