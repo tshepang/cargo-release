@@ -145,7 +145,7 @@ Note: fields are from the package-configuration unless otherwise specified.
 
 * `PUBLISH_GRACE_SLEEP`: sleep timeout between crates publish when releasing from workspace. This is a workaround to make previous crate discoverable on crates.io.
 
-### {Pre,Post}-release Replacements
+### Pre-release Replacements
 
 This field is an array of tables with the following
 
