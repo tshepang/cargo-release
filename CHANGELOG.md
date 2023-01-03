@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Support `package.publish` being a list of registries
+
 ## [0.24.1] - 2022-12-13
 
 ### Fixes
