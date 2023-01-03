@@ -380,13 +380,13 @@ impl CargoWorkspace {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 struct CargoWorkspacePackage {
-    publish: Option<bool>,
+    publish: Option<CargoPublishField>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 struct CargoPackage {
-    publish: Option<MaybeWorkspace<bool>>,
+    publish: Option<MaybeWorkspace<CargoPublishField>>,
     version: Option<MaybeWorkspace<String>>,
     metadata: Option<CargoMetadata>,
 }
@@ -394,6 +394,22 @@ struct CargoPackage {
 impl CargoPackage {
     fn into_config(self) -> Option<Config> {
         self.metadata?.release
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+enum CargoPublishField {
+    Bool(bool),
+    Registries(Vec<String>),
+}
+
+impl CargoPublishField {
+    fn publishable(&self) -> bool {
+        match self {
+            Self::Bool(b) => *b,
+            Self::Registries(r) => !r.is_empty(),
+        }
     }
 }
 
@@ -787,7 +803,7 @@ pub fn resolve_overrides(workspace_root: &Path, manifest_path: &Path) -> CargoRe
     let manifest: CargoManifest = toml_edit::easy::from_str(&manifest)?;
     if let Some(package) = manifest.package.as_ref() {
         let publish = match package.publish.as_ref() {
-            Some(MaybeWorkspace::Defined(publish)) => *publish,
+            Some(MaybeWorkspace::Defined(publish)) => publish.publishable(),
             Some(MaybeWorkspace::Workspace(workspace)) => {
                 if workspace.workspace {
                     let workspace = workspace_root.join("Cargo.toml");
@@ -797,7 +813,8 @@ pub fn resolve_overrides(workspace_root: &Path, manifest_path: &Path) -> CargoRe
                         .workspace
                         .as_ref()
                         .and_then(|w| w.package.as_ref())
-                        .and_then(|p| p.publish)
+                        .and_then(|p| p.publish.as_ref())
+                        .map(|p| p.publishable())
                         .unwrap_or(true)
                 } else {
                     true
