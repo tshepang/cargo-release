@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+- New `metadata` config field for controlling how the version build metadata is updated (or not)
+
 ## [0.24.2] - 2023-01-03
 
 ### Fixes
