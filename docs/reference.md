@@ -137,6 +137,7 @@ Workspace configuration is read from the following (in precedence order)
 | `enable-all-features` | `--all-features` | bool                | `false`       | Signal to `cargo publish`, that all features should be used (requires rust 1.33+) |
 | `target`       | \-              | string                      | \-            | Target triple to use for the verification build |
 | `dependent-version` | \-         | `upgrade`, `fix`, `error`, `warn`, `ignore` | `upgrade`      | Policy for upgrading path dependency versions within the workspace |
+| `metadata`     | \-              | `optional`, `required`, `ignore`, `persistent` | `optional` | Policy for presence of absence of `--metadata` flag when changing the version |
 
 
 Note: fields are from the package-configuration unless otherwise specified.

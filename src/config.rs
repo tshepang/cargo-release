@@ -34,6 +34,7 @@ pub struct Config {
     pub enable_features: Option<Vec<String>>,
     pub enable_all_features: Option<bool>,
     pub dependent_version: Option<DependentVersion>,
+    pub metadata: Option<MetadataPolicy>,
     pub target: Option<String>,
 }
 
@@ -81,6 +82,7 @@ impl Config {
             enable_features: Some(empty.enable_features().to_vec()),
             enable_all_features: Some(empty.enable_all_features()),
             dependent_version: Some(empty.dependent_version()),
+            metadata: Some(empty.metadata()),
             target: None,
         }
     }
@@ -154,6 +156,9 @@ impl Config {
         }
         if let Some(dependent_version) = source.dependent_version {
             self.dependent_version = Some(dependent_version);
+        }
+        if let Some(metadata) = source.metadata {
+            self.metadata = Some(metadata);
         }
         if let Some(target) = source.target.as_deref() {
             self.target = Some(target.to_owned());
@@ -289,6 +294,10 @@ impl Config {
     pub fn dependent_version(&self) -> DependentVersion {
         self.dependent_version.unwrap_or_default()
     }
+
+    pub fn metadata(&self) -> MetadataPolicy {
+        self.metadata.unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -334,6 +343,26 @@ impl Default for DependentVersion {
     fn default() -> Self {
         // This is the safest option as its hard to test `Fix`
         DependentVersion::Upgrade
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+#[value(rename_all = "kebab-case")]
+pub enum MetadataPolicy {
+    /// Apply when set, clear when not
+    Optional,
+    /// Error if not set
+    Required,
+    /// Never apply the set metadata
+    Ignore,
+    /// Keep the prior metadata if not set
+    Persistent,
+}
+
+impl Default for MetadataPolicy {
+    fn default() -> Self {
+        MetadataPolicy::Optional
     }
 }
 
