@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.24.3] - 2023-01-06
+
 ### Features
 
 - New `metadata` config field for controlling how the version build metadata is updated (or not)
@@ -588,7 +590,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.2...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.3...HEAD
+[0.24.3]: https://github.com/crate-ci/cargo-release/compare/v0.24.2...v0.24.3
 [0.24.2]: https://github.com/crate-ci/cargo-release/compare/v0.24.1...v0.24.2
 [0.24.1]: https://github.com/crate-ci/cargo-release/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/crate-ci/cargo-release/compare/v0.23.1...v0.24.0
