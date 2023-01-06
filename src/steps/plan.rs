@@ -205,11 +205,34 @@ impl PackageRelease {
         self.prior_tag = Some(prior_tag);
     }
 
-    pub fn bump(
-        &mut self,
+    pub fn bump<'s>(
+        &'s mut self,
         level_or_version: &super::TargetVersion,
-        metadata: Option<&str>,
+        mut metadata: Option<&'s str>,
     ) -> CargoResult<()> {
+        match self.config.metadata() {
+            crate::config::MetadataPolicy::Optional => {}
+            crate::config::MetadataPolicy::Required => {
+                if metadata.is_none() {
+                    anyhow::bail!(
+                        "`{}` requires the metadata to be overridden",
+                        self.meta.name
+                    )
+                }
+            }
+            crate::config::MetadataPolicy::Ignore => {
+                if let Some(metadata) = metadata {
+                    log::debug!("ignoring metadata `{}` for `{}`", metadata, self.meta.name);
+                }
+                metadata = None;
+            }
+            crate::config::MetadataPolicy::Persistent => {
+                let initial_metadata = &self.initial_version.full_version.build;
+                if !initial_metadata.is_empty() {
+                    metadata.get_or_insert(initial_metadata.as_str());
+                }
+            }
+        }
         self.planned_version =
             level_or_version.bump(&self.initial_version.full_version, metadata)?;
         Ok(())
