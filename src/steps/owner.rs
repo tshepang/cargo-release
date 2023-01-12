@@ -74,7 +74,21 @@ impl OwnerStep {
             log::debug!("disabled by user, skipping {}", crate_name,);
         }
 
-        let pkgs = plan::plan(pkgs)?;
+        let mut pkgs = plan::plan(pkgs)?;
+
+        for pkg in pkgs.values_mut() {
+            if pkg.config.owners().is_empty() {
+                log::debug!("disabled due to no owners, skipping {}", pkg.meta.name);
+                pkg.config.publish = Some(false);
+                pkg.config.owners = Some(vec![]);
+                pkg.config.release = Some(false);
+            } else if !pkg.config.publish() {
+                log::debug!("disabled due to publish=false, skipping {}", pkg.meta.name);
+                pkg.config.publish = Some(false);
+                pkg.config.owners = Some(vec![]);
+                pkg.config.release = Some(false);
+            }
+        }
 
         let (selected_pkgs, _excluded_pkgs): (Vec<_>, Vec<_>) = pkgs
             .into_iter()
