@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.24.4] - 2023-01-12
+
 ### Fixes
 
 - `cargo release owner` will only prompt for crates that will be checked
@@ -594,7 +596,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.3...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.4...HEAD
+[0.24.4]: https://github.com/crate-ci/cargo-release/compare/v0.24.3...v0.24.4
 [0.24.3]: https://github.com/crate-ci/cargo-release/compare/v0.24.2...v0.24.3
 [0.24.2]: https://github.com/crate-ci/cargo-release/compare/v0.24.1...v0.24.2
 [0.24.1]: https://github.com/crate-ci/cargo-release/compare/v0.24.0...v0.24.1
