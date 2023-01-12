@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- `cargo release owner` will only prompt for crates that will be checked
+
 ## [0.24.3] - 2023-01-06
 
 ### Features
