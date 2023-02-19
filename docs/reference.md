@@ -152,7 +152,9 @@ This field is an array of tables with the following
 
 * `file`: the file to search and replace
 * `search`: [regex](https://docs.rs/regex/latest/regex/) that matches string you want to replace
-* `replace`: the replacement string; you can use the any of the placeholders mentioned below.
+* `replace`: the replacement string; you can use the any of the placeholders
+  mentioned below. Regex patterns, such as `$1`, are also valid for referring to
+  captured groups.
 * `min` (default is `1`): Minimum occurrences of `search`.
 * `max` (optional): Maximum occurrences of `search`.
 * `exactly` (optional): Number of occurrences of `search`.
@@ -181,8 +183,6 @@ The following placeholders are supported:
 * `{{date}}`: The current date in `%Y-%m-%d` format.
 * `{{prefix}}` (only valid for `tag-name` / `tag-message`): The value prepended to the tag name.
 * `{{tag_name}}` (only valid for `tag-message`): The name of the git tag.
-
-Regex patterns, such as `$1`, are also valid for referring to captured groups.
 
 ### Hook Environment Variables.
 
