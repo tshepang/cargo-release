@@ -182,7 +182,7 @@ The following placeholders are supported:
 * `{{prefix}}` (only valid for `tag-name` / `tag-message`): The value prepended to the tag name.
 * `{{tag_name}}` (only valid for `tag-message`): The name of the git tag.
 
-Regex patterns such as `$1`, are also valid for referring to captured groups.
+Regex patterns, such as `$1`, are also valid for referring to captured groups.
 
 ### Hook Environment Variables.
 
