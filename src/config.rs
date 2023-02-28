@@ -717,7 +717,7 @@ impl PushArgs {
 fn get_pkg_config_from_manifest(manifest_path: &Path) -> CargoResult<Option<Config>> {
     if manifest_path.exists() {
         let m = std::fs::read_to_string(manifest_path)?;
-        let c: CargoManifest = toml_edit::easy::from_str(&m)?;
+        let c: CargoManifest = toml::from_str(&m)?;
 
         Ok(c.package.and_then(|p| p.into_config()))
     } else {
@@ -728,7 +728,7 @@ fn get_pkg_config_from_manifest(manifest_path: &Path) -> CargoResult<Option<Conf
 fn get_ws_config_from_manifest(manifest_path: &Path) -> CargoResult<Option<Config>> {
     if manifest_path.exists() {
         let m = std::fs::read_to_string(manifest_path)?;
-        let c: CargoManifest = toml_edit::easy::from_str(&m)?;
+        let c: CargoManifest = toml::from_str(&m)?;
 
         Ok(c.workspace.and_then(|p| p.into_config()))
     } else {
@@ -739,7 +739,7 @@ fn get_ws_config_from_manifest(manifest_path: &Path) -> CargoResult<Option<Confi
 fn get_config_from_file(file_path: &Path) -> CargoResult<Option<Config>> {
     if file_path.exists() {
         let c = std::fs::read_to_string(file_path)?;
-        let config = toml_edit::easy::from_str(&c)?;
+        let config = toml::from_str(&c)?;
         Ok(Some(config))
     } else {
         Ok(None)
@@ -829,7 +829,7 @@ pub fn resolve_overrides(workspace_root: &Path, manifest_path: &Path) -> CargoRe
 
     // the publish flag in cargo file
     let manifest = std::fs::read_to_string(manifest_path)?;
-    let manifest: CargoManifest = toml_edit::easy::from_str(&manifest)?;
+    let manifest: CargoManifest = toml::from_str(&manifest)?;
     if let Some(package) = manifest.package.as_ref() {
         let publish = match package.publish.as_ref() {
             Some(MaybeWorkspace::Defined(publish)) => publish.publishable(),
@@ -837,7 +837,7 @@ pub fn resolve_overrides(workspace_root: &Path, manifest_path: &Path) -> CargoRe
                 if workspace.workspace {
                     let workspace = workspace_root.join("Cargo.toml");
                     let workspace = std::fs::read_to_string(workspace)?;
-                    let workspace: CargoManifest = toml_edit::easy::from_str(&workspace)?;
+                    let workspace: CargoManifest = toml::from_str(&workspace)?;
                     workspace
                         .workspace
                         .as_ref()
