@@ -44,8 +44,8 @@ Options:
       --allow-branch <GLOB[,...]>   Comma-separated globs of branch names a release can happen from
   -q, --quiet...                    Pass many times for less log output
   -v, --verbose...                  Pass many times for more log output
-  -h, --help                        Print help information (use `--help` for more detail)
-  -V, --version                     Print version information
+  -h, --help                        Print help (see more with '--help')
+  -V, --version                     Print version
 
 Commit:
       --sign-commit  Sign git commit
