@@ -142,7 +142,7 @@ dependencies = [
  "dunce",
  "env_logger",
  "git-conventional",
- "git2 0.15.0",
+ "git2",
  "globset",
  "ignore",
  "indexmap",
@@ -178,7 +178,7 @@ dependencies = [
  "crates-io",
  "filetime",
  "flate2",
- "git2 0.16.1",
+ "git2",
  "glob",
  "itertools",
  "lazy_static",
@@ -401,7 +401,7 @@ version = "0.19.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4141149a7de0e3619fd1e77b7d1a750f03d109cb8a543ef67d0b6748ff1da666"
 dependencies = [
- "git2 0.16.1",
+ "git2",
  "hex 0.4.3",
  "home",
  "memchr",
@@ -814,19 +814,6 @@ dependencies = [
  "doc-comment",
  "unicase",
  "winnow",
-]
-
-[[package]]
-name = "git2"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2994bee4a3a6a51eb90c218523be382fd7ea09b16380b9312e9dbe955ff7c7d1"
-dependencies = [
- "bitflags",
- "libc",
- "libgit2-sys",
- "log",
- "url",
 ]
 
 [[package]]
@@ -1279,9 +1266,9 @@ checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.77"
+version = "0.9.80"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b03b84c3b2d099b81f0953422b4d4ad58761589d0229b5506356afca05a3670a"
+checksum = "23bbbf7854cd45b83958ebe919f0e8e516793727652e27fda10a8384cfc790b7"
 dependencies = [
  "autocfg",
  "cc",
@@ -1909,9 +1896,9 @@ dependencies = [
 
 [[package]]
 name = "tinyvec_macros"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
+checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "toml"
@@ -2016,9 +2003,9 @@ dependencies = [
 
 [[package]]
 name = "unicode-bidi"
-version = "0.3.8"
+version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "099b7128301d285f79ddd55b9a83d5e6b9e97c92e0ea0daebee7263e932de992"
+checksum = "d54675592c1dbefd78cbd98db9bacd89886e1ca50692a0692baefffdeb92dd58"
 
 [[package]]
 name = "unicode-ident"
