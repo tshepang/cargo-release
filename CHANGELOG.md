@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Internal
+
+- Dependency update
+
 ## [0.24.4] - 2023-01-12
 
 ### Fixes
