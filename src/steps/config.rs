@@ -47,7 +47,7 @@ impl ConfigStep {
                 release_config
             };
 
-        let output = toml_edit::easy::to_string_pretty(&release_config)?;
+        let output = toml::to_string_pretty(&release_config)?;
 
         if self.output == std::path::Path::new("-") {
             std::io::stdout().write_all(output.as_bytes())?;
