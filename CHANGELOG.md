@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.24.6] - 2023-03-13
+
 ### Fixes
 
 - When editing TOML, don't lose standard tables under dotted tables
@@ -606,7 +608,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.5...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.6...HEAD
+[0.24.6]: https://github.com/crate-ci/cargo-release/compare/v0.24.5...v0.24.6
 [0.24.5]: https://github.com/crate-ci/cargo-release/compare/v0.24.4...v0.24.5
 [0.24.4]: https://github.com/crate-ci/cargo-release/compare/v0.24.3...v0.24.4
 [0.24.3]: https://github.com/crate-ci/cargo-release/compare/v0.24.2...v0.24.3
