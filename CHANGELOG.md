@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- When editing TOML, don't lose standard tables under dotted tables
+
 ## [0.24.5] - 2023-02-28
 
 ### Internal
