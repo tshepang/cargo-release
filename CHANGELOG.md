@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Vendor OpenSSL to avoid problems from the local system
+
 ## [0.24.6] - 2023-03-13
 
 ### Fixes
