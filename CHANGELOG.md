@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.24.8] - 2023-03-17
+
 ### Fixes
 
 - Report the config file we failed to parse
@@ -618,7 +620,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.7...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.8...HEAD
+[0.24.8]: https://github.com/crate-ci/cargo-release/compare/v0.24.7...v0.24.8
 [0.24.7]: https://github.com/crate-ci/cargo-release/compare/v0.24.6...v0.24.7
 [0.24.6]: https://github.com/crate-ci/cargo-release/compare/v0.24.5...v0.24.6
 [0.24.5]: https://github.com/crate-ci/cargo-release/compare/v0.24.4...v0.24.5
