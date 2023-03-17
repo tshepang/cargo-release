@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Report the config file we failed to parse
+
 ## [0.24.7] - 2023-03-17
 
 ### Fixes
