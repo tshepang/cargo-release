@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.24.7] - 2023-03-17
+
 ### Fixes
 
 - Vendor OpenSSL to avoid problems from the local system
@@ -612,7 +614,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.6...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.7...HEAD
+[0.24.7]: https://github.com/crate-ci/cargo-release/compare/v0.24.6...v0.24.7
 [0.24.6]: https://github.com/crate-ci/cargo-release/compare/v0.24.5...v0.24.6
 [0.24.5]: https://github.com/crate-ci/cargo-release/compare/v0.24.4...v0.24.5
 [0.24.4]: https://github.com/crate-ci/cargo-release/compare/v0.24.3...v0.24.4
