@@ -59,7 +59,7 @@ pub fn print(
     }
     output.reset()?;
 
-    writeln!(output, " {message}").with_context(|| "Failed to write message")?;
+    writeln!(output, " {message:#}").with_context(|| "Failed to write message")?;
 
     Ok(())
 }

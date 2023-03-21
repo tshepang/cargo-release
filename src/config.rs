@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use anyhow::Context as _;
 use serde::{Deserialize, Serialize};
 
 use crate::error::CargoResult;
@@ -717,7 +718,8 @@ impl PushArgs {
 fn get_pkg_config_from_manifest(manifest_path: &Path) -> CargoResult<Option<Config>> {
     if manifest_path.exists() {
         let m = std::fs::read_to_string(manifest_path)?;
-        let c: CargoManifest = toml::from_str(&m)?;
+        let c: CargoManifest = toml::from_str(&m)
+            .with_context(|| format!("Failed to parse `{}`", manifest_path.display()))?;
 
         Ok(c.package.and_then(|p| p.into_config()))
     } else {
@@ -728,7 +730,8 @@ fn get_pkg_config_from_manifest(manifest_path: &Path) -> CargoResult<Option<Conf
 fn get_ws_config_from_manifest(manifest_path: &Path) -> CargoResult<Option<Config>> {
     if manifest_path.exists() {
         let m = std::fs::read_to_string(manifest_path)?;
-        let c: CargoManifest = toml::from_str(&m)?;
+        let c: CargoManifest = toml::from_str(&m)
+            .with_context(|| format!("Failed to parse `{}`", manifest_path.display()))?;
 
         Ok(c.workspace.and_then(|p| p.into_config()))
     } else {
@@ -739,7 +742,8 @@ fn get_ws_config_from_manifest(manifest_path: &Path) -> CargoResult<Option<Confi
 fn get_config_from_file(file_path: &Path) -> CargoResult<Option<Config>> {
     if file_path.exists() {
         let c = std::fs::read_to_string(file_path)?;
-        let config = toml::from_str(&c)?;
+        let config = toml::from_str(&c)
+            .with_context(|| format!("Failed to parse `{}`", file_path.display()))?;
         Ok(Some(config))
     } else {
         Ok(None)
@@ -829,15 +833,19 @@ pub fn resolve_overrides(workspace_root: &Path, manifest_path: &Path) -> CargoRe
 
     // the publish flag in cargo file
     let manifest = std::fs::read_to_string(manifest_path)?;
-    let manifest: CargoManifest = toml::from_str(&manifest)?;
+    let manifest: CargoManifest = toml::from_str(&manifest)
+        .with_context(|| format!("Failed to parse `{}`", manifest_path.display()))?;
     if let Some(package) = manifest.package.as_ref() {
         let publish = match package.publish.as_ref() {
             Some(MaybeWorkspace::Defined(publish)) => publish.publishable(),
             Some(MaybeWorkspace::Workspace(workspace)) => {
                 if workspace.workspace {
-                    let workspace = workspace_root.join("Cargo.toml");
-                    let workspace = std::fs::read_to_string(workspace)?;
-                    let workspace: CargoManifest = toml::from_str(&workspace)?;
+                    let workspace_path = workspace_root.join("Cargo.toml");
+                    let workspace = std::fs::read_to_string(&workspace_path)?;
+                    let workspace: CargoManifest =
+                        toml::from_str(&workspace).with_context(|| {
+                            format!("Failed to parse `{}`", workspace_path.display())
+                        })?;
                     workspace
                         .workspace
                         .as_ref()
