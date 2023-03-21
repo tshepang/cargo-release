@@ -31,7 +31,15 @@ pre-release-replacements = [
 [dependencies]
 cargo_metadata = "0.15"
 crates-index = "0.19"
-# Enabling the feature for `crates-index`
+# Enabling the features for `crates-index`
+#
+# crates-index enables git2/https by default, which in turns enable openssl-sys,
+# openssl-probe and libgit2-sys/https (which also pulls on openssl-sys).
+#
+# Thus, we also need to enable git2/vendored-openssl here to build vendored
+# version of openssl in additional to vendored-libgit2 so that `cargo-release`
+# can be built without having to install libgit2 or openssl on the system and
+# the binary can be run everywhere.
 git2 = { version = "0.16.1", features = ["vendored-libgit2", "vendored-openssl"], default-features = false }
 toml_edit = "0.19.6"
 toml = "0.7.3"
