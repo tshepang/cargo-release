@@ -1,22 +1,37 @@
-[package]
-name = "cargo-release"
-description = "Cargo subcommand for you to smooth your release process."
-version = "0.24.8"
+[workspace]
+resolver = "2"
+
+[workspace.package]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/crate-ci/cargo-release"
-readme = "README.md"
-categories = ["development-tools::cargo-plugins"]
-keywords = ["cargo"]
 edition = "2021"
-rust-version = "1.64.0"  # MSRV
+rust-version = "1.65.0"  # MSRV
 include = [
+  "build.rs",
   "src/**/*",
   "Cargo.toml",
   "Cargo.lock",
   "LICENSE*",
   "README.md",
+  "benches/**/*",
   "examples/**/*"
 ]
+
+[package]
+name = "cargo-release"
+description = "Cargo subcommand for you to smooth your release process."
+version = "0.24.8"
+repository = "https://github.com/crate-ci/cargo-release"
+readme = "README.md"
+categories = ["development-tools::cargo-plugins"]
+keywords = ["cargo"]
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+include.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [package.metadata.release]
 pre-release-replacements = [
