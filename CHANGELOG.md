@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.24.9] - 2023-04-15
+
 ### Fixes
 
 - Don't corrupt TOML table headers with newlines
@@ -624,7 +626,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.8...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.9...HEAD
+[0.24.9]: https://github.com/crate-ci/cargo-release/compare/v0.24.8...v0.24.9
 [0.24.8]: https://github.com/crate-ci/cargo-release/compare/v0.24.7...v0.24.8
 [0.24.7]: https://github.com/crate-ci/cargo-release/compare/v0.24.6...v0.24.7
 [0.24.6]: https://github.com/crate-ci/cargo-release/compare/v0.24.5...v0.24.6
