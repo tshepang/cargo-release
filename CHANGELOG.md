@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Don't corrupt TOML table headers with newlines
+
 ## [0.24.8] - 2023-03-17
 
 ### Fixes
