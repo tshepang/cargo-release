@@ -43,10 +43,8 @@ pre-release-replacements = [
   {file="CHANGELOG.md", search="<!-- next-url -->", replace="<!-- next-url -->\n[Unreleased]: https://github.com/crate-ci/cargo-release/compare/{{tag_name}}...HEAD", exactly=1},
 ]
 
-[dependencies]
-cargo_metadata = "0.15"
-crates-index = "0.19"
-# Enabling the features for `crates-index`
+[features]
+# Enabling `vendored-openssl` for `crates-index`
 #
 # crates-index enables git2/https by default, which in turns enable openssl-sys,
 # openssl-probe and libgit2-sys/https (which also pulls on openssl-sys).
@@ -55,7 +53,14 @@ crates-index = "0.19"
 # version of openssl in additional to vendored-libgit2 so that `cargo-release`
 # can be built without having to install libgit2 or openssl on the system and
 # the binary can be run everywhere.
-git2 = { version = "0.16.1", features = ["vendored-libgit2", "vendored-openssl"], default-features = false }
+default = ["vendored-libgit2", "vendored-openssl"]
+vendored-libgit2 = ["git2/vendored-libgit2"]
+vendored-openssl = ["git2/vendored-openssl"]
+
+[dependencies]
+cargo_metadata = "0.15"
+crates-index = "0.19"
+git2 = { version = "0.16.1", default-features = false }
 toml_edit = "0.19.8"
 toml = "0.7.3"
 serde = { version = "1.0", features = ["derive"] }
