@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Allow disabling of vendored libgit2/openssl
+
 ## [0.24.9] - 2023-04-15
 
 ### Fixes
