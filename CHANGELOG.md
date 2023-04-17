@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.24.10] - 2023-04-17
+
 ### Fixes
 
 - Allow disabling of vendored libgit2/openssl
@@ -630,7 +632,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.9...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.10...HEAD
+[0.24.10]: https://github.com/crate-ci/cargo-release/compare/v0.24.9...v0.24.10
 [0.24.9]: https://github.com/crate-ci/cargo-release/compare/v0.24.8...v0.24.9
 [0.24.8]: https://github.com/crate-ci/cargo-release/compare/v0.24.7...v0.24.8
 [0.24.7]: https://github.com/crate-ci/cargo-release/compare/v0.24.6...v0.24.7
