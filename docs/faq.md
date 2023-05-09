@@ -32,11 +32,10 @@ At the moment, `cargo release` is unopinionated in its support for CHANGELOGs
 due to the complexities and the different approaches people might want to take
 (see [Issue #231](https://github.com/crate-ci/cargo-release/issues/231)).
 
-However, you can still use [`pre-release-replacements`](reference.md) to smooth your
-process of releasing a changelog, along with your crate. You need to
-keep your changelog arranged during feature development, in an `Unreleased`
-section (recommended by [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)):
-
+For hand-written CHANGELOGs, you can automate parts of the process with
+[`pre-release-replacements`](reference.md).  Say you follow
+[Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and keep unreleased
+changes in an `Unreleased` section:
 ```markdown
 <!-- next-header -->
 
