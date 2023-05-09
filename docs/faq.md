@@ -32,6 +32,13 @@ At the moment, `cargo release` is unopinionated in its support for CHANGELOGs
 due to the complexities and the different approaches people might want to take
 (see [Issue #231](https://github.com/crate-ci/cargo-release/issues/231)).
 
+As a CHANGELOG is better than no changelog, a low-effort approach would be to
+use
+[git-cliff](https://github.com/orhun/git-cliff) as a pre-release hook.
+```toml
+pre-release-hook = ["git", "cliff", "-o", "CHANGELOG.md", "--tag", "{{version}}" ]
+```
+
 For hand-written CHANGELOGs, you can automate parts of the process with
 [`pre-release-replacements`](reference.md).  Say you follow
 [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and keep unreleased
