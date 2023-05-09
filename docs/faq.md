@@ -28,15 +28,21 @@ See [`pre-release-replacements`](reference.md) for more.
 
 ## Maintaining Changelog
 
-At the moment, `cargo release` won't try to generate a changelog from
-git history or anything. Because I think changelog is an important
-communication between developer and users, which requires careful maintenance.
+At the moment, `cargo release` is unopinionated in its support for CHANGELOGs
+due to the complexities and the different approaches people might want to take
+(see [Issue #231](https://github.com/crate-ci/cargo-release/issues/231)).
 
-However, you can still use [`pre-release-replacements`](reference.md) to smooth your
-process of releasing a changelog, along with your crate. You need to
-keep your changelog arranged during feature development, in an `Unreleased`
-section (recommended by [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)):
+As a CHANGELOG is better than no changelog, a low-effort approach would be to
+use
+[git-cliff](https://github.com/orhun/git-cliff) as a pre-release hook.
+```toml
+pre-release-hook = ["git", "cliff", "-o", "CHANGELOG.md", "--tag", "{{version}}" ]
+```
 
+For hand-written CHANGELOGs, you can automate parts of the process with
+[`pre-release-replacements`](reference.md).  Say you follow
+[Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and keep unreleased
+changes in an `Unreleased` section:
 ```markdown
 <!-- next-header -->
 
