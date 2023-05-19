@@ -27,7 +27,7 @@ fn create_default_gitconfig() {
     // to master explicitly so that tests that rely on this behavior still pass.
     let gitconfig = cargo_test_support::paths::home().join(".gitconfig");
     std::fs::write(
-        &gitconfig,
+        gitconfig,
         r#"
         [init]
             defaultBranch = master

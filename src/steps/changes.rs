@@ -172,6 +172,7 @@ pub fn changes(
                 let prefix = format!("{:>13}", " ");
                 let mut max_status = None;
                 for commit in &commits {
+                    #[allow(clippy::needless_borrow)] // False positive
                     let _ = crate::ops::shell::write_stderr(&prefix, &ColorSpec::new());
                     let _ = crate::ops::shell::write_stderr(
                         &commit.short_id,
