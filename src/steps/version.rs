@@ -160,9 +160,9 @@ impl VersionStep {
     }
 }
 
-pub fn changed_since<'m>(
+pub fn changed_since(
     ws_meta: &cargo_metadata::Metadata,
-    pkg: &'m plan::PackageRelease,
+    pkg: &plan::PackageRelease,
     since_ref: &str,
 ) -> Option<Vec<std::path::PathBuf>> {
     let changed_root = if pkg.bin {

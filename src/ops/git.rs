@@ -202,7 +202,7 @@ pub fn find_last_tag(dir: &Path, glob: &globset::GlobMatcher) -> Option<String> 
     // If just walking first parents, shouldn't really need to sort
     revwalk.set_sorting(git2::Sort::NONE).ok()?;
     revwalk.push_head().ok()?;
-    let name = revwalk.into_iter().find_map(|id| {
+    let name = revwalk.find_map(|id| {
         let id = id.ok()?;
         tags.remove(&id)
     })?;

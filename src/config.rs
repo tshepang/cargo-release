@@ -333,25 +333,22 @@ impl Command {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 #[value(rename_all = "kebab-case")]
+#[derive(Default)]
 pub enum DependentVersion {
     /// Always upgrade dependents
+    #[default] // This is the safest option as its hard to test `Fix`
     Upgrade,
     /// Upgrade when the old version requirement no longer applies
     Fix,
 }
 
-impl Default for DependentVersion {
-    fn default() -> Self {
-        // This is the safest option as its hard to test `Fix`
-        DependentVersion::Upgrade
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 #[value(rename_all = "kebab-case")]
+#[derive(Default)]
 pub enum MetadataPolicy {
     /// Apply when set, clear when not
+    #[default]
     Optional,
     /// Error if not set
     Required,
@@ -359,12 +356,6 @@ pub enum MetadataPolicy {
     Ignore,
     /// Keep the prior metadata if not set
     Persistent,
-}
-
-impl Default for MetadataPolicy {
-    fn default() -> Self {
-        MetadataPolicy::Optional
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
