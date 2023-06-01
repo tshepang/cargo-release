@@ -91,6 +91,6 @@ git-conventional = "0.12.3"
 [dev-dependencies]
 assert_fs = "1.0"
 predicates = "3.0"
-cargo-test-macro.git = "https://github.com/rust-lang/cargo"
-cargo-test-support.git = "https://github.com/rust-lang/cargo"
 snapbox = "0.4.11"
+cargo-test-macro = { version = "0.1.0", git = "https://github.com/rust-lang/cargo" }
+cargo-test-support = { version = "0.1.0", git = "https://github.com/rust-lang/cargo" }
