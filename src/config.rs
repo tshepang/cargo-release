@@ -483,7 +483,7 @@ pub fn load_workspace_config(
 
     if let Some(custom_config_path) = args.custom_config.as_ref() {
         // when calling with -c option
-        let cfg = resolve_custom_config(Path::new(custom_config_path))?.unwrap_or_default();
+        let cfg = resolve_custom_config(custom_config_path.as_ref())?.unwrap_or_default();
         release_config.update(&cfg);
     }
 
@@ -527,7 +527,7 @@ pub fn load_package_config(
 pub struct ConfigArgs {
     /// Custom config file
     #[arg(short, long = "config", value_name = "PATH")]
-    pub custom_config: Option<String>,
+    pub custom_config: Option<std::path::PathBuf>,
 
     /// Ignore implicit configuration files.
     #[arg(long)]

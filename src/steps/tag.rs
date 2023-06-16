@@ -19,7 +19,7 @@ pub struct TagStep {
 
     /// Custom config file
     #[arg(short, long = "config")]
-    custom_config: Option<String>,
+    custom_config: Option<std::path::PathBuf>,
 
     /// Ignore implicit configuration files.
     #[arg(long)]
