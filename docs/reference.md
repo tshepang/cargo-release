@@ -73,14 +73,14 @@ Push:
 
 ### Bump level
 
-* `release` (default): Remove the pre-release extension; if any (0.1.0-dev.1 -> 0.1.0, 0.1.0 -> 0.1.0).
+* `release` (default): Remove the pre-release extension; if any (0.1.0-alpha.1 -> 0.1.0, 0.1.0 -> 0.1.0).
 * `patch`:
-  * If version has a pre-release, then the pre-release extension is removed (0.1.0-dev.1 -> 0.1.0).
+  * If version has a pre-release, then the pre-release extension is removed (0.1.0-alpha.1 -> 0.1.0).
   * Otherwise, bump the patch field (0.1.0 -> 0.1.1)
 * `minor`: Bump minor version (0.1.0-pre -> 0.2.0)
 * `major`: Bump major version (0.1.0-pre -> 1.0.0)
 * `alpha`, `beta`, and `rc`: Add/increment pre-release to your version
-  (1.0.0 -> 1.0.1-rc.1, 1.0.1-dev -> 1.0.1-rc.1, 1.0.1-rc.1 ->
+  (1.0.0 -> 1.0.1-rc.1, 1.0.1-alpha -> 1.0.1-rc.1, 1.0.1-rc.1 ->
   1.0.1-rc.2)
 * *[version]*: bump version to given version. The version has to
   be a valid semver string and greater than current version as in
