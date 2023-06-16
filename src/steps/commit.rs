@@ -14,7 +14,7 @@ pub struct CommitStep {
 
     /// Custom config file
     #[arg(short, long = "config", value_name = "PATH")]
-    custom_config: Option<String>,
+    custom_config: Option<std::path::PathBuf>,
 
     /// Ignore implicit configuration files.
     #[arg(long)]
