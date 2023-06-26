@@ -60,7 +60,7 @@ impl CommitStep {
 
         let pkgs = plan::plan(pkgs)?;
 
-        let (selected_pkgs, _excluded_pkgs): (Vec<_>, Vec<_>) = pkgs
+        let (selected_pkgs, excluded_pkgs): (Vec<_>, Vec<_>) = pkgs
             .into_iter()
             .map(|(_, pkg)| pkg)
             .partition(|p| p.config.release());
@@ -91,6 +91,12 @@ impl CommitStep {
         super::confirm("Commit", &selected_pkgs, self.no_confirm, dry_run)?;
 
         if ws_config.is_workspace {
+            let consolidate_commits = super::consolidate_commits(&selected_pkgs, &excluded_pkgs)?;
+            if !consolidate_commits {
+                let _ = crate::shell::warn(
+                    "ignoring `consolidate-commits=false`; `cargo release commit` can effectively only do one commit",
+                );
+            }
             super::commit::workspace_commit(&ws_meta, &ws_config, &selected_pkgs, dry_run)?;
         } else if !selected_pkgs.is_empty() {
             let selected_pkg = selected_pkgs
