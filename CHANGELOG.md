@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.24.11] - 2023-06-26
+
 ## [0.24.10] - 2023-04-17
 
 ### Fixes
@@ -632,7 +634,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.10...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.11...HEAD
+[0.24.11]: https://github.com/crate-ci/cargo-release/compare/v0.24.10...v0.24.11
 [0.24.10]: https://github.com/crate-ci/cargo-release/compare/v0.24.9...v0.24.10
 [0.24.9]: https://github.com/crate-ci/cargo-release/compare/v0.24.8...v0.24.9
 [0.24.8]: https://github.com/crate-ci/cargo-release/compare/v0.24.7...v0.24.8
