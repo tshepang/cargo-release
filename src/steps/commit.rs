@@ -90,7 +90,14 @@ impl CommitStep {
         // STEP 1: Release Confirmation
         super::confirm("Commit", &selected_pkgs, self.no_confirm, dry_run)?;
 
-        super::commit::workspace_commit(&ws_meta, &ws_config, &selected_pkgs, dry_run)?;
+        if ws_config.is_workspace {
+            super::commit::workspace_commit(&ws_meta, &ws_config, &selected_pkgs, dry_run)?;
+        } else if !selected_pkgs.is_empty() {
+            let selected_pkg = selected_pkgs
+                .first()
+                .expect("non-workspace can have at most 1 package");
+            super::commit::pkg_commit(selected_pkg, dry_run)?;
+        }
 
         super::finish(failed, dry_run)
     }
