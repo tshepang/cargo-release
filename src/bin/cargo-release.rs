@@ -50,6 +50,7 @@ pub fn get_logging(level: log::Level) -> env_logger::Builder {
 #[derive(Debug, Parser)]
 #[command(name = "cargo")]
 #[command(bin_name = "cargo")]
+#[command(styles = clap_cargo::style::CLAP_STYLING)]
 pub enum Command {
     #[command(name = "release")]
     #[command(about, author, version)]
