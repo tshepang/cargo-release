@@ -152,7 +152,7 @@ This field is an array of tables with the following
 
 * `file`: the file to search and replace
 * `search`: [regex](https://docs.rs/regex/latest/regex/) that matches string you want to replace
-* `replace`: the replacement string; you can use the any of the placeholders
+* `replace`: the replacement string; you can use any of the placeholders
   mentioned below. Regex patterns, such as `$1`, are also valid for referring to
   captured groups.
 * `min` (default is `1`): Minimum occurrences of `search`.
