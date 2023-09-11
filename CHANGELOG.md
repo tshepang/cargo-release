@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.24.12] - 2023-09-11
+
 ### Compatibility
 
 - Update MSRV to 1.70.0
@@ -642,7 +644,8 @@ git.
 * Doc update
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.11...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-release/compare/v0.24.12...HEAD
+[0.24.12]: https://github.com/crate-ci/cargo-release/compare/v0.24.11...v0.24.12
 [0.24.11]: https://github.com/crate-ci/cargo-release/compare/v0.24.10...v0.24.11
 [0.24.10]: https://github.com/crate-ci/cargo-release/compare/v0.24.9...v0.24.10
 [0.24.9]: https://github.com/crate-ci/cargo-release/compare/v0.24.8...v0.24.9
