@@ -3,6 +3,14 @@
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Compatibility
+
+- Update MSRV to 1.70.0
+
+### Features
+
+- Style help text like cargo nightly
+
 ## [0.24.11] - 2023-06-26
 
 ## [0.24.10] - 2023-04-17
